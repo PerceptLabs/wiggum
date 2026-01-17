@@ -1,0 +1,6 @@
+export { FileTree } from './FileTree'
+export { FileTreeItem } from './FileTreeItem'
+export { FileEditor } from './FileEditor'
+export { PreviewPane } from './PreviewPane'
+export { FileProvider, useFileContext } from './FileContext'
+export type { FileEntry } from './FileContext'
