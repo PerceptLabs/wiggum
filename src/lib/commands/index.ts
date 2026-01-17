@@ -29,3 +29,7 @@ export { FindCommand } from './find'
 // Git command
 export { GitCommand } from './git'
 export type { GitSubcommand, GitSubcommandOptions } from './git'
+
+// Ralph command (autonomous iteration loop)
+export { RalphCommand } from './ralph'
+export type { RalphSubcommand, RalphSubcommandOptions, RalphState, RalphStatus, RalphConfig } from './ralph'

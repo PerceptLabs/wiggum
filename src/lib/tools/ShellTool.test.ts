@@ -258,14 +258,49 @@ describe('ShellTool', () => {
         cwd: '/home',
         sendMessage: async (msg) => {
           messages.push(msg)
+          return 'AI response'
         },
       })
-      await shellWithCallback.sendRalphMessage('test message')
+      const result = await shellWithCallback.sendRalphMessage('test message')
       expect(messages).toEqual(['test message'])
+      expect(result).toBe('AI response')
     })
 
     it('should not fail when sendMessage is not provided', async () => {
-      await expect(shell.sendRalphMessage('test')).resolves.not.toThrow()
+      const result = await shell.sendRalphMessage('test')
+      expect(result).toBe('')
+    })
+  })
+
+  describe('ralph integration', () => {
+    it('should register ralph command when sendMessage provided', () => {
+      const shellWithRalph = new ShellTool({
+        fs,
+        cwd: '/home',
+        sendMessage: async () => 'response',
+      })
+      expect(shellWithRalph.hasRalph()).toBe(true)
+      const commands = shellWithRalph.getAvailableCommands()
+      const names = commands.map((c) => c.name)
+      expect(names).toContain('ralph')
+    })
+
+    it('should not register ralph command without sendMessage', () => {
+      expect(shell.hasRalph()).toBe(false)
+      const commands = shell.getAvailableCommands()
+      const names = commands.map((c) => c.name)
+      expect(names).not.toContain('ralph')
+    })
+
+    it('should execute ralph commands', async () => {
+      const shellWithRalph = new ShellTool({
+        fs,
+        cwd: '/home',
+        sendMessage: async () => 'response',
+      })
+      const result = await shellWithRalph.execute({ command: 'ralph --help' })
+      expect(result.content).toContain('ralph')
+      expect(result.content).toContain('init')
     })
   })
 })

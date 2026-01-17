@@ -26,6 +26,7 @@ import {
   TrCommand,
   FindCommand,
   GitCommand,
+  RalphCommand,
 } from '../commands'
 import { Git } from '../git'
 
@@ -44,13 +45,13 @@ export class ShellTool implements Tool<ShellToolParams> {
   private registry: CommandRegistry
   private cwd: string
   private fs: JSRuntimeFS
-  private sendMessage?: (message: string) => Promise<void>
+  private sendMessage?: (prompt: string) => Promise<string>
 
   constructor(options: {
     fs: JSRuntimeFS
     cwd: string
     gitFactory?: (dir: string) => Git
-    sendMessage?: (message: string) => Promise<void>
+    sendMessage?: (prompt: string) => Promise<string>
   }) {
     this.fs = options.fs
     this.cwd = options.cwd
@@ -88,6 +89,11 @@ export class ShellTool implements Tool<ShellToolParams> {
       // Git command
       new GitCommand(options.fs, gitFactory),
     ])
+
+    // Register ralph command if sendMessage callback is provided
+    if (options.sendMessage) {
+      this.registry.register(new RalphCommand(options.fs, gitFactory, options.sendMessage))
+    }
   }
 
   /**
@@ -413,10 +419,19 @@ export class ShellTool implements Tool<ShellToolParams> {
 
   /**
    * Send a message via the ralph callback (for autonomous iteration)
+   * Returns the AI's response
    */
-  async sendRalphMessage(message: string): Promise<void> {
+  async sendRalphMessage(prompt: string): Promise<string> {
     if (this.sendMessage) {
-      await this.sendMessage(message)
+      return this.sendMessage(prompt)
     }
+    return ''
+  }
+
+  /**
+   * Check if ralph command is available
+   */
+  hasRalph(): boolean {
+    return this.registry.has('ralph')
   }
 }
