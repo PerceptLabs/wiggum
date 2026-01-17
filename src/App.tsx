@@ -1,21 +1,21 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AppProviders } from '@/contexts'
+import { Home, Workspace } from '@/pages'
 
 const queryClient = new QueryClient()
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background text-foreground">
-        <header className="border-b border-border p-4">
-          <h1 className="text-xl font-bold">Wiggum</h1>
-          <p className="text-sm text-muted-foreground">
-            Browser-based AI coding with the ralph command
-          </p>
-        </header>
-        <main className="p-4">
-          <p>Welcome to Wiggum - your browser-based AI coding assistant.</p>
-        </main>
-      </div>
+      <AppProviders>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/project/:id" element={<Workspace />} />
+          </Routes>
+        </BrowserRouter>
+      </AppProviders>
     </QueryClientProvider>
   )
 }
