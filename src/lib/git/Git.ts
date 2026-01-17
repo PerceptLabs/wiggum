@@ -343,10 +343,33 @@ export class Git {
     const ref1 = options?.ref1 ?? 'HEAD'
     const ref2 = options?.ref2
 
-    // Get trees for comparison
-    const trees = ref2
-      ? [git.TREE({ ref: ref1 }), git.TREE({ ref: ref2 })]
-      : [git.TREE({ ref: ref1 }), git.WORKDIR()]
+    // If comparing with working directory (no ref2), use statusMatrix for reliability
+    if (!ref2) {
+      const matrix = await this.statusMatrix()
+      const entries: DiffEntry[] = []
+
+      for (const [filepath, head, workdir] of matrix) {
+        // Filter by filepath if specified
+        if (options?.filepath && !filepath.startsWith(options.filepath)) {
+          continue
+        }
+
+        // HEAD=0: not in HEAD, HEAD=1: in HEAD
+        // workdir=0: deleted, workdir=1: unchanged, workdir=2: modified
+        if (head === 0 && workdir === 2) {
+          entries.push({ filepath, type: 'add' })
+        } else if (head === 1 && workdir === 0) {
+          entries.push({ filepath, type: 'remove' })
+        } else if (head === 1 && workdir === 2) {
+          entries.push({ filepath, type: 'modify' })
+        }
+      }
+
+      return entries
+    }
+
+    // For comparing two refs, use git.walk
+    const trees = [git.TREE({ ref: ref1 }), git.TREE({ ref: ref2 })]
 
     const results = (await git.walk({
       fs: this.rawFs,
