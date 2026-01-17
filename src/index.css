@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/* CSS Variables for theming (dark/light mode) */
+@theme {
+  /* Colors - Light mode defaults */
+  --color-background: #ffffff;
+  --color-foreground: #0a0a0a;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #0a0a0a;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0a0a0a;
+
+  --color-primary: #0a0a0a;
+  --color-primary-foreground: #fafafa;
+
+  --color-secondary: #f4f4f5;
+  --color-secondary-foreground: #0a0a0a;
+
+  --color-muted: #f4f4f5;
+  --color-muted-foreground: #71717a;
+
+  --color-accent: #f4f4f5;
+  --color-accent-foreground: #0a0a0a;
+
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #fafafa;
+
+  --color-border: #e4e4e7;
+  --color-input: #e4e4e7;
+  --color-ring: #0a0a0a;
+
+  /* Editor colors */
+  --color-editor-bg: #fafafa;
+  --color-editor-line-number: #a1a1aa;
+  --color-editor-selection: #dbeafe;
+
+  /* Syntax highlighting */
+  --color-syntax-keyword: #7c3aed;
+  --color-syntax-string: #059669;
+  --color-syntax-number: #dc2626;
+  --color-syntax-comment: #71717a;
+  --color-syntax-function: #2563eb;
+  --color-syntax-variable: #0a0a0a;
+
+  /* Spacing */
+  --radius-lg: 0.5rem;
+  --radius-md: calc(var(--radius-lg) - 2px);
+  --radius-sm: calc(var(--radius-lg) - 4px);
+}
+
+/* Dark mode theme */
+.dark {
+  --color-background: #0a0a0a;
+  --color-foreground: #fafafa;
+
+  --color-card: #0a0a0a;
+  --color-card-foreground: #fafafa;
+
+  --color-popover: #0a0a0a;
+  --color-popover-foreground: #fafafa;
+
+  --color-primary: #fafafa;
+  --color-primary-foreground: #0a0a0a;
+
+  --color-secondary: #27272a;
+  --color-secondary-foreground: #fafafa;
+
+  --color-muted: #27272a;
+  --color-muted-foreground: #a1a1aa;
+
+  --color-accent: #27272a;
+  --color-accent-foreground: #fafafa;
+
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #fafafa;
+
+  --color-border: #27272a;
+  --color-input: #27272a;
+  --color-ring: #d4d4d8;
+
+  /* Editor colors - dark */
+  --color-editor-bg: #18181b;
+  --color-editor-line-number: #52525b;
+  --color-editor-selection: #1e3a5f;
+
+  /* Syntax highlighting - dark */
+  --color-syntax-keyword: #a78bfa;
+  --color-syntax-string: #34d399;
+  --color-syntax-number: #f87171;
+  --color-syntax-comment: #71717a;
+  --color-syntax-function: #60a5fa;
+  --color-syntax-variable: #fafafa;
+}
+
+/* Base styles */
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-muted-foreground);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-foreground);
+}
