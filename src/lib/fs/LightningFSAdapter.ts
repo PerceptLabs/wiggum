@@ -10,6 +10,10 @@ import type {
   RmdirOptions,
 } from './types'
 
+interface FSError extends Error {
+  code?: string
+}
+
 /**
  * Adapter that wraps @isomorphic-git/lightning-fs to implement JSRuntimeFS
  * LightningFS provides an IndexedDB-backed filesystem for browser environments
@@ -47,7 +51,12 @@ export class LightningFSAdapter implements JSRuntimeFS {
     data: string | Uint8Array,
     options?: WriteFileOptions
   ): Promise<void> {
-    await this.pfs.writeFile(path, data, options)
+    // LightningFS accepts encoding as a string shorthand or options object
+    if (options?.encoding) {
+      await this.pfs.writeFile(path, data, options.encoding)
+    } else {
+      await this.pfs.writeFile(path, data)
+    }
   }
 
   async readdir(path: string, options?: ReaddirOptions): Promise<string[] | DirectoryEntry[]> {
@@ -82,7 +91,8 @@ export class LightningFSAdapter implements JSRuntimeFS {
     if (options?.recursive) {
       await this.mkdirRecursive(path, options.mode)
     } else {
-      await this.pfs.mkdir(path, options?.mode)
+      const opts = options?.mode !== undefined ? { mode: options.mode } : undefined
+      await this.pfs.mkdir(path, opts)
     }
   }
 
@@ -93,10 +103,11 @@ export class LightningFSAdapter implements JSRuntimeFS {
     for (const part of parts) {
       currentPath = currentPath ? `${currentPath}/${part}` : `/${part}`
       try {
-        await this.pfs.mkdir(currentPath, mode)
+        const opts = mode !== undefined ? { mode } : undefined
+        await this.pfs.mkdir(currentPath, opts)
       } catch (err) {
         // Ignore EEXIST errors when creating recursively
-        if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
+        if ((err as FSError).code !== 'EEXIST') {
           throw err
         }
       }
@@ -146,7 +157,7 @@ export class LightningFSAdapter implements JSRuntimeFS {
   }
 
   private async rmdirRecursive(path: string): Promise<void> {
-    const entries = await this.readdir(path, { withFileTypes: true }) as DirectoryEntry[]
+    const entries = (await this.readdir(path, { withFileTypes: true })) as DirectoryEntry[]
 
     for (const entry of entries) {
       const fullPath = path.endsWith('/') ? `${path}${entry.name}` : `${path}/${entry.name}`

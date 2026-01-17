@@ -57,8 +57,6 @@ export interface JSRuntimeFS {
    * @returns File contents as string (if encoding specified) or Uint8Array
    */
   readFile(path: string, options?: ReadFileOptions): Promise<string | Uint8Array>
-  readFile(path: string, options: { encoding: 'utf8' }): Promise<string>
-  readFile(path: string): Promise<Uint8Array>
 
   /**
    * Write data to a file, replacing the file if it already exists
@@ -79,9 +77,6 @@ export interface JSRuntimeFS {
    * @returns Array of filenames or DirectoryEntry objects
    */
   readdir(path: string, options?: ReaddirOptions): Promise<string[] | DirectoryEntry[]>
-  readdir(path: string): Promise<string[]>
-  readdir(path: string, options: { withFileTypes: true }): Promise<DirectoryEntry[]>
-  readdir(path: string, options: { withFileTypes: false }): Promise<string[]>
 
   /**
    * Create a directory

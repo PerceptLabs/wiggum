@@ -1,0 +1,23 @@
+export { Git } from './Git'
+export type {
+  GitConfig,
+  GitAuthor,
+  GitAuth,
+  GitProgress,
+  CloneOptions,
+  CommitOptions,
+  AddOptions,
+  StatusResult,
+  LogOptions,
+  LogEntry,
+  BranchOptions,
+  CheckoutOptions,
+  PushOptions,
+  PullOptions,
+  FetchOptions,
+  RemoteInfo,
+  DiffOptions,
+  DiffEntry,
+  StashOptions,
+  StashEntry,
+} from './types'
