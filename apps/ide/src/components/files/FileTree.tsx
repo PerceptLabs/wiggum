@@ -1,17 +1,19 @@
 import * as React from 'react'
 import { FolderPlus, FilePlus, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  cn,
+} from '@wiggum/stack'
 import { FileTreeItem } from './FileTreeItem'
 import { FileProvider, type FileEntry } from './FileContext'
-import { cn } from '@/lib/utils/cn'
 
 interface FileTreeProps {
   entries: FileEntry[]

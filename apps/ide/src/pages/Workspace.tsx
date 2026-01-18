@@ -5,8 +5,7 @@ import { useFileTree, useGit, useAIChat, useRalphStatus, usePreview } from '@/ho
 import { AppLayout, Sidebar, Header } from '@/components/layout'
 import { FileTree, FileEditor, PreviewPane, FileProvider } from '@/components/files'
 import { ChatPane, ChatProvider } from '@/components/chat'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { Button, Badge } from '@wiggum/stack'
 
 export function Workspace() {
   const { id } = useParams<{ id: string }>()

@@ -1,8 +1,6 @@
 import * as React from 'react'
 import { RefreshCw, ExternalLink, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils/cn'
+import { Button, Tooltip, TooltipContent, TooltipTrigger, cn } from '@wiggum/stack'
 
 interface PreviewPaneProps {
   html?: string

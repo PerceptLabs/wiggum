@@ -1,16 +1,18 @@
 import * as React from 'react'
 import { Settings, Moon, Sun, PanelLeftClose, PanelLeft } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  cn,
+} from '@wiggum/stack'
 import { useLayout } from './LayoutContext'
-import { cn } from '@/lib/utils/cn'
 
 interface HeaderProps {
   projectName?: string

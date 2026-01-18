@@ -12,7 +12,7 @@ import {
   Image,
   Bot,
 } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import { cn } from '@wiggum/stack'
 import { useFileContext, type FileEntry } from './FileContext'
 
 interface FileTreeItemProps {

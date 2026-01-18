@@ -1,9 +1,6 @@
 import * as React from 'react'
 import { Save, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils/cn'
+import { Button, Tooltip, TooltipContent, TooltipTrigger, Badge, cn } from '@wiggum/stack'
 
 interface FileEditorProps {
   path: string

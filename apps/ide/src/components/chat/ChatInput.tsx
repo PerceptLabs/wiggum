@@ -1,9 +1,6 @@
 import * as React from 'react'
 import { Send, StopCircle, Paperclip } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils/cn'
+import { Button, Textarea, Tooltip, TooltipContent, TooltipTrigger, cn } from '@wiggum/stack'
 
 interface ChatInputProps {
   onSend: (content: string) => void

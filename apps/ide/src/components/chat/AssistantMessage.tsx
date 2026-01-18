@@ -2,7 +2,7 @@ import * as React from 'react'
 import ReactMarkdown from 'react-markdown'
 import Prism from 'prismjs'
 import { Bot } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import { cn } from '@wiggum/stack'
 import { ToolCallDisplay } from './ToolCallDisplay'
 import type { AIToolCall } from '@/lib/ai'
 

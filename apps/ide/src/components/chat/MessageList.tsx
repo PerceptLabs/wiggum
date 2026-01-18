@@ -1,9 +1,8 @@
 import * as React from 'react'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { ScrollArea, cn } from '@wiggum/stack'
 import { UserMessage } from './UserMessage'
 import { AssistantMessage } from './AssistantMessage'
 import { StreamingMessage } from './StreamingMessage'
-import { cn } from '@/lib/utils/cn'
 import type { AIMessage } from '@/lib/ai'
 
 interface MessageListProps {

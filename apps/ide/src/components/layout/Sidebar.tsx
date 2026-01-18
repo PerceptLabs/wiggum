@@ -1,17 +1,17 @@
 import * as React from 'react'
 import { FolderOpen, ChevronDown, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
+  ScrollArea,
+  Separator,
+  cn,
+} from '@wiggum/stack'
 import { useLayout, DEFAULT_SIDEBAR_WIDTH } from './LayoutContext'
-import { cn } from '@/lib/utils/cn'
 
 interface Project {
   id: string

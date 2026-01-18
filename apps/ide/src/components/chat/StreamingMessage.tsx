@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Bot } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import { cn } from '@wiggum/stack'
 
 interface StreamingMessageProps {
   content: string

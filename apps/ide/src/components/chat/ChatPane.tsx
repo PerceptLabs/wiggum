@@ -1,12 +1,9 @@
 import * as React from 'react'
 import { MessageSquare, RefreshCw, Play } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Button, Badge, Tooltip, TooltipContent, TooltipTrigger, cn } from '@wiggum/stack'
 import { MessageList } from './MessageList'
 import { ChatInput } from './ChatInput'
 import { useChat } from './ChatContext'
-import { cn } from '@/lib/utils/cn'
 
 interface ChatPaneProps {
   className?: string

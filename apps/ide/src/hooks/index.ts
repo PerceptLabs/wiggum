@@ -1,4 +1,4 @@
-export { useLocalStorage } from './useLocalStorage'
+// useLocalStorage is kept internal - only used by useTheme
 export { useTheme } from './useTheme'
 export { useGit } from './useGit'
 export { useFileTree } from './useFileTree'

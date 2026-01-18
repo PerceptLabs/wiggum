@@ -1,11 +1,9 @@
 import * as React from 'react'
 import { PanelRightClose, PanelRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
+import { Button, Tooltip, TooltipContent, TooltipTrigger, TooltipProvider, cn } from '@wiggum/stack'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { LayoutProvider, useLayout, DEFAULT_PREVIEW_WIDTH } from './LayoutContext'
-import { cn } from '@/lib/utils/cn'
 
 interface AppLayoutProps {
   projectName?: string

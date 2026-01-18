@@ -1,16 +1,16 @@
 import * as React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProject } from '@/contexts'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
+  Button,
+  Input,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
+  Skeleton,
+} from '@wiggum/stack'
 
 export function Home() {
   const navigate = useNavigate()
