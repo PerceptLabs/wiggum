@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useProject } from '@/contexts'
-import { useFileTree, useGit, useAIChat, useRalphStatus } from '@/hooks'
+import { useFileTree, useGit, useAIChat, useRalphStatus, usePreview } from '@/hooks'
 import { AppLayout, Sidebar, Header } from '@/components/layout'
 import { FileTree, FileEditor, PreviewPane, FileProvider } from '@/components/files'
 import { ChatPane, ChatProvider } from '@/components/chat'
@@ -39,6 +39,9 @@ export function Workspace() {
 
   // Ralph status
   const ralph = useRalphStatus()
+
+  // Preview/build state
+  const preview = usePreview(projectPath)
 
   if (!currentProject) {
     return (
@@ -129,9 +132,12 @@ export function Workspace() {
             />
           }
           preview={
-            fileTree.selectedFile ? (
-              <PreviewPane path={fileTree.selectedFile} />
-            ) : null
+            <PreviewPane
+              html={preview.html ?? undefined}
+              error={preview.error ?? undefined}
+              isLoading={preview.isBuilding}
+              onRefresh={preview.build}
+            />
           }
         />
       </ChatProvider>
