@@ -1,15 +1,67 @@
 # Wiggum
 
-A browser-based AI coding IDE with an autonomous iteration loop.
+<p align="center">
+  <img src="docs/images/ralph-loops.png" alt="Oops! It's All Loops!" width="400">
+</p>
+
+<p align="center">
+  <strong>A browser-based AI coding IDE where every task runs through an autonomous loop.</strong>
+</p>
+
+---
+
+## What is Wiggum?
+
+Wiggum is a fully browser-based AI coding assistant that works autonomously. Unlike traditional AI chat interfaces where you go back and forth, Wiggum takes your task and **runs with it** — iterating automatically until the job is done.
+
+**Oops! It's All Loops.**
+
+Every message you send goes through the Ralph loop:
+- Simple tasks (questions, small fixes) complete in one iteration
+- Complex tasks (build an app, refactor a codebase) run multiple iterations with fresh context each time
+- The AI signals when it's done — you don't have to babysit it
+
+## How It Works
+
+```
+You: "Create a todo app with local storage"
+     ↓
+┌─────────────────────────────────────┐
+│         Ralph Loop (Iteration 1)    │
+│  - Read task from .ralph/task.md    │
+│  - Plan approach                    │
+│  - Create initial files             │
+│  - Update .ralph/progress.md        │
+└─────────────────────────────────────┘
+     ↓
+┌─────────────────────────────────────┐
+│         Ralph Loop (Iteration 2)    │
+│  - Read progress from last round    │
+│  - Add styling and interactions     │
+│  - Test the code works              │
+│  - Update progress                  │
+└─────────────────────────────────────┘
+     ↓
+┌─────────────────────────────────────┐
+│         Ralph Loop (Iteration 3)    │
+│  - Read progress                    │
+│  - Final polish                     │
+│  - Write "complete" to status.txt   │
+└─────────────────────────────────────┘
+     ↓
+Done! Your todo app is ready.
+```
+
+Each iteration gets **fresh context** — the AI reads its task and progress from files, not from an ever-growing conversation. This means complex tasks don't hit token limits.
 
 ## Features
 
-- **Fully Browser-Based** — No server required for core functionality
+- **Autonomous by Default** — Every task runs through the Ralph loop automatically
+- **Fully Browser-Based** — No server required; runs entirely in your browser
 - **In-Browser Filesystem** — LightningFS with IndexedDB persistence
 - **Git Integration** — Full git support via isomorphic-git
-- **AI Chat** — Tool-using AI assistant for coding tasks
-- **Ralph Command** — Autonomous AI coding loop with fresh context per iteration
 - **Live Preview** — In-browser code compilation with esbuild-wasm
+- **Tool-Using AI** — File read/write, shell commands, and more
 - **Skills System** — Extensible AI capabilities via skill definitions
 
 ## Getting Started
@@ -34,6 +86,45 @@ pnpm dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Configuration
+
+1. Open Wiggum in your browser
+2. Go to Settings and enter your OpenAI-compatible API key
+3. Start chatting — your tasks will automatically run through the loop
+
+## The Ralph Loop
+
+Ralph is the heart of Wiggum. It's the autonomous iteration system that handles every task.
+
+### How Ralph Works
+
+1. **Task Capture** — Your message becomes `.ralph/task.md`
+2. **Iteration** — AI reads task, makes progress, updates `.ralph/progress.md`
+3. **Fresh Context** — Each iteration starts clean, reading state from files
+4. **Completion Signal** — AI writes "complete" to `.ralph/status.txt` when done
+
+### The .ralph Directory
+
+```
+.ralph/
+├── task.md        # The original task
+├── progress.md    # What's been accomplished
+├── status.txt     # Current status (running/complete/waiting)
+└── iteration.txt  # Current iteration number
+```
+
+### Why Loops?
+
+Traditional AI chat has a problem: as conversations grow, you hit context limits. The AI forgets earlier messages or gets confused.
+
+Ralph solves this with a simple idea: **don't accumulate context, iterate with fresh context**. Each iteration:
+- Reads the task (what to do)
+- Reads progress (what's done)
+- Does the next step
+- Updates progress
+
+This means a 50-iteration task works just as well as a 2-iteration task.
 
 ## Project Structure
 
@@ -65,22 +156,6 @@ wiggum/
 ├── pnpm-workspace.yaml
 └── package.json
 ```
-
-## The Ralph Command
-
-Ralph is Wiggum's autonomous coding loop. When invoked, it:
-
-1. Reads the task from a prompt file
-2. Executes the AI with full tool access (file read/write, shell commands)
-3. Completes when the AI signals done or max iterations reached
-4. Each iteration gets fresh context to avoid token limits
-
-```bash
-# In the Wiggum terminal
-ralph run task.md
-```
-
-Ralph enables complex, multi-step coding tasks without manual intervention.
 
 ## Tech Stack
 
