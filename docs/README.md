@@ -1,7 +1,7 @@
 # Wiggum Documentation
 
 <p align="center">
-  <img src="images/ralphheader.png" alt="Oops! It's All Loops!" width="400">
+  <img src="images/ralphheader.png" alt="Oops! It's All Loops!" width="1000">
 </p>
 
 A browser-based AI coding IDE where every task runs through an autonomous loop.
