@@ -1,73 +1,111 @@
-# React + TypeScript + Vite
+# Wiggum
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A browser-based AI coding IDE with an autonomous iteration loop.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Fully Browser-Based** — No server required for core functionality
+- **In-Browser Filesystem** — LightningFS with IndexedDB persistence
+- **Git Integration** — Full git support via isomorphic-git
+- **AI Chat** — Tool-using AI assistant for coding tasks
+- **Ralph Command** — Autonomous AI coding loop with fresh context per iteration
+- **Live Preview** — In-browser code compilation with esbuild-wasm
+- **Skills System** — Extensible AI capabilities via skill definitions
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js 18+
+- pnpm 9+
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Installation
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+```bash
+# Clone the repository
+git clone https://github.com/PerceptLabs/wiggum.git
+cd wiggum
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# Install dependencies
+pnpm install
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start the dev server
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Project Structure
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+wiggum/
+├── apps/
+│   └── ide/                    # Wiggum IDE application
+│       ├── src/
+│       │   ├── components/     # React components
+│       │   ├── contexts/       # React context providers
+│       │   ├── hooks/          # Custom React hooks
+│       │   ├── lib/            # Core libraries
+│       │   │   ├── ai/         # AI client and streaming
+│       │   │   ├── build/      # esbuild-wasm integration
+│       │   │   ├── commands/   # Shell command implementations
+│       │   │   ├── fs/         # Filesystem abstraction
+│       │   │   ├── session/    # Session management
+│       │   │   ├── skills/     # Skills system
+│       │   │   └── tools/      # AI tool definitions
+│       │   └── pages/          # Route pages
+│       └── package.json
+├── packages/
+│   └── stack/                  # @wiggum/stack UI library
+│       ├── src/
+│       │   ├── components/ui/  # 53 shadcn/ui components
+│       │   ├── hooks/          # Shared React hooks
+│       │   └── lib/            # Utilities (cn, formatters)
+│       └── package.json
+├── pnpm-workspace.yaml
+└── package.json
+```
+
+## The Ralph Command
+
+Ralph is Wiggum's autonomous coding loop. When invoked, it:
+
+1. Reads the task from a prompt file
+2. Executes the AI with full tool access (file read/write, shell commands)
+3. Completes when the AI signals done or max iterations reached
+4. Each iteration gets fresh context to avoid token limits
+
+```bash
+# In the Wiggum terminal
+ralph run task.md
+```
+
+Ralph enables complex, multi-step coding tasks without manual intervention.
+
+## Tech Stack
+
+### Apps/IDE
+
+| Category | Technology |
+|----------|------------|
+| Framework | React 19, TypeScript |
+| Build | Vite 7 |
+| Styling | Tailwind CSS 4 |
+| State | @tanstack/react-query |
+| Filesystem | LightningFS, isomorphic-git |
+| Bundler | esbuild-wasm |
+| AI | OpenAI-compatible API |
+
+### @wiggum/stack
+
+| Category | Technology |
+|----------|------------|
+| Components | 53 shadcn/ui components |
+| Primitives | Radix UI |
+| Tables | @tanstack/react-table |
+| Forms | react-hook-form, zod |
+| Utilities | clsx, tailwind-merge |
+
+## License
+
+MIT
