@@ -1,7 +1,7 @@
 # Wiggum
 
 <p align="center">
-  <img src="docs/images/ralph-loops.png" alt="Oops! It's All Loops!" width="400">
+  <img src="docs/images/ralph-loops.svg" alt="Oops! It's All Loops!" width="400">
 </p>
 
 <p align="center">
@@ -180,6 +180,16 @@ wiggum/
 | Tables | @tanstack/react-table |
 | Forms | react-hook-form, zod |
 | Utilities | clsx, tailwind-merge |
+
+## Documentation
+
+Full documentation available in the [docs/](docs/) folder:
+
+- [Getting Started](docs/getting-started.md)
+- [Architecture](docs/architecture.md)
+- [Ralph Loop](docs/ralph-loop.md)
+- [Skills](docs/skills.md)
+- [Stack](docs/stack.md)
 
 ## License
 
