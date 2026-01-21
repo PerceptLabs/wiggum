@@ -1,37 +1,98 @@
 @import "tailwindcss";
 
-/* CSS Variables for theming (dark/light mode) */
-@theme {
-  /* Colors - Light mode defaults */
-  --color-background: #ffffff;
-  --color-foreground: #0a0a0a;
+@custom-variant dark (&:is(.dark *));
 
-  --color-card: #ffffff;
-  --color-card-foreground: #0a0a0a;
+/* Base shadcn/ui variables */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 0 0% 3.9%;
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
 
-  --color-popover: #ffffff;
-  --color-popover-foreground: #0a0a0a;
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
 
-  --color-primary: #0a0a0a;
-  --color-primary-foreground: #fafafa;
+/* Map CSS variables to Tailwind v4 theme colors */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
 
-  --color-secondary: #f4f4f5;
-  --color-secondary-foreground: #0a0a0a;
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
 
-  --color-muted: #f4f4f5;
-  --color-muted-foreground: #71717a;
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
 
-  --color-accent: #f4f4f5;
-  --color-accent-foreground: #0a0a0a;
-
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #fafafa;
-
-  --color-border: #e4e4e7;
-  --color-input: #e4e4e7;
-  --color-ring: #0a0a0a;
-
-  /* Editor colors */
+  /* IDE-specific editor colors */
   --color-editor-bg: #fafafa;
   --color-editor-line-number: #a1a1aa;
   --color-editor-selection: #dbeafe;
@@ -43,70 +104,33 @@
   --color-syntax-comment: #71717a;
   --color-syntax-function: #2563eb;
   --color-syntax-variable: #0a0a0a;
-
-  /* Spacing */
-  --radius-lg: 0.5rem;
-  --radius-md: calc(var(--radius-lg) - 2px);
-  --radius-sm: calc(var(--radius-lg) - 4px);
 }
 
-/* Dark mode theme */
+/* Dark mode editor overrides */
 .dark {
-  --color-background: #0a0a0a;
-  --color-foreground: #fafafa;
-
-  --color-card: #0a0a0a;
-  --color-card-foreground: #fafafa;
-
-  --color-popover: #0a0a0a;
-  --color-popover-foreground: #fafafa;
-
-  --color-primary: #fafafa;
-  --color-primary-foreground: #0a0a0a;
-
-  --color-secondary: #27272a;
-  --color-secondary-foreground: #fafafa;
-
-  --color-muted: #27272a;
-  --color-muted-foreground: #a1a1aa;
-
-  --color-accent: #27272a;
-  --color-accent-foreground: #fafafa;
-
-  --color-destructive: #dc2626;
-  --color-destructive-foreground: #fafafa;
-
-  --color-border: #27272a;
-  --color-input: #27272a;
-  --color-ring: #d4d4d8;
-
-  /* Editor colors - dark */
   --color-editor-bg: #18181b;
   --color-editor-line-number: #52525b;
   --color-editor-selection: #1e3a5f;
-
-  /* Syntax highlighting - dark */
   --color-syntax-keyword: #a78bfa;
   --color-syntax-string: #34d399;
   --color-syntax-number: #f87171;
-  --color-syntax-comment: #71717a;
   --color-syntax-function: #60a5fa;
   --color-syntax-variable: #fafafa;
 }
 
-/* Base styles */
-* {
-  border-color: var(--color-border);
-}
-
-body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Base layer styles */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
 /* Scrollbar styling */
@@ -120,10 +144,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-muted-foreground);
+  background: hsl(var(--muted-foreground));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-foreground);
+  background: hsl(var(--foreground));
 }
