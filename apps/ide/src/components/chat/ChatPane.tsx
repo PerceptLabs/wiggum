@@ -36,25 +36,21 @@ export function ChatPane({ className }: ChatPaneProps) {
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">Chat</span>
 
-          {/* Ralph status indicator */}
-          {ralphStatus && ralphStatus !== 'idle' && (
-            <Badge
-              variant={
-                ralphStatus === 'running'
-                  ? 'default'
-                  : ralphStatus === 'complete'
-                    ? 'success'
-                    : ralphStatus === 'waiting'
-                      ? 'warning'
-                      : 'secondary'
-              }
-              className="gap-1"
-            >
-              {ralphStatus === 'running' && (
-                <Play className="h-3 w-3 animate-pulse" />
-              )}
-              ralph: {ralphStatus}
-              {ralphIteration !== undefined && ` (${ralphIteration})`}
+          {/* Status indicator - shows during active work */}
+          {ralphStatus === 'running' && (
+            <Badge variant="default" className="gap-1">
+              <Play className="h-3 w-3 animate-pulse" />
+              {ralphIteration > 1 ? `Iteration ${ralphIteration}` : 'Working...'}
+            </Badge>
+          )}
+          {ralphStatus === 'complete' && ralphIteration > 1 && (
+            <Badge variant="outline" className="text-green-600">
+              Done ({ralphIteration} iterations)
+            </Badge>
+          )}
+          {ralphStatus === 'waiting' && (
+            <Badge variant="secondary" className="text-yellow-600">
+              Waiting for input
             </Badge>
           )}
         </div>
@@ -101,9 +97,9 @@ export function ChatPane({ className }: ChatPaneProps) {
         onStop={stopGeneration}
         isLoading={isLoading}
         placeholder={
-          ralphStatus === 'running'
-            ? 'Ralph is running... Add feedback to .ralph/feedback.md'
-            : 'Type a message...'
+          isLoading
+            ? 'Working on your request...'
+            : 'Ask me to build something...'
         }
       />
     </div>
@@ -117,10 +113,10 @@ function EmptyState() {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
           <MessageSquare className="h-6 w-6 text-muted-foreground" />
         </div>
-        <h3 className="mb-1 text-lg font-medium">Start a conversation</h3>
+        <h3 className="mb-1 text-lg font-medium">What would you like to build?</h3>
         <p className="text-sm text-muted-foreground max-w-sm">
-          Ask Wiggum to help you build something. Try "Create a simple todo app" or use{' '}
-          <code className="rounded bg-muted px-1 py-0.5">ralph init</code> for autonomous iteration.
+          Describe your task and Wiggum will work on it autonomously.
+          Simple tasks complete instantly. Complex tasks may take multiple iterations.
         </p>
       </div>
     </div>

@@ -115,3 +115,20 @@ export class RalphCommand implements ShellCommand {
 
 // Re-export types
 export type { RalphSubcommand, RalphSubcommandOptions, RalphState, RalphStatus, RalphConfig } from './types'
+export { RALPH_DIR, RALPH_FILES, DEFAULT_RALPH_CONFIG } from './types'
+
+// Re-export loop functions for internal use
+export {
+  initLoopState,
+  readLoopState,
+  buildLoopContext,
+  updateIteration,
+  appendProgress,
+  checkComplete,
+  checkWaiting,
+  getStatus,
+  setStatus,
+  loopExists,
+  cleanupLoopState,
+  readConfig,
+} from './loop'

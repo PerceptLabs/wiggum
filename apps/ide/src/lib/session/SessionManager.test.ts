@@ -288,14 +288,13 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('Execute shell commands')
   })
 
-  it('should include ralph instructions when in ralph mode', () => {
+  it('should always include loop instructions (ralph is default)', () => {
     const prompt = buildSystemPrompt({
       tools: [],
-      isRalphIteration: true,
-      ralphIteration: 5,
     })
-    expect(prompt).toContain('Ralph Iteration Mode')
-    expect(prompt).toContain('iteration 5')
+    // Loop instructions are always included since ralph is the default mode
+    expect(prompt).toContain('autonomous loop')
+    expect(prompt).toContain('.ralph/status.txt')
     expect(prompt).toContain('.ralph/progress.md')
   })
 

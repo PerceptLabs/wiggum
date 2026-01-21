@@ -1,105 +1,346 @@
 import * as React from 'react'
-import { useSession, useAISettings } from '@/contexts'
-import type { AIMessage, ToolCall } from '@/lib/ai'
+import { useFS, useSession, useProject, useAISettings } from '@/contexts'
+import type { AIMessage } from '@/lib/ai'
+import type { Tool } from '@/lib/tools'
+import {
+  initLoopState,
+  readLoopState,
+  buildLoopContext,
+  updateIteration,
+  appendProgress,
+  checkComplete,
+  checkWaiting,
+  setStatus,
+  cleanupLoopState,
+  readConfig,
+} from '@/lib/commands/ralph'
 
 export interface UseChatOptions {
+  /** Tools available to the AI */
+  tools?: Tool[]
+  /** Callback when a message is received */
   onMessage?: (message: AIMessage) => void
-  onToolCall?: (toolCall: ToolCall) => void
+  /** Callback on error */
   onError?: (error: Error) => void
+  /** Callback on iteration change */
+  onIteration?: (iteration: number) => void
+  /** Callback on status change */
+  onStatusChange?: (status: 'idle' | 'running' | 'waiting' | 'complete' | 'error') => void
+}
+
+export interface ChatState {
+  messages: AIMessage[]
+  isLoading: boolean
+  streamingContent: string
+  error: string | null
+  ralphStatus: 'idle' | 'running' | 'waiting' | 'complete' | 'error'
+  ralphIteration: number
 }
 
 /**
- * Hook for AI chat functionality
+ * Hook for AI chat functionality with automatic loop
+ *
+ * Every message goes through the autonomous loop:
+ * - Simple tasks complete in 1 iteration
+ * - Complex tasks may take multiple iterations
+ * - AI signals completion by writing "complete" to .ralph/status.txt
  */
 export function useAIChat(options: UseChatOptions = {}) {
-  const { session, messages, isLoading, error: sessionError } = useSession()
-  const { settings } = useAISettings()
-  const [streamingContent, setStreamingContent] = React.useState('')
-  const [error, setError] = React.useState<string | null>(null)
+  const { fs } = useFS()
+  const { manager, createRalphSendMessage } = useSession()
+  const { currentProject } = useProject()
+  const { isConfigured } = useAISettings()
 
-  // Handle streaming content updates
-  React.useEffect(() => {
-    if (!session) return
+  const [state, setState] = React.useState<ChatState>({
+    messages: [],
+    isLoading: false,
+    streamingContent: '',
+    error: null,
+    ralphStatus: 'idle',
+    ralphIteration: 0,
+  })
 
-    const handleContentDelta = (delta: string) => {
-      setStreamingContent((prev) => prev + delta)
-    }
+  const abortRef = React.useRef<AbortController | null>(null)
 
-    const handleMessageComplete = (message: AIMessage) => {
-      setStreamingContent('')
-      options.onMessage?.(message)
-    }
+  // Get project path or default
+  const cwd = currentProject?.path ?? '/projects/default'
+  const projectId = currentProject?.id ?? 'default'
 
-    const handleToolCall = (toolCall: ToolCall) => {
-      options.onToolCall?.(toolCall)
-    }
+  /**
+   * Run the autonomous loop
+   */
+  const runLoop = React.useCallback(
+    async (task: string, sendMessage: (prompt: string) => Promise<string>) => {
+      if (!fs) {
+        throw new Error('Filesystem not ready')
+      }
 
-    const handleError = (err: Error) => {
-      setError(err.message)
-      options.onError?.(err)
-    }
+      // Read config for max iterations
+      const config = await readConfig(fs, cwd)
+      const maxIterations = config.maxIterations
 
-    session.on('content_delta', handleContentDelta)
-    session.on('message_complete', handleMessageComplete)
-    session.on('tool_call', handleToolCall)
-    session.on('error', handleError)
+      let iteration = 0
+      let complete = false
+      let waiting = false
 
-    return () => {
-      session.off('content_delta', handleContentDelta)
-      session.off('message_complete', handleMessageComplete)
-      session.off('tool_call', handleToolCall)
-      session.off('error', handleError)
-    }
-  }, [session, options])
+      while (!complete && !waiting && iteration < maxIterations) {
+        // Check for abort
+        if (abortRef.current?.signal.aborted) {
+          throw new DOMException('Generation aborted', 'AbortError')
+        }
 
-  // Send a message
+        iteration++
+
+        // Update iteration state
+        setState((s) => ({ ...s, ralphIteration: iteration }))
+        options.onIteration?.(iteration)
+        await updateIteration(fs, cwd, iteration)
+
+        // Read fresh state
+        const loopState = await readLoopState(fs, cwd)
+
+        // Build context for this iteration
+        const context = buildLoopContext(loopState, iteration)
+
+        // Send to AI (this executes tools and returns final content)
+        const response = await sendMessage(context)
+
+        // Log progress
+        await appendProgress(fs, cwd, iteration, response)
+
+        // Add assistant message to UI
+        const assistantMessage: AIMessage = {
+          role: 'assistant',
+          content: response,
+        }
+        setState((s) => ({
+          ...s,
+          messages: [...s.messages, assistantMessage],
+          streamingContent: '',
+        }))
+        options.onMessage?.(assistantMessage)
+
+        // Check for completion or waiting
+        complete = await checkComplete(fs, cwd)
+        waiting = await checkWaiting(fs, cwd)
+
+        // Small delay between iterations (not on first)
+        if (!complete && !waiting && iteration > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 500))
+        }
+      }
+
+      // Determine final status
+      if (complete) {
+        return 'complete' as const
+      } else if (waiting) {
+        return 'waiting' as const
+      } else {
+        // Hit max iterations
+        return 'idle' as const
+      }
+    },
+    [fs, cwd, options]
+  )
+
+  /**
+   * Send a message - starts the autonomous loop
+   */
   const sendMessage = React.useCallback(
     async (content: string) => {
-      if (!session || !settings.apiKey) {
-        setError('No API key configured')
+      if (!fs || !manager || !isConfigured) {
+        setState((s) => ({ ...s, error: 'Not ready - check API key and filesystem' }))
+        options.onError?.(new Error('Not ready'))
         return
       }
 
-      setError(null)
-      setStreamingContent('')
+      // Reset state
+      setState((s) => ({
+        ...s,
+        isLoading: true,
+        error: null,
+        ralphStatus: 'running',
+        ralphIteration: 0,
+        streamingContent: '',
+      }))
+      options.onStatusChange?.('running')
+
+      // Create abort controller
+      abortRef.current = new AbortController()
+
+      // Add user message to UI
+      const userMessage: AIMessage = { role: 'user', content }
+      setState((s) => ({ ...s, messages: [...s.messages, userMessage] }))
 
       try {
-        await session.sendMessage(content)
+        // Initialize loop state with the user's task
+        await initLoopState(fs, cwd, content)
+
+        // Create sendMessage function that has fresh context each call
+        const tools = options.tools ?? []
+        const aiSendMessage = createRalphSendMessage(projectId, tools)
+
+        // Run the loop
+        const finalStatus = await runLoop(content, aiSendMessage)
+
+        // Update final status
+        setState((s) => ({
+          ...s,
+          isLoading: false,
+          ralphStatus: finalStatus,
+        }))
+        options.onStatusChange?.(finalStatus)
       } catch (err) {
+        if ((err as Error).name === 'AbortError') {
+          setState((s) => ({
+            ...s,
+            isLoading: false,
+            ralphStatus: 'idle',
+          }))
+          options.onStatusChange?.('idle')
+          return
+        }
+
         const message = err instanceof Error ? err.message : 'Failed to send message'
-        setError(message)
+        setState((s) => ({
+          ...s,
+          isLoading: false,
+          error: message,
+          ralphStatus: 'error',
+        }))
         options.onError?.(err instanceof Error ? err : new Error(message))
+        options.onStatusChange?.('error')
+
+        // Set error status in .ralph/
+        try {
+          await setStatus(fs, cwd, 'error')
+        } catch {
+          // Ignore
+        }
+      } finally {
+        abortRef.current = null
       }
     },
-    [session, settings.apiKey, options]
+    [fs, manager, isConfigured, cwd, projectId, options, createRalphSendMessage, runLoop]
   )
 
-  // Cancel current request
-  const cancel = React.useCallback(() => {
-    session?.cancel()
-    setStreamingContent('')
-  }, [session])
+  /**
+   * Cancel ongoing generation
+   */
+  const cancel = React.useCallback(async () => {
+    abortRef.current?.abort()
+    setState((s) => ({
+      ...s,
+      isLoading: false,
+      streamingContent: '',
+      ralphStatus: 'idle',
+    }))
+    options.onStatusChange?.('idle')
 
-  // Clear chat history
-  const clearHistory = React.useCallback(() => {
-    session?.clearHistory()
-  }, [session])
+    // Set status to idle
+    if (fs) {
+      try {
+        await setStatus(fs, cwd, 'idle')
+      } catch {
+        // Ignore
+      }
+    }
+  }, [fs, cwd, options])
 
-  // Retry last message
-  const retry = React.useCallback(async () => {
-    if (!session) return
-    await session.retry()
-  }, [session])
+  /**
+   * Clear chat history
+   */
+  const clearHistory = React.useCallback(async () => {
+    setState({
+      messages: [],
+      isLoading: false,
+      streamingContent: '',
+      error: null,
+      ralphStatus: 'idle',
+      ralphIteration: 0,
+    })
+
+    // Clean up .ralph/
+    if (fs) {
+      try {
+        await cleanupLoopState(fs, cwd)
+      } catch {
+        // Ignore
+      }
+    }
+  }, [fs, cwd])
+
+  /**
+   * Resume from waiting state
+   */
+  const resume = React.useCallback(async () => {
+    if (!fs || !manager || !isConfigured) {
+      return
+    }
+
+    // Read current state
+    const loopState = await readLoopState(fs, cwd)
+    if (loopState.status !== 'waiting') {
+      return
+    }
+
+    // Set status to running
+    await setStatus(fs, cwd, 'running')
+
+    setState((s) => ({
+      ...s,
+      isLoading: true,
+      ralphStatus: 'running',
+    }))
+    options.onStatusChange?.('running')
+
+    abortRef.current = new AbortController()
+
+    try {
+      const tools = options.tools ?? []
+      const aiSendMessage = createRalphSendMessage(projectId, tools)
+      const finalStatus = await runLoop(loopState.task, aiSendMessage)
+
+      setState((s) => ({
+        ...s,
+        isLoading: false,
+        ralphStatus: finalStatus,
+      }))
+      options.onStatusChange?.(finalStatus)
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        setState((s) => ({
+          ...s,
+          isLoading: false,
+          ralphStatus: 'idle',
+        }))
+        return
+      }
+
+      const message = err instanceof Error ? err.message : 'Failed to resume'
+      setState((s) => ({
+        ...s,
+        isLoading: false,
+        error: message,
+        ralphStatus: 'error',
+      }))
+      options.onError?.(err instanceof Error ? err : new Error(message))
+    } finally {
+      abortRef.current = null
+    }
+  }, [fs, manager, isConfigured, cwd, projectId, options, createRalphSendMessage, runLoop])
 
   return {
-    messages,
-    streamingContent,
-    isLoading,
-    error: error || sessionError,
+    messages: state.messages,
+    streamingContent: state.streamingContent,
+    isLoading: state.isLoading,
+    error: state.error,
+    ralphStatus: state.ralphStatus,
+    ralphIteration: state.ralphIteration,
     sendMessage,
     cancel,
     clearHistory,
-    retry,
-    isReady: !!session && !!settings.apiKey,
+    resume,
+    isReady: !!fs && !!manager && isConfigured,
   }
 }
