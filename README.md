@@ -1,7 +1,7 @@
 # Wiggum
 
 <p align="center">
-  <img src="docs/images/ralph-loops.svg" alt="Oops! It's All Loops!" width="400">
+  <img src="docs/images/ralphheader.png" alt="Oops! It's All Loops!" width="1000">
 </p>
 
 <p align="center">
