@@ -11,16 +11,43 @@ interface ChatInputProps {
   className?: string
 }
 
-export function ChatInput({
-  onSend,
-  onStop,
-  isLoading = false,
-  disabled = false,
-  placeholder = 'Type a message...',
-  className,
-}: ChatInputProps) {
+export interface ChatInputRef {
+  setInput: (text: string) => void
+  focus: () => void
+}
+
+export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
+  {
+    onSend,
+    onStop,
+    isLoading = false,
+    disabled = false,
+    placeholder = 'Type a message...',
+    className,
+  },
+  ref
+) {
   const [value, setValue] = React.useState('')
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+
+  // Expose methods via ref
+  React.useImperativeHandle(ref, () => ({
+    setInput: (text: string) => {
+      setValue(text)
+      // Focus the textarea after setting input
+      setTimeout(() => {
+        textareaRef.current?.focus()
+        // Move cursor to end
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = text.length
+          textareaRef.current.selectionEnd = text.length
+        }
+      }, 0)
+    },
+    focus: () => {
+      textareaRef.current?.focus()
+    },
+  }))
 
   // Auto-resize textarea
   React.useEffect(() => {
@@ -52,8 +79,8 @@ export function ChatInput({
   }
 
   return (
-    <form onSubmit={handleSubmit} className={cn('border-t bg-background p-4', className)}>
-      <div className="flex items-end gap-2">
+    <form onSubmit={handleSubmit} className={cn('border-t-3 border-border bg-background p-4', className)}>
+      <div className="flex items-end gap-3">
         <div className="relative flex-1">
           <Textarea
             ref={textareaRef}
@@ -62,17 +89,17 @@ export function ChatInput({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            className="min-h-[44px] max-h-[200px] resize-none pr-20"
+            className="min-h-[52px] max-h-[200px] resize-none pr-20"
             rows={1}
           />
-          <div className="absolute bottom-2 right-2 flex items-center gap-1">
+          <div className="absolute bottom-3 right-3 flex items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-8 w-8"
                   disabled={disabled}
                 >
                   <Paperclip className="h-4 w-4" />
@@ -115,10 +142,10 @@ export function ChatInput({
         )}
       </div>
 
-      <p className="mt-2 text-xs text-muted-foreground">
-        Press <kbd className="rounded bg-muted px-1 py-0.5">Cmd</kbd> +{' '}
-        <kbd className="rounded bg-muted px-1 py-0.5">Enter</kbd> to send
+      <p className="mt-3 text-xs text-muted-foreground">
+        Press <kbd className="border border-border bg-muted px-1.5 py-0.5 font-bold shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:shadow-[1px_1px_0px_0px_hsl(50,100%,53%)]">Cmd</kbd> +{' '}
+        <kbd className="border border-border bg-muted px-1.5 py-0.5 font-bold shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:shadow-[1px_1px_0px_0px_hsl(50,100%,53%)]">Enter</kbd> to send
       </p>
     </form>
   )
-}
+})

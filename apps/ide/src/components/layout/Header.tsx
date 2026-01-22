@@ -1,5 +1,20 @@
 import * as React from 'react'
-import { Settings, Moon, Sun, PanelLeftClose, PanelLeft } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Settings,
+  Moon,
+  Sun,
+  PanelLeftClose,
+  PanelLeft,
+  Hammer,
+  Code2,
+  Terminal,
+  RefreshCw,
+  ExternalLink,
+  ChevronDown,
+  FolderOpen,
+  Plus,
+} from 'lucide-react'
 import {
   Button,
   DropdownMenu,
@@ -10,17 +25,42 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  Input,
   cn,
 } from '@wiggum/stack'
-import { useLayout } from './LayoutContext'
+import { useLayout, type ViewMode } from './LayoutContext'
+
+interface Project {
+  id: string
+  name: string
+}
 
 interface HeaderProps {
   projectName?: string
+  projects?: Project[]
+  currentProject?: Project | null
+  onProjectSelect?: (project: Project) => void
+  onNewProject?: () => void
   onSettingsClick?: () => void
+  onBuild?: () => void
+  onRefreshPreview?: () => void
+  previewUrl?: string
+  isBuilding?: boolean
 }
 
-export function Header({ projectName = 'Untitled Project', onSettingsClick }: HeaderProps) {
-  const { sidebarCollapsed, toggleSidebar } = useLayout()
+export function Header({
+  projectName = 'Untitled Project',
+  projects = [],
+  currentProject,
+  onProjectSelect,
+  onNewProject,
+  onBuild,
+  onRefreshPreview,
+  previewUrl,
+  isBuilding = false,
+}: HeaderProps) {
+  const navigate = useNavigate()
+  const { sidebarCollapsed, toggleSidebar, viewMode, setViewMode, toggleLogs, logsOpen } = useLayout()
   const [theme, setTheme] = React.useState<'light' | 'dark'>('dark')
 
   const toggleTheme = () => {
@@ -29,12 +69,19 @@ export function Header({ projectName = 'Untitled Project', onSettingsClick }: He
     document.documentElement.classList.toggle('dark', newTheme === 'dark')
   }
 
+  const handleOpenExternal = () => {
+    if (previewUrl) {
+      window.open(previewUrl, '_blank')
+    }
+  }
+
   return (
-    <header className="flex h-12 items-center justify-between border-b bg-background px-4">
+    <header className="flex h-14 items-center justify-between border-b-3 border-border bg-primary px-4 shadow-[0_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[0_4px_0px_0px_hsl(50,100%,53%)]">
+      {/* Left section: Sidebar toggle, logo, project selector */}
       <div className="flex items-center gap-3">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+            <Button variant="outline" size="icon" onClick={toggleSidebar} className="bg-background">
               {sidebarCollapsed ? (
                 <PanelLeft className="h-4 w-4" />
               ) : (
@@ -47,40 +94,167 @@ export function Header({ projectName = 'Untitled Project', onSettingsClick }: He
 
         <div className="flex items-center gap-2">
           <WiggumLogo />
-          <span className="font-semibold">Wiggum</span>
+          <span className="font-bold text-lg uppercase tracking-wide text-primary-foreground">Wiggum</span>
         </div>
 
-        <span className="text-muted-foreground">/</span>
+        <span className="text-primary-foreground/60 font-bold">/</span>
 
-        <span className={cn('text-sm', !projectName && 'text-muted-foreground')}>
-          {projectName || 'No project'}
-        </span>
+        {/* Project dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="gap-2 text-primary-foreground hover:bg-primary-foreground/10">
+              <span className="max-w-[150px] truncate font-semibold">
+                {currentProject?.name || projectName || 'Select project'}
+              </span>
+              <ChevronDown className="h-4 w-4 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            {projects.map((project) => (
+              <DropdownMenuItem
+                key={project.id}
+                onClick={() => {
+                  onProjectSelect?.(project)
+                  navigate(`/project/${project.id}`)
+                }}
+                className={cn(currentProject?.id === project.id && 'bg-primary/20')}
+              >
+                <FolderOpen className="mr-2 h-4 w-4" />
+                <span className="truncate">{project.name}</span>
+              </DropdownMenuItem>
+            ))}
+            {projects.length > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuItem onClick={onNewProject}>
+              <Plus className="mr-2 h-4 w-4" />
+              New project
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <div className="flex items-center gap-1">
+      {/* Center section: URL bar (only in preview mode) */}
+      {viewMode === 'preview' && (
+        <div className="flex items-center gap-2">
+          <div className="flex items-center border-2 border-border bg-background">
+            <Input
+              value={previewUrl || 'localhost:3000'}
+              readOnly
+              className="h-8 w-48 border-0 bg-transparent text-xs font-mono focus-visible:ring-0"
+            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={onRefreshPreview}
+                  disabled={isBuilding}
+                >
+                  <RefreshCw className={cn('h-4 w-4', isBuilding && 'animate-spin')} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh preview</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={handleOpenExternal}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Open in new tab</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      )}
+
+      {/* Right section: Action buttons */}
+      <div className="flex items-center gap-2">
+        {/* BUILD button */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBuild}
+              disabled={isBuilding}
+              className="gap-2 bg-background font-bold uppercase"
+            >
+              <Hammer className={cn('h-4 w-4', isBuilding && 'animate-pulse')} />
+              Build
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Build project</TooltipContent>
+        </Tooltip>
+
+        {/* CODE button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={viewMode === 'code' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode(viewMode === 'code' ? 'preview' : 'code')}
+              className={cn(
+                'gap-2 font-bold uppercase',
+                viewMode === 'code' ? 'bg-primary text-primary-foreground' : 'bg-background'
+              )}
+            >
+              <Code2 className="h-4 w-4" />
+              Code
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{viewMode === 'code' ? 'Back to preview' : 'View code editor'}</TooltipContent>
+        </Tooltip>
+
+        {/* LOGS button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={logsOpen ? 'default' : 'outline'}
+              size="sm"
+              onClick={toggleLogs}
+              className={cn(
+                'gap-2 font-bold uppercase',
+                logsOpen ? 'bg-primary text-primary-foreground' : 'bg-background'
+              )}
+            >
+              <Terminal className="h-4 w-4" />
+              Logs
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>View build logs</TooltipContent>
+        </Tooltip>
+
+        <div className="mx-2 h-6 w-px bg-primary-foreground/30" />
+
+        {/* Theme toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" onClick={toggleTheme} className="bg-background">
               {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </Button>
           </TooltipTrigger>
           <TooltipContent>Toggle theme</TooltipContent>
         </Tooltip>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+        {/* Settings */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate('/settings')}
+              className="bg-background"
+            >
               <Settings className="h-4 w-4" />
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onSettingsClick}>Settings</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={toggleTheme}>
-              {theme === 'light' ? 'Dark mode' : 'Light mode'}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </TooltipTrigger>
+          <TooltipContent>Settings</TooltipContent>
+        </Tooltip>
       </div>
     </header>
   )
@@ -94,7 +268,7 @@ function WiggumLogo() {
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="text-primary"
+      className="text-primary-foreground"
     >
       <path
         d="M12 2L2 7L12 12L22 7L12 2Z"

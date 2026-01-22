@@ -31,12 +31,12 @@ export function AssistantMessage({
   className,
 }: AssistantMessageProps) {
   return (
-    <div className={cn('flex gap-3 px-4 py-3', className)}>
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
-        <Bot className="h-4 w-4" />
+    <div className={cn('flex gap-3 px-4 py-4', className)}>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-secondary text-secondary-foreground shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+        <Bot className="h-5 w-5" />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
-        <p className="text-sm font-medium">Wiggum</p>
+        <p className="text-sm font-bold uppercase tracking-wide">Wiggum</p>
 
         {/* Tool calls */}
         {toolCalls && toolCalls.length > 0 && (
@@ -68,7 +68,7 @@ export function AssistantMessage({
 
                   if (isInline) {
                     return (
-                      <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm" {...props}>
+                      <code className="border border-border bg-muted px-1 py-0.5 font-mono text-sm" {...props}>
                         {children}
                       </code>
                     )
@@ -87,11 +87,11 @@ export function AssistantMessage({
                   return (
                     <div className="relative">
                       {language && (
-                        <div className="absolute right-2 top-2 text-xs text-muted-foreground">
+                        <div className="absolute right-2 top-2 text-xs font-bold uppercase text-muted-foreground">
                           {language}
                         </div>
                       )}
-                      <pre className="overflow-x-auto rounded-lg bg-muted p-4">
+                      <pre className="overflow-x-auto border-2 border-border bg-muted p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
                         <code
                           className={cn('font-mono text-sm', className)}
                           dangerouslySetInnerHTML={{ __html: highlighted }}

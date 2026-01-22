@@ -1,39 +1,34 @@
 import * as React from 'react'
-import { FolderOpen, ChevronDown, Plus } from 'lucide-react'
+import { Search, GitBranch } from 'lucide-react'
 import {
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Input,
   ScrollArea,
   Separator,
-  cn,
 } from '@wiggum/stack'
 import { useLayout, DEFAULT_SIDEBAR_WIDTH } from './LayoutContext'
 
-interface Project {
-  id: string
-  name: string
-}
-
 interface SidebarProps {
-  projects?: Project[]
-  currentProject?: Project
-  onProjectSelect?: (project: Project) => void
-  onNewProject?: () => void
+  onSearch?: (query: string) => void
+  onInitGit?: () => void
+  isGitInitialized?: boolean
   children?: React.ReactNode
 }
 
 export function Sidebar({
-  projects = [],
-  currentProject,
-  onProjectSelect,
-  onNewProject,
+  onSearch,
+  onInitGit,
+  isGitInitialized = false,
   children,
 }: SidebarProps) {
   const { sidebarCollapsed, sidebarWidth } = useLayout()
+  const [searchQuery, setSearchQuery] = React.useState('')
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value
+    setSearchQuery(query)
+    onSearch?.(query)
+  }
 
   if (sidebarCollapsed) {
     return null
@@ -41,39 +36,21 @@ export function Sidebar({
 
   return (
     <aside
-      className="flex flex-col border-r bg-muted/30"
+      className="flex flex-col border-r-3 border-border bg-card"
       style={{ width: sidebarWidth || DEFAULT_SIDEBAR_WIDTH }}
     >
-      {/* Project selector */}
-      <div className="p-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="w-full justify-between">
-              <div className="flex items-center gap-2 truncate">
-                <FolderOpen className="h-4 w-4 shrink-0" />
-                <span className="truncate">{currentProject?.name || 'Select project'}</span>
-              </div>
-              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {projects.map((project) => (
-              <DropdownMenuItem
-                key={project.id}
-                onClick={() => onProjectSelect?.(project)}
-                className={cn(currentProject?.id === project.id && 'bg-accent')}
-              >
-                <FolderOpen className="mr-2 h-4 w-4" />
-                <span className="truncate">{project.name}</span>
-              </DropdownMenuItem>
-            ))}
-            {projects.length > 0 && <DropdownMenuSeparator />}
-            <DropdownMenuItem onClick={onNewProject}>
-              <Plus className="mr-2 h-4 w-4" />
-              New project
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {/* Files header with search */}
+      <div className="p-3">
+        <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">Files</h2>
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search files..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="h-8 pl-8 text-sm"
+          />
+        </div>
       </div>
 
       <Separator />
@@ -82,6 +59,26 @@ export function Sidebar({
       <ScrollArea className="flex-1">
         <div className="p-2">{children}</div>
       </ScrollArea>
+
+      {/* Git button at bottom */}
+      <div className="border-t-2 border-border p-3">
+        {isGitInitialized ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <GitBranch className="h-4 w-4" />
+            <span>Git initialized</span>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onInitGit}
+            className="w-full gap-2 font-bold uppercase"
+          >
+            <GitBranch className="h-4 w-4" />
+            Init Git
+          </Button>
+        )}
+      </div>
     </aside>
   )
 }

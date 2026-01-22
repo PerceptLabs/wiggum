@@ -1,12 +1,13 @@
 import * as React from 'react'
-import type { AIMessage, AIToolCall } from '@/lib/ai'
+import type { AIMessage } from '@/lib/ai'
+import { useAIChat } from '@/hooks/useAIChat'
 
 interface ChatState {
   messages: AIMessage[]
   isLoading: boolean
   streamingContent: string
   error?: string
-  ralphStatus?: 'idle' | 'running' | 'waiting' | 'complete'
+  ralphStatus?: 'idle' | 'running' | 'waiting' | 'complete' | 'error'
   ralphIteration?: number
 }
 
@@ -28,57 +29,38 @@ export function useChat() {
 
 interface ChatProviderProps {
   children: React.ReactNode
-  onSendMessage?: (content: string) => Promise<void>
-  onStopGeneration?: () => void
-  onClearMessages?: () => void
-  messages?: AIMessage[]
-  isLoading?: boolean
-  streamingContent?: string
-  error?: string
-  ralphStatus?: 'idle' | 'running' | 'waiting' | 'complete'
-  ralphIteration?: number
 }
 
-export function ChatProvider({
-  children,
-  onSendMessage,
-  onStopGeneration,
-  onClearMessages,
-  messages = [],
-  isLoading = false,
-  streamingContent = '',
-  error,
-  ralphStatus,
-  ralphIteration,
-}: ChatProviderProps) {
-  const sendMessage = React.useCallback(
-    async (content: string) => {
-      await onSendMessage?.(content)
-    },
-    [onSendMessage]
-  )
-
-  const stopGeneration = React.useCallback(() => {
-    onStopGeneration?.()
-  }, [onStopGeneration])
-
-  const clearMessages = React.useCallback(() => {
-    onClearMessages?.()
-  }, [onClearMessages])
+/**
+ * ChatProvider - Provides chat functionality to child components
+ * Uses useAIChat internally to connect to the AI system
+ */
+export function ChatProvider({ children }: ChatProviderProps) {
+  const chat = useAIChat()
 
   const value = React.useMemo(
     () => ({
-      messages,
-      isLoading,
-      streamingContent,
-      error,
-      ralphStatus,
-      ralphIteration,
-      sendMessage,
-      stopGeneration,
-      clearMessages,
+      messages: chat.messages,
+      isLoading: chat.isLoading,
+      streamingContent: chat.streamingContent,
+      error: chat.error ?? undefined,
+      ralphStatus: chat.ralphStatus,
+      ralphIteration: chat.ralphIteration,
+      sendMessage: chat.sendMessage,
+      stopGeneration: chat.cancel,
+      clearMessages: chat.clearHistory,
     }),
-    [messages, isLoading, streamingContent, error, ralphStatus, ralphIteration, sendMessage, stopGeneration, clearMessages]
+    [
+      chat.messages,
+      chat.isLoading,
+      chat.streamingContent,
+      chat.error,
+      chat.ralphStatus,
+      chat.ralphIteration,
+      chat.sendMessage,
+      chat.cancel,
+      chat.clearHistory,
+    ]
   )
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>

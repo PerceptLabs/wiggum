@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useFS, useSession, useProject, useAISettings } from '@/contexts'
 import type { AIMessage } from '@/lib/ai'
-import type { Tool } from '@/lib/tools'
+import { createTools, type WiggumTools } from '@/lib/tools'
 import {
   initLoopState,
   readLoopState,
@@ -16,8 +16,8 @@ import {
 } from '@/lib/commands/ralph'
 
 export interface UseChatOptions {
-  /** Tools available to the AI */
-  tools?: Tool[]
+  /** Custom AI SDK native tools (defaults to createTools() if not provided) */
+  tools?: WiggumTools
   /** Callback when a message is received */
   onMessage?: (message: AIMessage) => void
   /** Callback on error */
@@ -47,7 +47,7 @@ export interface ChatState {
  */
 export function useAIChat(options: UseChatOptions = {}) {
   const { fs } = useFS()
-  const { manager, createRalphSendMessage } = useSession()
+  const { createRalphSendMessageNative } = useSession()
   const { currentProject } = useProject()
   const { isConfigured } = useAISettings()
 
@@ -64,7 +64,25 @@ export function useAIChat(options: UseChatOptions = {}) {
 
   // Get project path or default
   const cwd = currentProject?.path ?? '/projects/default'
-  const projectId = currentProject?.id ?? 'default'
+
+  // Create AI SDK native tools
+  const tools = React.useMemo(() => {
+    // Use provided tools or create default tools
+    if (options.tools) {
+      console.log('[useAIChat] Using provided tools:', Object.keys(options.tools))
+      return options.tools
+    }
+
+    if (!fs) {
+      console.log('[useAIChat] No filesystem, returning empty tools')
+      return {} as WiggumTools
+    }
+
+    // Create native tools with filesystem access
+    const nativeTools = createTools({ fs, cwd })
+    console.log('[useAIChat] Created native tools with cwd:', cwd, 'tools:', Object.keys(nativeTools))
+    return nativeTools
+  }, [fs, cwd, options.tools])
 
   /**
    * Run the autonomous loop
@@ -103,7 +121,9 @@ export function useAIChat(options: UseChatOptions = {}) {
         const context = buildLoopContext(loopState, iteration)
 
         // Send to AI (this executes tools and returns final content)
+        console.log('[useAIChat] Sending to AI:', { iteration, contextLength: context.length })
         const response = await sendMessage(context)
+        console.log('[useAIChat] AI response:', { responseLength: response?.length })
 
         // Log progress
         await appendProgress(fs, cwd, iteration, response)
@@ -148,7 +168,11 @@ export function useAIChat(options: UseChatOptions = {}) {
    */
   const sendMessage = React.useCallback(
     async (content: string) => {
-      if (!fs || !manager || !isConfigured) {
+      const toolCount = Object.keys(tools).length
+      console.log('[useAIChat] sendMessage called:', { content, fs: !!fs, isConfigured, toolCount })
+
+      if (!fs || !isConfigured) {
+        console.log('[useAIChat] Not ready:', { fs: !!fs, isConfigured })
         setState((s) => ({ ...s, error: 'Not ready - check API key and filesystem' }))
         options.onError?.(new Error('Not ready'))
         return
@@ -176,9 +200,9 @@ export function useAIChat(options: UseChatOptions = {}) {
         // Initialize loop state with the user's task
         await initLoopState(fs, cwd, content)
 
-        // Create sendMessage function that has fresh context each call
-        const tools = options.tools ?? []
-        const aiSendMessage = createRalphSendMessage(projectId, tools)
+        // Create sendMessage function with native tools
+        console.log('[useAIChat] Creating AI sendMessage with native tools:', Object.keys(tools))
+        const aiSendMessage = createRalphSendMessageNative(tools)
 
         // Run the loop
         const finalStatus = await runLoop(content, aiSendMessage)
@@ -221,7 +245,7 @@ export function useAIChat(options: UseChatOptions = {}) {
         abortRef.current = null
       }
     },
-    [fs, manager, isConfigured, cwd, projectId, options, createRalphSendMessage, runLoop]
+    [fs, isConfigured, cwd, options, createRalphSendMessageNative, runLoop, tools]
   )
 
   /**
@@ -274,7 +298,7 @@ export function useAIChat(options: UseChatOptions = {}) {
    * Resume from waiting state
    */
   const resume = React.useCallback(async () => {
-    if (!fs || !manager || !isConfigured) {
+    if (!fs || !isConfigured) {
       return
     }
 
@@ -297,8 +321,7 @@ export function useAIChat(options: UseChatOptions = {}) {
     abortRef.current = new AbortController()
 
     try {
-      const tools = options.tools ?? []
-      const aiSendMessage = createRalphSendMessage(projectId, tools)
+      const aiSendMessage = createRalphSendMessageNative(tools)
       const finalStatus = await runLoop(loopState.task, aiSendMessage)
 
       setState((s) => ({
@@ -328,7 +351,7 @@ export function useAIChat(options: UseChatOptions = {}) {
     } finally {
       abortRef.current = null
     }
-  }, [fs, manager, isConfigured, cwd, projectId, options, createRalphSendMessage, runLoop])
+  }, [fs, isConfigured, cwd, options, createRalphSendMessageNative, runLoop, tools])
 
   return {
     messages: state.messages,
@@ -341,6 +364,6 @@ export function useAIChat(options: UseChatOptions = {}) {
     cancel,
     clearHistory,
     resume,
-    isReady: !!fs && !!manager && isConfigured,
+    isReady: !!fs && isConfigured,
   }
 }

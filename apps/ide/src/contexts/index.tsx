@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { TooltipProvider } from '@wiggum/stack'
-import { FSProvider, useFS } from './FSContext'
-import { AISettingsProvider, useAISettings } from './AIContext'
-import { SessionProvider, useSession } from './SessionContext'
-import { ProjectProvider, useProject } from './ProjectContext'
+import { FSProvider } from './FSContext'
+import { AIProvider } from './AIContext'
+import { SessionProvider } from './SessionContext'
+import { ProjectProvider } from './ProjectContext'
 
 // Re-export hooks and types
 export { useFS } from './FSContext'
@@ -20,11 +20,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider>
       <FSProvider>
-        <AISettingsProvider>
+        <AIProvider>
           <ProjectProvider>
             <SessionProvider>{children}</SessionProvider>
           </ProjectProvider>
-        </AISettingsProvider>
+        </AIProvider>
       </FSProvider>
     </TooltipProvider>
   )

@@ -1,8 +1,11 @@
-import { z } from 'zod'
+/**
+ * ShellExecutor - Parses and routes shell commands to command classes
+ * This replaces ShellTool's execution logic for use with AI SDK native tools
+ */
+
 import path from 'path-browserify'
-import type { Tool, ToolResult, ShellToolParams, ParsedCommand, CompoundCommand } from './types'
 import type { JSRuntimeFS } from '../fs'
-import type { ShellCommand, ShellCommandResult } from '../commands'
+import type { ShellCommandResult } from '../commands'
 import {
   CommandRegistry,
   CatCommand,
@@ -26,39 +29,48 @@ import {
   TrCommand,
   FindCommand,
   GitCommand,
-  RalphCommand,
 } from '../commands'
 import { Git } from '../git'
 
 /**
- * Shell tool that exposes shell commands to the AI
- * Supports command parsing, compound commands, piping, and redirects
+ * Parsed command with its arguments
  */
-export class ShellTool implements Tool<ShellToolParams> {
-  name = 'shell'
-  description = 'Execute shell commands in the virtual filesystem. Always provide a command string like "ls /", "cat /file.txt", or "mkdir /newdir".'
+interface ParsedCommand {
+  name: string
+  args: string[]
+  redirect?: {
+    type: '>' | '>>'
+    path: string
+  }
+}
 
-  inputSchema = z.object({
-    command: z.string().min(1).describe('The shell command to execute (required). Examples: "ls /", "cat /file.txt", "mkdir /dir"'),
-  })
+/**
+ * Compound command with operator
+ */
+interface CompoundCommand {
+  command: ParsedCommand
+  operator: '&&' | '||' | '|' | ';' | null
+}
 
+export interface ShellExecutorOptions {
+  fs: JSRuntimeFS
+  cwd: string
+  gitFactory?: (dir: string) => Git
+}
+
+/**
+ * ShellExecutor handles command parsing and execution
+ */
+export class ShellExecutor {
   private registry: CommandRegistry
   private cwd: string
   private fs: JSRuntimeFS
-  private sendMessage?: (prompt: string) => Promise<string>
 
-  constructor(options: {
-    fs: JSRuntimeFS
-    cwd: string
-    gitFactory?: (dir: string) => Git
-    sendMessage?: (prompt: string) => Promise<string>
-  }) {
+  constructor(options: ShellExecutorOptions) {
     this.fs = options.fs
     this.cwd = options.cwd
-    this.sendMessage = options.sendMessage
     this.registry = new CommandRegistry()
 
-    // Create default git factory if not provided
     const gitFactory =
       options.gitFactory ?? ((dir: string) => new Git({ fs: options.fs as any, dir }))
 
@@ -89,62 +101,42 @@ export class ShellTool implements Tool<ShellToolParams> {
       // Git command
       new GitCommand(options.fs, gitFactory),
     ])
-
-    // Register ralph command if sendMessage callback is provided
-    if (options.sendMessage) {
-      this.registry.register(new RalphCommand(options.fs, gitFactory, options.sendMessage))
-    }
   }
 
   /**
-   * Execute a shell command string
+   * Run a shell command string
+   * Returns { exitCode, stdout, stderr }
    */
-  async execute(params: ShellToolParams): Promise<ToolResult> {
-    console.log('[DEBUG] ShellTool.execute received:', params)
+  async run(commandStr: string): Promise<ShellCommandResult> {
+    console.log('[ShellExecutor.run] Input:', commandStr)
 
-    // Defensive check for undefined params
-    if (!params) {
-      console.error('[DEBUG] ShellTool.execute: params is undefined!')
-      return {
-        content: 'Error: No parameters provided to shell tool',
-        cost: 1,
-      }
+    if (!commandStr || typeof commandStr !== 'string') {
+      console.error('[ShellExecutor.run] Invalid command:', commandStr)
+      return { exitCode: 1, stdout: '', stderr: 'Invalid command' }
     }
 
-    // Handle both { command: string } and direct string (in case of format mismatch)
-    const command = typeof params === 'string' ? params : params.command
-
-    if (!command) {
-      console.error('[DEBUG] ShellTool.execute: command is undefined! params:', JSON.stringify(params))
-      return {
-        content: 'Error: No command provided. You must provide a command argument, for example: shell({ command: "ls /" }) to list files or shell({ command: "cat /file.txt" }) to read a file.',
-        cost: 1,
-      }
+    if (commandStr.trim() === '') {
+      return { exitCode: 0, stdout: '', stderr: '' }
     }
-
-    console.log('[DEBUG] ShellTool.execute running command:', command)
 
     try {
-      const compoundCommands = this.parseCompoundCommand(command)
+      const compoundCommands = this.parseCompoundCommand(commandStr)
+      console.log('[ShellExecutor.run] Parsed commands:', compoundCommands.length)
       const result = await this.executeCompoundCommands(compoundCommands)
-
-      console.log('[DEBUG] ShellTool.execute result:', result.stdout?.slice(0, 100))
-      return {
-        content: result.stdout + (result.stderr ? `\n${result.stderr}` : ''),
-        cost: 1,
-      }
+      console.log('[ShellExecutor.run] Result:', { exitCode: result.exitCode, stdoutLen: result.stdout?.length || 0 })
+      return result
     } catch (err) {
-      console.error('[DEBUG] ShellTool.execute error:', err)
+      console.error('[ShellExecutor.run] Error:', err)
       return {
-        content: `Error: ${(err as Error).message}`,
-        cost: 1,
+        exitCode: 1,
+        stdout: '',
+        stderr: `Error: ${(err as Error).message}`,
       }
     }
   }
 
   /**
    * Parse a simple command string into command name and arguments
-   * Handles quotes and escape sequences
    */
   parseCommand(commandStr: string): ParsedCommand {
     const tokens: string[] = []
@@ -198,8 +190,8 @@ export class ShellTool implements Tool<ShellToolParams> {
 
     if (redirectIndex !== -1 && redirectIndex < tokens.length - 1) {
       const type = tokens[redirectIndex] as '>' | '>>'
-      const path = tokens[redirectIndex + 1]
-      redirect = { type, path }
+      const filePath = tokens[redirectIndex + 1]
+      redirect = { type, path: filePath }
       tokens.splice(redirectIndex, 2)
     }
 
@@ -209,8 +201,7 @@ export class ShellTool implements Tool<ShellToolParams> {
   }
 
   /**
-   * Parse a compound command string into individual commands with operators
-   * Handles &&, ||, |, and ;
+   * Parse a compound command string
    */
   parseCompoundCommand(commandStr: string): CompoundCommand[] {
     const commands: CompoundCommand[] = []
@@ -255,7 +246,7 @@ export class ShellTool implements Tool<ShellToolParams> {
             operator: '&&',
           })
           current = ''
-          i++ // Skip next &
+          i++
           continue
         }
 
@@ -265,7 +256,7 @@ export class ShellTool implements Tool<ShellToolParams> {
             operator: '||',
           })
           current = ''
-          i++ // Skip next |
+          i++
           continue
         }
 
@@ -309,11 +300,13 @@ export class ShellTool implements Tool<ShellToolParams> {
     parsed: ParsedCommand,
     pipeInput?: string
   ): Promise<ShellCommandResult> {
-    const { name, args, redirect } = parsed
+    const { name, args = [], redirect } = parsed
 
     if (!name) {
       return { exitCode: 0, stdout: '', stderr: '' }
     }
+
+    console.log('[ShellExecutor.executeSingleCommand] Command:', name, 'args:', args)
 
     const command = this.registry.get(name)
     if (!command) {
@@ -324,8 +317,30 @@ export class ShellTool implements Tool<ShellToolParams> {
       }
     }
 
-    // Execute the command
-    const result = await command.execute(args, this.cwd, pipeInput)
+    // Execute the command with defensive args
+    const safeArgs = Array.isArray(args) ? args : []
+    let result: ShellCommandResult
+    try {
+      result = await command.execute(safeArgs, this.cwd, pipeInput)
+    } catch (err) {
+      console.error('[ShellExecutor.executeSingleCommand] Error executing:', name, err)
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `Error executing ${name}: ${(err as Error).message}`,
+      }
+    }
+
+    // Ensure result has expected shape
+    if (!result || typeof result !== 'object') {
+      return { exitCode: 1, stdout: '', stderr: 'Invalid command result' }
+    }
+    result = {
+      exitCode: result.exitCode ?? 0,
+      stdout: result.stdout ?? '',
+      stderr: result.stderr ?? '',
+      newCwd: result.newCwd,
+    }
 
     // Handle cd command - update cwd
     if (name === 'cd' && result.newCwd) {
@@ -340,19 +355,16 @@ export class ShellTool implements Tool<ShellToolParams> {
 
       try {
         if (redirect.type === '>>') {
-          // Append
           let existing = ''
           try {
             existing = (await this.fs.readFile(filePath, { encoding: 'utf8' })) as string
           } catch {
-            // File doesn't exist, that's fine
+            // File doesn't exist
           }
           await this.fs.writeFile(filePath, existing + result.stdout)
         } else {
-          // Overwrite
           await this.fs.writeFile(filePath, result.stdout)
         }
-        // Clear stdout since it was redirected
         return { ...result, stdout: '' }
       } catch (err) {
         return {
@@ -367,7 +379,7 @@ export class ShellTool implements Tool<ShellToolParams> {
   }
 
   /**
-   * Execute compound commands in sequence, respecting operators
+   * Execute compound commands in sequence
    */
   async executeCompoundCommands(commands: CompoundCommand[]): Promise<ShellCommandResult> {
     let lastResult: ShellCommandResult = { exitCode: 0, stdout: '', stderr: '' }
@@ -377,7 +389,7 @@ export class ShellTool implements Tool<ShellToolParams> {
       const { command, operator } = commands[i]
       const prevOperator = i > 0 ? commands[i - 1].operator : null
 
-      // Check if we should skip this command based on previous result
+      // Check if we should skip based on previous result
       if (prevOperator === '&&' && lastResult.exitCode !== 0) {
         continue
       }
@@ -385,16 +397,13 @@ export class ShellTool implements Tool<ShellToolParams> {
         continue
       }
 
-      // Execute command
       const result = await this.executeSingleCommand(command, pipeInput)
 
-      // Handle piping
       if (operator === '|') {
         pipeInput = result.stdout
         lastResult = { ...result, stdout: '' }
       } else {
         pipeInput = undefined
-        // Combine output for ; operator, replace otherwise
         if (prevOperator === ';') {
           lastResult = {
             exitCode: result.exitCode,
@@ -402,7 +411,6 @@ export class ShellTool implements Tool<ShellToolParams> {
             stderr: lastResult.stderr + (lastResult.stderr && result.stderr ? '\n' : '') + result.stderr,
           }
         } else if (prevOperator === '|') {
-          // Pipe result replaces the output
           lastResult = result
         } else {
           lastResult = result
@@ -414,48 +422,23 @@ export class ShellTool implements Tool<ShellToolParams> {
   }
 
   /**
-   * Get the current working directory
+   * Get current working directory
    */
-  getCurrentWorkingDirectory(): string {
+  getCwd(): string {
     return this.cwd
   }
 
   /**
-   * Set the current working directory
+   * Set current working directory
    */
-  setCurrentWorkingDirectory(cwd: string): void {
+  setCwd(cwd: string): void {
     this.cwd = cwd
   }
 
   /**
    * Get list of available commands
    */
-  getAvailableCommands(): ShellCommand[] {
-    return this.registry.list()
-  }
-
-  /**
-   * Get the command registry for direct access
-   */
-  getRegistry(): CommandRegistry {
-    return this.registry
-  }
-
-  /**
-   * Send a message via the ralph callback (for autonomous iteration)
-   * Returns the AI's response
-   */
-  async sendRalphMessage(prompt: string): Promise<string> {
-    if (this.sendMessage) {
-      return this.sendMessage(prompt)
-    }
-    return ''
-  }
-
-  /**
-   * Check if ralph command is available
-   */
-  hasRalph(): boolean {
-    return this.registry.has('ralph')
+  getAvailableCommands(): string[] {
+    return this.registry.list().map((cmd) => cmd.name)
   }
 }

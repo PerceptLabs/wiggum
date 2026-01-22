@@ -162,6 +162,7 @@ export async function buildProject(
   const result = await build(
     {
       entryPoint,
+      outfile: 'bundle.js', // Required for esbuild to generate output
       bundle: true,
       format: options.format ?? 'esm',
       minify: options.minify ?? false,

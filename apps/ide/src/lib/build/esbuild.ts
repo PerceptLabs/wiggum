@@ -1,17 +1,58 @@
-import * as esbuild from 'esbuild-wasm'
 import type { BuildState, BuildResult, BuildOptions, BuildError, BuildWarning } from './types'
+import type * as esbuildTypes from 'esbuild-wasm'
 
 /**
  * Global build state for tracking esbuild initialization
  */
-const state: BuildState = {
+const state: BuildState & { esbuild?: typeof esbuildTypes } = {
   initialized: false,
 }
 
 /**
- * Default WASM URL from unpkg CDN
+ * esbuild-wasm version to use
  */
-const DEFAULT_WASM_URL = 'https://unpkg.com/esbuild-wasm@0.27.2/esbuild.wasm'
+const ESBUILD_VERSION = '0.24.0'
+
+/**
+ * CDN URLs for esbuild-wasm
+ */
+const ESBUILD_JS_URL = `https://unpkg.com/esbuild-wasm@${ESBUILD_VERSION}/lib/browser.min.js`
+const ESBUILD_WASM_URL = `https://unpkg.com/esbuild-wasm@${ESBUILD_VERSION}/esbuild.wasm`
+
+/**
+ * Get the esbuild module (must be initialized first)
+ */
+function getEsbuild(): typeof esbuildTypes {
+  if (!state.esbuild) {
+    throw new Error('esbuild-wasm not loaded. Call initialize() first.')
+  }
+  return state.esbuild
+}
+
+/**
+ * Load esbuild from CDN
+ */
+async function loadEsbuildFromCDN(): Promise<typeof esbuildTypes> {
+  // Check if already loaded globally
+  if (typeof window !== 'undefined' && (window as unknown as { esbuild?: typeof esbuildTypes }).esbuild) {
+    return (window as unknown as { esbuild: typeof esbuildTypes }).esbuild
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = ESBUILD_JS_URL
+    script.onload = () => {
+      const esbuild = (window as unknown as { esbuild?: typeof esbuildTypes }).esbuild
+      if (esbuild) {
+        resolve(esbuild)
+      } else {
+        reject(new Error('esbuild not found on window after script load'))
+      }
+    }
+    script.onerror = () => reject(new Error(`Failed to load esbuild from ${ESBUILD_JS_URL}`))
+    document.head.appendChild(script)
+  })
+}
 
 /**
  * Initialize esbuild-wasm
@@ -28,13 +69,27 @@ export async function initialize(wasmURL?: string): Promise<void> {
 
   state.initPromise = (async () => {
     try {
+      // Load esbuild from CDN (browser.min.js exposes global esbuild)
+      const esbuild = await loadEsbuildFromCDN()
+
+      // Check if initialize function exists
+      if (typeof esbuild.initialize !== 'function') {
+        throw new Error(
+          `esbuild.initialize is not a function. ` +
+          `Available keys: ${Object.keys(esbuild).join(', ')}`
+        )
+      }
+
       await esbuild.initialize({
-        wasmURL: wasmURL || DEFAULT_WASM_URL,
+        wasmURL: wasmURL || ESBUILD_WASM_URL,
         worker: true,
       })
+
+      state.esbuild = esbuild
       state.initialized = true
     } catch (err) {
       state.error = err instanceof Error ? err : new Error(String(err))
+      state.initPromise = undefined // Allow retry
       throw state.error
     }
   })()
@@ -59,7 +114,7 @@ export function getInitError(): Error | undefined {
 /**
  * Convert esbuild message to BuildError
  */
-function toBuildError(msg: esbuild.Message): BuildError {
+function toBuildError(msg: esbuildTypes.Message): BuildError {
   return {
     message: msg.text,
     file: msg.location?.file,
@@ -73,7 +128,7 @@ function toBuildError(msg: esbuild.Message): BuildError {
 /**
  * Convert esbuild message to BuildWarning
  */
-function toBuildWarning(msg: esbuild.Message): BuildWarning {
+function toBuildWarning(msg: esbuildTypes.Message): BuildWarning {
   return {
     message: msg.text,
     file: msg.location?.file,
@@ -88,7 +143,7 @@ function toBuildWarning(msg: esbuild.Message): BuildWarning {
  */
 export async function build(
   options: BuildOptions,
-  plugins?: esbuild.Plugin[]
+  plugins?: esbuildTypes.Plugin[]
 ): Promise<BuildResult> {
   const startTime = Date.now()
 
@@ -96,6 +151,8 @@ export async function build(
   if (!state.initialized) {
     await initialize()
   }
+
+  const esbuild = getEsbuild()
 
   try {
     const result = await esbuild.build({
@@ -138,7 +195,7 @@ export async function build(
 
     // Handle build failures that throw
     if (err && typeof err === 'object' && 'errors' in err) {
-      const buildErr = err as esbuild.BuildFailure
+      const buildErr = err as esbuildTypes.BuildFailure
       return {
         success: false,
         errors: buildErr.errors.map(toBuildError),
@@ -179,6 +236,8 @@ export async function transform(
     await initialize()
   }
 
+  const esbuild = getEsbuild()
+
   const result = await esbuild.transform(code, {
     loader: options.loader ?? 'tsx',
     sourcemap: options.sourcemap,
@@ -199,10 +258,11 @@ export async function transform(
  * Stop esbuild worker (cleanup)
  */
 export async function stop(): Promise<void> {
-  if (state.initialized) {
-    await esbuild.stop()
+  if (state.initialized && state.esbuild) {
+    await state.esbuild.stop()
     state.initialized = false
     state.initPromise = undefined
+    state.esbuild = undefined
   }
 }
 

@@ -1,10 +1,15 @@
 import * as React from 'react'
 
+export type ViewMode = 'preview' | 'code'
+
 interface LayoutState {
   sidebarCollapsed: boolean
   previewVisible: boolean
   sidebarWidth: number
   previewWidth: number
+  viewMode: ViewMode
+  logsOpen: boolean
+  buildLogs: string[]
 }
 
 interface LayoutContextValue extends LayoutState {
@@ -14,6 +19,11 @@ interface LayoutContextValue extends LayoutState {
   setPreviewVisible: (visible: boolean) => void
   setSidebarWidth: (width: number) => void
   setPreviewWidth: (width: number) => void
+  setViewMode: (mode: ViewMode) => void
+  toggleLogs: () => void
+  setLogsOpen: (open: boolean) => void
+  addBuildLog: (log: string) => void
+  clearBuildLogs: () => void
 }
 
 const LayoutContext = React.createContext<LayoutContextValue | null>(null)
@@ -31,6 +41,9 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
     previewVisible: true,
     sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
     previewWidth: DEFAULT_PREVIEW_WIDTH,
+    viewMode: 'preview',
+    logsOpen: false,
+    buildLogs: [],
   })
 
   const toggleSidebar = React.useCallback(() => {
@@ -59,6 +72,26 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, previewWidth: clampedWidth }))
   }, [])
 
+  const setViewMode = React.useCallback((mode: ViewMode) => {
+    setState((s) => ({ ...s, viewMode: mode }))
+  }, [])
+
+  const toggleLogs = React.useCallback(() => {
+    setState((s) => ({ ...s, logsOpen: !s.logsOpen }))
+  }, [])
+
+  const setLogsOpen = React.useCallback((open: boolean) => {
+    setState((s) => ({ ...s, logsOpen: open }))
+  }, [])
+
+  const addBuildLog = React.useCallback((log: string) => {
+    setState((s) => ({ ...s, buildLogs: [...s.buildLogs, log] }))
+  }, [])
+
+  const clearBuildLogs = React.useCallback(() => {
+    setState((s) => ({ ...s, buildLogs: [] }))
+  }, [])
+
   const value = React.useMemo(
     () => ({
       ...state,
@@ -68,8 +101,13 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
       setPreviewVisible,
       setSidebarWidth,
       setPreviewWidth,
+      setViewMode,
+      toggleLogs,
+      setLogsOpen,
+      addBuildLog,
+      clearBuildLogs,
     }),
-    [state, toggleSidebar, togglePreview, setSidebarCollapsed, setPreviewVisible, setSidebarWidth, setPreviewWidth]
+    [state, toggleSidebar, togglePreview, setSidebarCollapsed, setPreviewVisible, setSidebarWidth, setPreviewWidth, setViewMode, toggleLogs, setLogsOpen, addBuildLog, clearBuildLogs]
   )
 
   return <LayoutContext.Provider value={value}>{children}</LayoutContext.Provider>

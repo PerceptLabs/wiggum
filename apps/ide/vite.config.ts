@@ -16,6 +16,18 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['esbuild-wasm'],
   },
+  build: {
+    // Don't bundle esbuild-wasm, it needs to load its own worker
+    commonjsOptions: {
+      exclude: ['esbuild-wasm'],
+    },
+  },
+  // Serve the esbuild-wasm files from node_modules
+  server: {
+    fs: {
+      allow: ['..', '../../node_modules'],
+    },
+  },
   define: {
     'process.env': {},
   },

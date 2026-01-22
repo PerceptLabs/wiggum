@@ -1,31 +1,45 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@config "../tailwind.config.ts";
 
 @custom-variant dark (&:is(.dark *));
 
-/* Base shadcn/ui variables */
+/* Neobrutalism Theme Variables */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
+    /* Neobrutalism Light Mode - Cream & Black */
+    --background: 55 100% 98%;         /* #FFFDF5 - cream background */
+    --foreground: 0 0% 4%;             /* Near black text */
+    --card: 55 100% 98%;               /* Cream cards */
+    --card-foreground: 0 0% 4%;
+    --popover: 55 100% 98%;
+    --popover-foreground: 0 0% 4%;
+    --primary: 50 100% 53%;            /* #FFD90F - Simpsons Yellow */
+    --primary-foreground: 0 0% 4%;     /* Black text on yellow */
+    --secondary: 45 50% 92%;           /* Light warm cream */
+    --secondary-foreground: 0 0% 4%;
+    --muted: 45 30% 90%;               /* Subtle warm gray */
+    --muted-foreground: 0 0% 40%;
+    --accent: 50 100% 53%;             /* Same as primary - yellow accent */
+    --accent-foreground: 0 0% 4%;
+    --destructive: 0 84% 60%;          /* Keep red for destructive */
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 0 0% 3.9%;
-    --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
+    --border: 0 0% 0%;                 /* Pure black borders */
+    --input: 0 0% 0%;                  /* Black input borders */
+    --ring: 50 100% 53%;               /* Yellow focus ring */
+    --radius: 0px;                     /* Sharp corners - key neobrutalism trait */
+
+    /* Neobrutalism shadow custom properties */
+    --neo-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+    --neo-shadow-sm: 2px 2px 0px 0px rgba(0,0,0,1);
+    --neo-shadow-lg: 6px 6px 0px 0px rgba(0,0,0,1);
+    --neo-shadow-hover: 2px 2px 0px 0px rgba(0,0,0,1);
+    --neo-shadow-active: 0px 0px 0px 0px rgba(0,0,0,1);
+    --neo-border-width: 2px;
+
+    /* Chart colors */
+    --chart-1: 50 100% 53%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
@@ -33,26 +47,36 @@
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    /* Neobrutalism Dark Mode - Charcoal & Yellow */
+    --background: 0 0% 10%;            /* #1A1A1A - charcoal */
+    --foreground: 55 100% 98%;         /* Cream text */
+    --card: 0 0% 16%;                  /* #292929 - panel background */
+    --card-foreground: 55 100% 98%;
+    --popover: 0 0% 16%;
+    --popover-foreground: 55 100% 98%;
+    --primary: 50 100% 53%;            /* #FFD90F - Simpsons Yellow */
+    --primary-foreground: 0 0% 4%;     /* Black text on yellow */
+    --secondary: 0 0% 20%;             /* Slightly lighter charcoal */
+    --secondary-foreground: 55 100% 98%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 50 100% 53%;             /* Yellow accent */
+    --accent-foreground: 0 0% 4%;
+    --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --chart-1: 220 70% 50%;
+    --border: 50 100% 53%;             /* Yellow borders in dark mode */
+    --input: 50 100% 53%;
+    --ring: 50 100% 53%;
+
+    /* Dark mode shadows use yellow */
+    --neo-shadow: 4px 4px 0px 0px hsl(50 100% 53%);
+    --neo-shadow-sm: 2px 2px 0px 0px hsl(50 100% 53%);
+    --neo-shadow-lg: 6px 6px 0px 0px hsl(50 100% 53%);
+    --neo-shadow-hover: 2px 2px 0px 0px hsl(50 100% 53%);
+    --neo-shadow-active: 0px 0px 0px 0px hsl(50 100% 53%);
+
+    /* Chart colors - dark mode */
+    --chart-1: 50 100% 53%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
@@ -88,16 +112,17 @@
   --color-chart-4: hsl(var(--chart-4));
   --color-chart-5: hsl(var(--chart-5));
 
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  /* Sharp corners for neobrutalism */
+  --radius-lg: 0px;
+  --radius-md: 0px;
+  --radius-sm: 0px;
 
   /* IDE-specific editor colors */
-  --color-editor-bg: #fafafa;
-  --color-editor-line-number: #a1a1aa;
-  --color-editor-selection: #dbeafe;
+  --color-editor-bg: #FFFDF5;
+  --color-editor-line-number: #71717a;
+  --color-editor-selection: hsl(50 100% 80%);
 
-  /* Syntax highlighting */
+  /* Syntax highlighting - bold colors for neobrutalism */
   --color-syntax-keyword: #7c3aed;
   --color-syntax-string: #059669;
   --color-syntax-number: #dc2626;
@@ -108,9 +133,9 @@
 
 /* Dark mode editor overrides */
 .dark {
-  --color-editor-bg: #18181b;
+  --color-editor-bg: #1A1A1A;
   --color-editor-line-number: #52525b;
-  --color-editor-selection: #1e3a5f;
+  --color-editor-selection: hsl(50 100% 30%);
   --color-syntax-keyword: #a78bfa;
   --color-syntax-string: #34d399;
   --color-syntax-number: #f87171;
@@ -121,11 +146,12 @@
 /* Base layer styles */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
+    border-width: 0;
   }
   body {
     @apply bg-background text-foreground;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -133,21 +159,55 @@
   }
 }
 
-/* Scrollbar styling */
+/* Neobrutalism utility classes */
+@layer utilities {
+  .neo-border {
+    border: var(--neo-border-width) solid hsl(var(--border));
+  }
+
+  .neo-shadow {
+    box-shadow: var(--neo-shadow);
+  }
+
+  .neo-shadow-sm {
+    box-shadow: var(--neo-shadow-sm);
+  }
+
+  .neo-shadow-lg {
+    box-shadow: var(--neo-shadow-lg);
+  }
+
+  .neo-interactive {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+
+  .neo-interactive:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: var(--neo-shadow-lg);
+  }
+
+  .neo-interactive:active {
+    transform: translate(2px, 2px);
+    box-shadow: var(--neo-shadow-active);
+  }
+}
+
+/* Neobrutalism scrollbar styling */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: hsl(var(--muted));
+  border: 2px solid hsl(var(--border));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground));
-  border-radius: 4px;
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--border));
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--foreground));
+  background: hsl(var(--primary) / 0.8);
 }

@@ -1,7 +1,14 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppProviders } from '@/contexts'
-import { Home, Workspace } from '@/pages'
+import {
+  Home,
+  Workspace,
+  Settings,
+  GeneralSettings,
+  IntegrationsSettings,
+  AdvancedSettings,
+} from '@/pages'
 
 const queryClient = new QueryClient()
 
@@ -13,6 +20,11 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/project/:id" element={<Workspace />} />
+            <Route path="/settings" element={<Settings />}>
+              <Route index element={<GeneralSettings />} />
+              <Route path="integrations" element={<IntegrationsSettings />} />
+              <Route path="advanced" element={<AdvancedSettings />} />
+            </Route>
           </Routes>
         </BrowserRouter>
       </AppProviders>

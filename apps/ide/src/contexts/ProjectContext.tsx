@@ -90,11 +90,44 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         const path = `${PROJECTS_DIR}/${id}`
         const now = new Date().toISOString()
 
-        // Create project directory
+        // Create project directory structure
         await fs.mkdir(path, { recursive: true })
+        await fs.mkdir(`${path}/src`, { recursive: true })
 
-        // Create initial files
-        await fs.writeFile(`${path}/README.md`, `# ${name}\n\nCreated with Wiggum.`)
+        // Create starter files
+        await fs.writeFile(`${path}/README.md`, `# ${name}\n\nCreated with Wiggum.\n`)
+
+        // Main entry point
+        await fs.writeFile(
+          `${path}/src/main.tsx`,
+          `import React from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+
+const root = createRoot(document.getElementById('root')!)
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
+`
+        )
+
+        // App component
+        await fs.writeFile(
+          `${path}/src/App.tsx`,
+          `import React from 'react'
+
+export default function App() {
+  return (
+    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
+      <h1>Hello, ${name}!</h1>
+      <p>Edit <code>src/App.tsx</code> to get started.</p>
+    </div>
+  )
+}
+`
+        )
 
         const project: Project = {
           id,

@@ -125,6 +125,16 @@ export function createESMPlugin(options: ESMPluginOptions = {}): Plugin {
         }
       })
 
+      // Handle absolute paths starting with / in http namespace (esm.sh uses these)
+      build.onResolve({ filter: /^\//, namespace: HTTP_NAMESPACE }, (args) => {
+        // Resolve absolute path against the CDN base URL
+        const resolvedUrl = `${cdnConfig.baseUrl}${args.path}`
+        return {
+          path: resolvedUrl,
+          namespace: HTTP_NAMESPACE,
+        }
+      })
+
       // Handle bare module specifiers that weren't resolved by fsPlugin
       build.onResolve({ filter: /^[^./]/ }, (args) => {
         // Skip if already in http namespace (relative imports from CDN)
