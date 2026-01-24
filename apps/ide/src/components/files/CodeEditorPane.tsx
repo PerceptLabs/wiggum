@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ArrowLeft, Save, FileCode2 } from 'lucide-react'
+import { ArrowLeft, Save, FileCode2, Loader2 } from 'lucide-react'
 import { Button, Badge, cn } from '@wiggum/stack'
 import { useLayout } from '@/components/layout/LayoutContext'
 import { FileEditor } from './FileEditor'
@@ -8,8 +8,9 @@ interface CodeEditorPaneProps {
   selectedFile: string | null
   content: string
   onChange?: (content: string) => void
-  onSave?: (content: string) => void
+  onSave?: () => void | Promise<void>
   isModified?: boolean
+  isLoading?: boolean
   className?: string
 }
 
@@ -19,6 +20,7 @@ export function CodeEditorPane({
   onChange,
   onSave,
   isModified = false,
+  isLoading = false,
   className,
 }: CodeEditorPaneProps) {
   const { setViewMode } = useLayout()
@@ -26,6 +28,25 @@ export function CodeEditorPane({
   const handleBackToPreview = () => {
     setViewMode('preview')
   }
+
+  const handleSave = React.useCallback(() => {
+    onSave?.()
+  }, [onSave])
+
+  // Handle keyboard shortcuts at this level too
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault()
+        if (isModified) {
+          handleSave()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleSave, isModified])
 
   const getLanguage = (path: string): string => {
     const ext = path.split('.').pop()?.toLowerCase()
@@ -69,11 +90,17 @@ export function CodeEditorPane({
               <div className="h-4 w-px bg-border" />
               <div className="flex items-center gap-2">
                 <FileCode2 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{selectedFile}</span>
+                <span className="text-sm font-medium">{selectedFile.split('/').pop()}</span>
                 <Badge variant="secondary" className="text-xs">
                   {getLanguage(selectedFile)}
                 </Badge>
-                {isModified && (
+                {isLoading && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading
+                  </Badge>
+                )}
+                {isModified && !isLoading && (
                   <Badge variant="warning" className="text-xs">
                     Modified
                   </Badge>
@@ -87,8 +114,8 @@ export function CodeEditorPane({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onSave?.(content)}
-            disabled={!isModified}
+            onClick={handleSave}
+            disabled={!isModified || isLoading}
             className="gap-2 font-bold uppercase"
           >
             <Save className="h-4 w-4" />
@@ -99,14 +126,20 @@ export function CodeEditorPane({
 
       {/* Editor content */}
       {selectedFile ? (
-        <FileEditor
-          path={selectedFile}
-          content={content}
-          onChange={onChange}
-          onSave={onSave}
-          isModified={isModified}
-          className="flex-1"
-        />
+        isLoading ? (
+          <div className="flex flex-1 items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <FileEditor
+            path={selectedFile}
+            content={content}
+            onChange={onChange}
+            onSave={handleSave}
+            isModified={isModified}
+            className="flex-1"
+          />
+        )
       ) : (
         <EmptyState />
       )}

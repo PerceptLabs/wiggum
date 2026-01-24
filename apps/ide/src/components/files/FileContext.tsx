@@ -36,9 +36,10 @@ export function useFileContext() {
 interface FileProviderProps {
   children: React.ReactNode
   onFileSelect?: (path: string) => void
+  onToggleDir?: (path: string) => void
 }
 
-export function FileProvider({ children, onFileSelect }: FileProviderProps) {
+export function FileProvider({ children, onFileSelect, onToggleDir }: FileProviderProps) {
   const [state, setState] = React.useState<FileState>({
     selectedFile: null,
     expandedDirs: new Set(),
@@ -53,17 +54,22 @@ export function FileProvider({ children, onFileSelect }: FileProviderProps) {
     [onFileSelect]
   )
 
-  const toggleDir = React.useCallback((path: string) => {
-    setState((s) => {
-      const newExpanded = new Set(s.expandedDirs)
-      if (newExpanded.has(path)) {
-        newExpanded.delete(path)
-      } else {
-        newExpanded.add(path)
-      }
-      return { ...s, expandedDirs: newExpanded }
-    })
-  }, [])
+  const toggleDir = React.useCallback(
+    (path: string) => {
+      setState((s) => {
+        const newExpanded = new Set(s.expandedDirs)
+        if (newExpanded.has(path)) {
+          newExpanded.delete(path)
+        } else {
+          newExpanded.add(path)
+        }
+        return { ...s, expandedDirs: newExpanded }
+      })
+      // Notify external handler (used for lazy-loading children in useFileTree)
+      onToggleDir?.(path)
+    },
+    [onToggleDir]
+  )
 
   const expandDir = React.useCallback((path: string) => {
     setState((s) => {

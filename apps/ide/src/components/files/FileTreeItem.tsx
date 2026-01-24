@@ -8,16 +8,18 @@ import {
   FileJson,
   FileText,
   FileCode,
-  FileType,
   Image,
   Bot,
 } from 'lucide-react'
 import { cn } from '@wiggum/stack'
 import { useFileContext, type FileEntry } from './FileContext'
+import type { GitStatusMap, GitFileStatus } from './FileTree'
 
 interface FileTreeItemProps {
   entry: FileEntry
   depth?: number
+  gitStatus?: GitStatusMap
+  searchQuery?: string
 }
 
 const FILE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -37,6 +39,26 @@ const FILE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   svg: Image,
 }
 
+/** Colors for git status indicators */
+const GIT_STATUS_COLORS: Record<GitFileStatus, string> = {
+  modified: 'bg-yellow-500',
+  added: 'bg-green-500',
+  deleted: 'bg-red-500',
+  untracked: 'bg-gray-400',
+  ignored: 'bg-gray-300',
+  unchanged: '',
+}
+
+/** Tooltip labels for git status */
+const GIT_STATUS_LABELS: Record<GitFileStatus, string> = {
+  modified: 'Modified',
+  added: 'Staged',
+  deleted: 'Deleted',
+  untracked: 'Untracked',
+  ignored: 'Ignored',
+  unchanged: '',
+}
+
 function getFileIcon(name: string, isDirectory: boolean, isExpanded: boolean) {
   if (isDirectory) {
     // Special icon for .ralph directory
@@ -50,13 +72,18 @@ function getFileIcon(name: string, isDirectory: boolean, isExpanded: boolean) {
   return FILE_ICONS[ext] || File
 }
 
-export function FileTreeItem({ entry, depth = 0 }: FileTreeItemProps) {
+export function FileTreeItem({ entry, depth = 0, gitStatus, searchQuery }: FileTreeItemProps) {
   const { selectedFile, selectFile, toggleDir, isExpanded, openFile } = useFileContext()
 
   const isDir = entry.type === 'directory'
   const expanded = isExpanded(entry.path)
   const isSelected = selectedFile === entry.path
   const isRalphDir = entry.name === '.ralph'
+
+  // Get git status for this file
+  const fileGitStatus = gitStatus?.get(entry.path)
+  const statusColor = fileGitStatus ? GIT_STATUS_COLORS[fileGitStatus] : ''
+  const statusLabel = fileGitStatus ? GIT_STATUS_LABELS[fileGitStatus] : ''
 
   const Icon = getFileIcon(entry.name, isDir, expanded)
 
@@ -74,9 +101,20 @@ export function FileTreeItem({ entry, depth = 0 }: FileTreeItemProps) {
     }
   }
 
+  // Auto-expand directories when searching
+  const shouldExpand = searchQuery && isDir && !expanded
+
+  React.useEffect(() => {
+    if (shouldExpand) {
+      toggleDir(entry.path)
+    }
+  }, [shouldExpand, entry.path, toggleDir])
+
   return (
     <div>
       <button
+        data-path={entry.path}
+        data-is-directory={isDir}
         className={cn(
           'flex w-full items-center gap-1 rounded px-2 py-1 text-left text-sm hover:bg-accent',
           isSelected && 'bg-accent',
@@ -104,13 +142,27 @@ export function FileTreeItem({ entry, depth = 0 }: FileTreeItemProps) {
           )}
         />
 
-        <span className="truncate">{entry.name}</span>
+        <span className="truncate flex-1">{entry.name}</span>
+
+        {/* Git status indicator */}
+        {statusColor && (
+          <span
+            className={cn('h-2 w-2 rounded-full shrink-0', statusColor)}
+            title={statusLabel}
+          />
+        )}
       </button>
 
       {isDir && expanded && entry.children && (
         <div>
           {entry.children.map((child) => (
-            <FileTreeItem key={child.path} entry={child} depth={depth + 1} />
+            <FileTreeItem
+              key={child.path}
+              entry={child}
+              depth={depth + 1}
+              gitStatus={gitStatus}
+              searchQuery={searchQuery}
+            />
           ))}
         </div>
       )}

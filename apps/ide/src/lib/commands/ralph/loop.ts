@@ -1,4 +1,4 @@
-import path from 'path-browserify'
+import * as path from 'path-browserify'
 import type { RalphState, RalphConfig } from './types'
 import { RALPH_DIR, RALPH_FILES, DEFAULT_RALPH_CONFIG } from './types'
 import type { JSRuntimeFS } from '../../fs'

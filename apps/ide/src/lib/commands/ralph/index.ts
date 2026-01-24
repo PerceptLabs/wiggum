@@ -1,8 +1,7 @@
-import type { ShellCommand, ShellCommandResult } from '../ShellCommand'
 import type { JSRuntimeFS } from '../../fs'
 import type { Git } from '../../git'
-import type { RalphSubcommand, RalphSubcommandOptions } from './types'
-import { createErrorResult } from '../ShellCommand'
+import type { ShellCommand, ShellCommandResult, RalphSubcommand, RalphSubcommandOptions } from './types'
+import { createErrorResult } from './types'
 
 // Import subcommands
 import { initSubcommand } from './init'

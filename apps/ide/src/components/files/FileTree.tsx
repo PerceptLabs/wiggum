@@ -15,36 +15,84 @@ import {
 import { FileTreeItem } from './FileTreeItem'
 import { FileProvider, type FileEntry } from './FileContext'
 
+/** Git file status from isomorphic-git */
+export type GitFileStatus = 'modified' | 'added' | 'deleted' | 'untracked' | 'ignored' | 'unchanged'
+
+/** Map of file path to git status */
+export type GitStatusMap = Map<string, GitFileStatus>
+
 interface FileTreeProps {
   entries: FileEntry[]
   onFileSelect?: (path: string) => void
+  /** Called when a directory is toggled (for lazy-loading children) */
+  onToggleDir?: (path: string) => void
   onNewFile?: () => void
   onNewFolder?: () => void
   onRefresh?: () => void
   onDelete?: (path: string) => void
   onRename?: (path: string) => void
+  /** Search query for filtering */
+  searchQuery?: string
+  /** Git status map for file indicators */
+  gitStatus?: GitStatusMap
+  /** Selected file path */
+  selectedPath?: string
   className?: string
+}
+
+/**
+ * Recursively filter entries based on search query
+ * Shows files that match and any parent directories needed to reach them
+ */
+function filterEntries(entries: FileEntry[], query: string): FileEntry[] {
+  if (!query.trim()) return entries
+
+  const lowerQuery = query.toLowerCase()
+
+  return entries.reduce<FileEntry[]>((acc, entry) => {
+    const nameMatches = entry.name.toLowerCase().includes(lowerQuery)
+
+    if (entry.type === 'directory' && entry.children) {
+      const filteredChildren = filterEntries(entry.children, query)
+      // Include directory if name matches or has matching children
+      if (nameMatches || filteredChildren.length > 0) {
+        acc.push({
+          ...entry,
+          children: filteredChildren.length > 0 ? filteredChildren : entry.children,
+        })
+      }
+    } else if (nameMatches) {
+      acc.push(entry)
+    }
+
+    return acc
+  }, [])
 }
 
 export function FileTree({
   entries,
   onFileSelect,
+  onToggleDir,
   onNewFile,
   onNewFolder,
   onRefresh,
   onDelete,
   onRename,
+  searchQuery,
+  gitStatus,
+  selectedPath,
   className,
 }: FileTreeProps) {
   const [contextMenu, setContextMenu] = React.useState<{
     x: number
     y: number
     path: string
+    isDirectory: boolean
   } | null>(null)
 
-  const handleContextMenu = (e: React.MouseEvent, path: string) => {
+  const handleContextMenu = (e: React.MouseEvent, path: string, isDirectory: boolean) => {
     e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, path })
+    setContextMenu({ x: e.clientX, y: e.clientY, path, isDirectory })
   }
 
   const closeContextMenu = () => setContextMenu(null)
@@ -62,8 +110,13 @@ export function FileTree({
     })
   }, [entries])
 
+  // Filter entries based on search query
+  const filteredEntries = React.useMemo(() => {
+    return filterEntries(sortedEntries, searchQuery || '')
+  }, [sortedEntries, searchQuery])
+
   return (
-    <FileProvider onFileSelect={onFileSelect}>
+    <FileProvider onFileSelect={onFileSelect} onToggleDir={onToggleDir}>
       <div className={cn('flex flex-col', className)}>
         {/* Toolbar */}
         <div className="flex items-center justify-between pb-2">
@@ -100,24 +153,32 @@ export function FileTree({
 
         {/* Tree */}
         <div
-          className="flex-1"
+          className="flex-1 overflow-y-auto"
           onContextMenu={(e) => {
             const target = e.target as HTMLElement
-            const button = target.closest('button')
+            const button = target.closest('button[data-path]')
             if (button) {
               const path = button.getAttribute('data-path')
+              const isDir = button.getAttribute('data-is-directory') === 'true'
               if (path) {
-                handleContextMenu(e, path)
+                handleContextMenu(e, path, isDir)
               }
             }
           }}
         >
-          {sortedEntries.length === 0 ? (
+          {filteredEntries.length === 0 ? (
             <div className="py-4 text-center text-sm text-muted-foreground">
-              No files yet
+              {searchQuery ? 'No matching files' : 'No files yet'}
             </div>
           ) : (
-            sortedEntries.map((entry) => <FileTreeItem key={entry.path} entry={entry} />)
+            filteredEntries.map((entry) => (
+              <FileTreeItem
+                key={entry.path}
+                entry={entry}
+                gitStatus={gitStatus}
+                searchQuery={searchQuery}
+              />
+            ))
           )}
         </div>
 
@@ -136,13 +197,21 @@ export function FileTree({
               />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => onRename?.(contextMenu.path)}>
+              <DropdownMenuItem
+                onClick={() => {
+                  onRename?.(contextMenu.path)
+                  closeContextMenu()
+                }}
+              >
                 Rename
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => onDelete?.(contextMenu.path)}
+                onClick={() => {
+                  onDelete?.(contextMenu.path)
+                  closeContextMenu()
+                }}
               >
                 Delete
               </DropdownMenuItem>

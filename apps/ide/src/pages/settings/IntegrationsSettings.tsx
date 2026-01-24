@@ -1,17 +1,5 @@
 import * as React from 'react'
-import {
-  Bot,
-  GitBranch,
-  Key,
-  Check,
-  X,
-  Plus,
-  Trash2,
-  Server,
-  Cloud,
-  RefreshCw,
-  Loader2,
-} from 'lucide-react'
+import { Bot, GitBranch, Key, Check, X, RefreshCw, Loader2, Globe, Server } from 'lucide-react'
 import {
   Button,
   Card,
@@ -22,73 +10,46 @@ import {
   Label,
   Input,
   Badge,
-  Switch,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
   cn,
 } from '@wiggum/stack'
 import { useAISettings } from '@/contexts'
-import { CUSTOM_PROVIDER_PRESETS, type ModelInfo } from '@/lib/ai'
+import type { ProviderPreset } from '@/lib/llm'
 
 export function IntegrationsSettings() {
   const {
-    providers,
-    availableProviders,
-    selectedModelId,
+    providerOptions,
     getModelsForProvider,
+    selectedProvider,
+    selectedModel,
+    setSelectedProvider,
+    setSelectedModel,
     setApiKey,
     getApiKey,
-    setSelectedModel,
-    addCustomProvider,
-    removeCustomProvider,
-    // Ollama Local
-    setOllamaLocalEnabled,
-    setOllamaLocalBaseUrl,
-    refreshOllamaLocalModels,
-    ollamaLocalSettings,
-    isRefreshingOllamaLocal,
-    // Ollama Cloud
-    setOllamaCloudEnabled,
-    setOllamaCloudApiKey,
-    ollamaCloudSettings,
+    setCustomEndpoint,
+    getCustomEndpoint,
     isConfigured,
+    localProviderStatus,
+    refreshLocalProviders,
+    isDetectingProviders,
+    refreshModelsForProvider,
   } = useAISettings()
 
   const [editingProvider, setEditingProvider] = React.useState<string | null>(null)
   const [tempApiKey, setTempApiKey] = React.useState('')
-  const [showAddCustom, setShowAddCustom] = React.useState(false)
-  const [customName, setCustomName] = React.useState('')
-  const [customBaseUrl, setCustomBaseUrl] = React.useState('')
-  const [customApiKey, setCustomApiKey] = React.useState('')
+  const [tempEndpoint, setTempEndpoint] = React.useState('')
   const [gitUsername, setGitUsername] = React.useState('')
   const [gitEmail, setGitEmail] = React.useState('')
-
-  // Parse selected model
-  const [selectedProviderId, selectedModelName] = React.useMemo(() => {
-    const idx = selectedModelId.indexOf(':')
-    if (idx === -1) return ['', selectedModelId]
-    return [selectedModelId.slice(0, idx), selectedModelId.slice(idx + 1)]
-  }, [selectedModelId])
+  const [refreshingModels, setRefreshingModels] = React.useState<string | null>(null)
 
   // Get models for selected provider
   const modelsForSelectedProvider = React.useMemo(() => {
-    if (!selectedProviderId) return []
-    return getModelsForProvider(selectedProviderId)
-  }, [selectedProviderId, getModelsForProvider])
-
-  // Official providers (OpenAI, Anthropic, Google)
-  const officialProviders = providers.filter((p) => p.type === 'official')
-
-  // Custom providers
-  const customProviders = providers.filter((p) => p.type === 'custom')
+    return getModelsForProvider(selectedProvider)
+  }, [selectedProvider, getModelsForProvider])
 
   const handleSaveApiKey = (providerId: string) => {
     if (tempApiKey.trim()) {
@@ -98,46 +59,26 @@ export function IntegrationsSettings() {
     }
   }
 
-  const handleAddCustomProvider = () => {
-    if (customName && customBaseUrl) {
-      const id = customName.toLowerCase().replace(/\s+/g, '-')
-      addCustomProvider({
-        id,
-        name: customName,
-        baseUrl: customBaseUrl,
-        apiKey: customApiKey || undefined,
-        models: [],
-      })
-      setCustomName('')
-      setCustomBaseUrl('')
-      setCustomApiKey('')
-      setShowAddCustom(false)
+  const handleSaveEndpoint = (providerId: string) => {
+    if (tempEndpoint.trim()) {
+      setCustomEndpoint(providerId, tempEndpoint.trim())
+      setTempEndpoint('')
+      setEditingProvider(null)
+      // Refresh models for this provider after setting endpoint
+      refreshModelsForProvider(providerId)
     }
   }
 
-  const handleAddFromPreset = (presetId: string) => {
-    const preset = CUSTOM_PROVIDER_PRESETS[presetId as keyof typeof CUSTOM_PROVIDER_PRESETS]
-    if (preset) {
-      addCustomProvider({
-        id: preset.id,
-        name: preset.name,
-        baseUrl: preset.baseUrl,
-        models: preset.models as ModelInfo[],
-        defaultModelId: preset.defaultModelId,
-      })
-    }
+  const handleRefreshModels = async (providerId: string) => {
+    setRefreshingModels(providerId)
+    await refreshModelsForProvider(providerId)
+    setRefreshingModels(null)
   }
 
-  const handleRefreshOllamaModels = async () => {
-    await refreshOllamaLocalModels()
+  // Get local provider status
+  const getLocalStatus = (providerId: string) => {
+    return localProviderStatus.find((s) => s.preset === providerId)
   }
-
-  // Format last refreshed time
-  const lastRefreshedText = React.useMemo(() => {
-    if (!ollamaLocalSettings.lastRefreshed) return null
-    const date = new Date(ollamaLocalSettings.lastRefreshed)
-    return date.toLocaleTimeString()
-  }, [ollamaLocalSettings.lastRefreshed])
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -179,44 +120,65 @@ export function IntegrationsSettings() {
             <div className="space-y-2">
               <Label className="text-sm font-bold uppercase tracking-wide">Provider</Label>
               <Select
-                value={selectedProviderId}
+                value={selectedProvider}
                 onValueChange={(providerId) => {
-                  const models = getModelsForProvider(providerId)
-                  const defaultModel = models[0]?.id || ''
-                  if (defaultModel) {
-                    setSelectedModel(`${providerId}:${defaultModel}`)
-                  }
+                  setSelectedProvider(providerId as ProviderPreset)
                 }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select provider" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableProviders.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
+                  {providerOptions.map((p) => {
+                    const localStatus = getLocalStatus(p.id)
+                    return (
+                      <SelectItem key={p.id} value={p.id}>
+                        <span className="flex items-center gap-2">
+                          {p.name}
+                          {localStatus?.available && (
+                            <span className="ml-1 h-2 w-2 rounded-full bg-green-500" />
+                          )}
+                        </span>
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-sm font-bold uppercase tracking-wide">Model</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold uppercase tracking-wide">Model</Label>
+                {providerOptions.find((p) => p.id === selectedProvider)?.isLocal && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2"
+                    onClick={() => handleRefreshModels(selectedProvider)}
+                    disabled={refreshingModels === selectedProvider}
+                  >
+                    {refreshingModels === selectedProvider ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3" />
+                    )}
+                  </Button>
+                )}
+              </div>
               <Select
-                value={selectedModelName}
+                value={selectedModel}
                 onValueChange={(modelName) => {
-                  setSelectedModel(`${selectedProviderId}:${modelName}`)
+                  setSelectedModel(modelName)
                 }}
-                disabled={!selectedProviderId}
+                disabled={!selectedProvider || modelsForSelectedProvider.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select model" />
+                  <SelectValue placeholder={modelsForSelectedProvider.length === 0 ? 'No models found' : 'Select model'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {modelsForSelectedProvider.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.label}
+                  {modelsForSelectedProvider.map((modelName) => (
+                    <SelectItem key={modelName} value={modelName}>
+                      {modelName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -226,89 +188,91 @@ export function IntegrationsSettings() {
         </CardContent>
       </Card>
 
-      {/* Official Providers */}
+      {/* API Key Configuration */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
-              <Cloud className="h-5 w-5" />
+              <Key className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle>Cloud Providers</CardTitle>
-              <CardDescription>OpenAI, Anthropic, and Google AI</CardDescription>
+              <CardTitle>API Keys</CardTitle>
+              <CardDescription>Configure API keys for cloud providers</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {officialProviders.map((provider) => {
-            const hasKey = !!getApiKey(provider.id)
-            const isEditing = editingProvider === provider.id
+          {providerOptions
+            .filter((provider) => provider.needsApiKey)
+            .map((provider) => {
+              const hasKey = !!getApiKey(provider.id)
+              const isEditing = editingProvider === provider.id
 
-            return (
-              <div
-                key={provider.id}
-                className={cn(
-                  'border-2 border-border p-4',
-                  'transition-all duration-150',
-                  hasKey && 'border-green-500/50 bg-green-500/5'
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold">{provider.name}</span>
-                    {hasKey ? (
-                      <Badge variant="success" className="gap-1">
-                        <Check className="h-3 w-3" />
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">Not configured</Badge>
-                    )}
-                  </div>
-                  {hasKey && !isEditing ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditingProvider(provider.id)
-                        setTempApiKey('')
-                      }}
-                    >
-                      Update Key
-                    </Button>
-                  ) : null}
-                </div>
-
-                {(isEditing || !hasKey) && (
-                  <div className="mt-4 flex gap-2">
-                    <Input
-                      type="password"
-                      placeholder={`${provider.name} API Key`}
-                      value={tempApiKey}
-                      onChange={(e) => setTempApiKey(e.target.value)}
-                      className="flex-1 font-mono"
-                    />
-                    <Button
-                      onClick={() => handleSaveApiKey(provider.id)}
-                      disabled={!tempApiKey.trim()}
-                    >
-                      <Key className="mr-2 h-4 w-4" />
-                      Save
-                    </Button>
-                    {isEditing && (
-                      <Button variant="outline" onClick={() => setEditingProvider(null)}>
-                        Cancel
+              return (
+                <div
+                  key={provider.id}
+                  className={cn(
+                    'border-2 border-border p-4',
+                    'transition-all duration-150',
+                    hasKey && 'border-green-500/50 bg-green-500/5'
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold">{provider.name}</span>
+                      {hasKey ? (
+                        <Badge variant="success" className="gap-1">
+                          <Check className="h-3 w-3" />
+                          Connected
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">Not configured</Badge>
+                      )}
+                    </div>
+                    {hasKey && !isEditing ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingProvider(provider.id)
+                          setTempApiKey('')
+                        }}
+                      >
+                        Update Key
                       </Button>
-                    )}
+                    ) : null}
                   </div>
-                )}
-              </div>
-            )
-          })}
+
+                  {(isEditing || !hasKey) && (
+                    <div className="mt-4 flex gap-2">
+                      <Input
+                        type="password"
+                        placeholder={`${provider.name} API Key`}
+                        value={tempApiKey}
+                        onChange={(e) => setTempApiKey(e.target.value)}
+                        className="flex-1 font-mono"
+                      />
+                      <Button
+                        onClick={() => handleSaveApiKey(provider.id)}
+                        disabled={!tempApiKey.trim()}
+                      >
+                        <Key className="mr-2 h-4 w-4" />
+                        Save
+                      </Button>
+                      {isEditing && (
+                        <Button variant="outline" onClick={() => setEditingProvider(null)}>
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
         </CardContent>
       </Card>
 
-      {/* Ollama Local */}
+      {/* Local Providers */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -317,254 +281,248 @@ export function IntegrationsSettings() {
                 <Server className="h-5 w-5" />
               </div>
               <div>
-                <CardTitle>Ollama Local</CardTitle>
-                <CardDescription>Run models on your local machine</CardDescription>
+                <CardTitle>Local Providers</CardTitle>
+                <CardDescription>Ollama, LM Studio, and other local servers</CardDescription>
               </div>
             </div>
-            <Switch
-              checked={ollamaLocalSettings.enabled}
-              onCheckedChange={setOllamaLocalEnabled}
-            />
-          </div>
-        </CardHeader>
-        {ollamaLocalSettings.enabled && (
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-bold uppercase tracking-wide">Base URL</Label>
-              <Input
-                placeholder="http://localhost:11434"
-                value={ollamaLocalSettings.baseUrl}
-                onChange={(e) => setOllamaLocalBaseUrl(e.target.value)}
-              />
-            </div>
-
-            {/* Models Section */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold uppercase tracking-wide">
-                  Discovered Models
-                </Label>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefreshOllamaModels}
-                  disabled={isRefreshingOllamaLocal}
-                >
-                  {isRefreshingOllamaLocal ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                  )}
-                  Refresh Models
-                </Button>
-              </div>
-
-              {lastRefreshedText && (
-                <p className="text-xs text-muted-foreground">
-                  Last refreshed: {lastRefreshedText}
-                </p>
-              )}
-
-              {ollamaLocalSettings.models.length > 0 ? (
-                <div className="grid gap-2">
-                  {ollamaLocalSettings.models.map((model) => (
-                    <div
-                      key={model.id}
-                      className="flex items-center justify-between border-2 border-border p-2"
-                    >
-                      <div>
-                        <span className="font-medium">{model.label}</span>
-                        {model.description && (
-                          <p className="text-xs text-muted-foreground">{model.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshLocalProviders}
+              disabled={isDetectingProviders}
+              className="gap-2"
+            >
+              {isDetectingProviders ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <div className="border-2 border-dashed border-border p-4 text-center text-muted-foreground">
-                  <p>No models found</p>
-                  <p className="text-xs">
-                    Make sure Ollama is running and click "Refresh Models"
-                  </p>
-                </div>
+                <RefreshCw className="h-4 w-4" />
               )}
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Ollama Cloud */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
-                <Cloud className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle>Ollama Cloud</CardTitle>
-                <CardDescription>Access cloud-hosted Ollama models</CardDescription>
-              </div>
-            </div>
-            <Switch
-              checked={ollamaCloudSettings.enabled}
-              onCheckedChange={setOllamaCloudEnabled}
-            />
-          </div>
-        </CardHeader>
-        {ollamaCloudSettings.enabled && (
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-bold uppercase tracking-wide">API Key</Label>
-              <p className="text-xs text-muted-foreground">
-                Required for Ollama Cloud access
-              </p>
-              <Input
-                type="password"
-                placeholder="Ollama API key"
-                value={ollamaCloudSettings.apiKey || ''}
-                onChange={(e) => setOllamaCloudApiKey(e.target.value)}
-              />
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Custom Providers */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
-                <Plus className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle>Custom Providers</CardTitle>
-                <CardDescription>OpenAI-compatible endpoints</CardDescription>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setShowAddCustom(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add
+              Detect
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Quick Add Presets */}
-          <div className="space-y-2">
-            <Label className="text-sm font-bold uppercase tracking-wide">Quick Add</Label>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(CUSTOM_PROVIDER_PRESETS)
-                .filter(([id]) => !providers.some((p) => p.id === id))
-                .map(([id, preset]) => (
-                  <Button
-                    key={id}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAddFromPreset(id)}
-                  >
-                    {preset.name}
-                  </Button>
-                ))}
-            </div>
-          </div>
+          {providerOptions
+            .filter((provider) => provider.isLocal)
+            .map((provider) => {
+              const localStatus = getLocalStatus(provider.id)
+              const customEndpoint = getCustomEndpoint(provider.id)
+              const isEditing = editingProvider === `endpoint-${provider.id}`
 
-          {/* Custom Providers List */}
-          {customProviders.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-bold uppercase tracking-wide">Configured</Label>
-              {customProviders.map((provider) => {
-                const hasKey = !!getApiKey(provider.id)
-                return (
-                  <div
-                    key={provider.id}
-                    className={cn(
-                      'flex items-center justify-between border-2 border-border p-3',
-                      hasKey && 'border-green-500/50 bg-green-500/5'
-                    )}
-                  >
+              return (
+                <div
+                  key={provider.id}
+                  className={cn(
+                    'border-2 border-border p-4',
+                    'transition-all duration-150',
+                    localStatus?.available && 'border-green-500/50 bg-green-500/5'
+                  )}
+                >
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="font-bold">{provider.name}</span>
-                      {hasKey ? (
-                        <Badge variant="success">Connected</Badge>
+                      {localStatus?.available ? (
+                        <Badge variant="success" className="gap-1">
+                          <Check className="h-3 w-3" />
+                          Running
+                        </Badge>
+                      ) : customEndpoint ? (
+                        <Badge variant="outline" className="gap-1">
+                          <Globe className="h-3 w-3" />
+                          Custom URL
+                        </Badge>
                       ) : (
-                        <Badge variant="outline">No API key</Badge>
+                        <Badge variant="outline">Not detected</Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      {!hasKey && (
+                    {!isEditing && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingProvider(`endpoint-${provider.id}`)
+                          setTempEndpoint(customEndpoint || localStatus?.baseUrl || '')
+                        }}
+                      >
+                        {customEndpoint ? 'Edit URL' : 'Set URL'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Show current endpoint */}
+                  {(localStatus?.baseUrl || customEndpoint) && !isEditing && (
+                    <p className="mt-2 text-sm text-muted-foreground font-mono">
+                      {customEndpoint || localStatus?.baseUrl}
+                    </p>
+                  )}
+
+                  {/* Show models count */}
+                  {localStatus?.available && localStatus.models.length > 0 && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {localStatus.models.length} models available
+                    </p>
+                  )}
+
+                  {/* Editing endpoint */}
+                  {isEditing && (
+                    <div className="mt-4 flex gap-2">
+                      <Input
+                        type="text"
+                        placeholder={provider.id === 'ollama' ? 'http://localhost:11434' : 'http://localhost:1234/v1'}
+                        value={tempEndpoint}
+                        onChange={(e) => setTempEndpoint(e.target.value)}
+                        className="flex-1 font-mono"
+                      />
+                      <Button
+                        onClick={() => handleSaveEndpoint(provider.id)}
+                        disabled={!tempEndpoint.trim()}
+                      >
+                        <Globe className="mr-2 h-4 w-4" />
+                        Save
+                      </Button>
+                      <Button variant="outline" onClick={() => setEditingProvider(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Help text */}
+                  {!localStatus?.available && !customEndpoint && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {provider.id === 'ollama'
+                        ? 'Start Ollama locally or set a custom URL.'
+                        : 'Start LM Studio locally or set a custom URL.'}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+        </CardContent>
+      </Card>
+
+      {/* Custom Endpoint */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+              <Globe className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle>Custom Endpoint</CardTitle>
+              <CardDescription>Connect to any OpenAI-compatible API</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {(() => {
+            const customEndpoint = getCustomEndpoint('custom')
+            const customApiKey = getApiKey('custom')
+            const isEditingUrl = editingProvider === 'endpoint-custom'
+            const isEditingKey = editingProvider === 'apikey-custom'
+
+            return (
+              <div className={cn(
+                'border-2 border-border p-4',
+                'transition-all duration-150',
+                customEndpoint && 'border-blue-500/50 bg-blue-500/5'
+              )}>
+                <div className="space-y-4">
+                  {/* Endpoint URL */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-bold uppercase tracking-wide">Endpoint URL</Label>
+                      {customEndpoint && !isEditingUrl && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            setEditingProvider(provider.id)
+                            setEditingProvider('endpoint-custom')
+                            setTempEndpoint(customEndpoint)
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                    {isEditingUrl || !customEndpoint ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          placeholder="https://api.example.com/v1"
+                          value={isEditingUrl ? tempEndpoint : ''}
+                          onChange={(e) => setTempEndpoint(e.target.value)}
+                          className="flex-1 font-mono"
+                        />
+                        <Button
+                          onClick={() => handleSaveEndpoint('custom')}
+                          disabled={!tempEndpoint.trim()}
+                        >
+                          Save
+                        </Button>
+                        {isEditingUrl && (
+                          <Button variant="outline" onClick={() => setEditingProvider(null)}>
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground font-mono">{customEndpoint}</p>
+                    )}
+                  </div>
+
+                  {/* API Key (optional) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-bold uppercase tracking-wide">API Key (Optional)</Label>
+                      {customApiKey && !isEditingKey && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingProvider('apikey-custom')
                             setTempApiKey('')
                           }}
                         >
-                          Add Key
+                          Update
                         </Button>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeCustomProvider(provider.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
+                    {isEditingKey || !customApiKey ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          placeholder="API key (if required)"
+                          value={tempApiKey}
+                          onChange={(e) => setTempApiKey(e.target.value)}
+                          className="flex-1 font-mono"
+                        />
+                        <Button
+                          onClick={() => {
+                            if (tempApiKey.trim()) {
+                              setApiKey('custom', tempApiKey.trim())
+                            }
+                            setTempApiKey('')
+                            setEditingProvider(null)
+                          }}
+                        >
+                          Save
+                        </Button>
+                        {isEditingKey && (
+                          <Button variant="outline" onClick={() => setEditingProvider(null)}>
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground font-mono">••••••••</p>
+                    )}
                   </div>
-                )
-              })}
-            </div>
-          )}
+                </div>
+              </div>
+            )
+          })()}
         </CardContent>
       </Card>
-
-      {/* Add Custom Provider Dialog */}
-      <Dialog open={showAddCustom} onOpenChange={setShowAddCustom}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Custom Provider</DialogTitle>
-            <DialogDescription>Add any OpenAI-compatible API endpoint</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input
-                placeholder="My Provider"
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Base URL</Label>
-              <Input
-                placeholder="https://api.example.com/v1"
-                value={customBaseUrl}
-                onChange={(e) => setCustomBaseUrl(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>API Key (optional)</Label>
-              <Input
-                type="password"
-                placeholder="sk-..."
-                value={customApiKey}
-                onChange={(e) => setCustomApiKey(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowAddCustom(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddCustomProvider} disabled={!customName || !customBaseUrl}>
-                Add Provider
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Git Configuration */}
       <Card>

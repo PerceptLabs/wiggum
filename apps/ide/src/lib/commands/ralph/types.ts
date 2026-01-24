@@ -1,6 +1,46 @@
-import type { ShellCommandResult } from '../ShellCommand'
 import type { JSRuntimeFS } from '../../fs'
 import type { Git } from '../../git'
+
+// ==================================
+// Shell Command Types (local to ralph)
+// ==================================
+
+/**
+ * Result of a shell command execution
+ */
+export interface ShellCommandResult {
+  exitCode: number
+  stdout: string
+  stderr: string
+}
+
+/**
+ * Shell command interface
+ */
+export interface ShellCommand {
+  name: string
+  description: string
+  usage: string
+  execute(args: string[], cwd: string): Promise<ShellCommandResult>
+}
+
+/**
+ * Create a success result
+ */
+export function createSuccessResult(stdout: string): ShellCommandResult {
+  return { exitCode: 0, stdout, stderr: '' }
+}
+
+/**
+ * Create an error result
+ */
+export function createErrorResult(stderr: string): ShellCommandResult {
+  return { exitCode: 1, stdout: '', stderr }
+}
+
+// ==================================
+// Ralph Types
+// ==================================
 
 /**
  * Ralph state stored in .ralph/ directory

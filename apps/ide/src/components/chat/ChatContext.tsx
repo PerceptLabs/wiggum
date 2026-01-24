@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { AIMessage } from '@/lib/ai'
+import type { AIMessage } from '@/lib/llm'
 import { useAIChat } from '@/hooks/useAIChat'
 
 interface ChatState {

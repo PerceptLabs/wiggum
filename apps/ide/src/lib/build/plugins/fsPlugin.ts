@@ -1,6 +1,6 @@
 import type { Plugin } from 'esbuild-wasm'
 import type { JSRuntimeFS } from '../../fs/types'
-import path from 'path-browserify'
+import * as path from 'path-browserify'
 
 /**
  * Options for the filesystem plugin

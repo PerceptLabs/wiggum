@@ -3,7 +3,7 @@ import type { BuildResult, BuildOptions } from './types'
 import { initialize, build, transform, stop, isInitialized } from './esbuild'
 import { createFSPlugin } from './plugins/fsPlugin'
 import { createESMPlugin, createModuleCache } from './plugins/esmPlugin'
-import path from 'path-browserify'
+import * as path from 'path-browserify'
 
 // Re-export types
 export type {

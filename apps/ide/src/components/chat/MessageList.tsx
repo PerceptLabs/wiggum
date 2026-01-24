@@ -3,7 +3,7 @@ import { ScrollArea, cn } from '@wiggum/stack'
 import { UserMessage } from './UserMessage'
 import { AssistantMessage } from './AssistantMessage'
 import { StreamingMessage } from './StreamingMessage'
-import type { AIMessage } from '@/lib/ai'
+import type { AIMessage } from '@/lib/llm'
 
 interface MessageListProps {
   messages: AIMessage[]

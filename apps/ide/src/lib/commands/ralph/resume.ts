@@ -1,8 +1,6 @@
-import path from 'path-browserify'
-import type { RalphSubcommand, RalphSubcommandOptions } from './types'
-import type { ShellCommandResult } from '../ShellCommand'
-import { createSuccessResult, createErrorResult } from '../ShellCommand'
-import { RALPH_DIR, RALPH_FILES } from './types'
+import * as path from 'path-browserify'
+import type { RalphSubcommand, RalphSubcommandOptions, ShellCommandResult } from './types'
+import { createSuccessResult, createErrorResult, RALPH_DIR, RALPH_FILES } from './types'
 import { readRalphState } from './status'
 
 /**

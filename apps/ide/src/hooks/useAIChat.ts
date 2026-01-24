@@ -1,23 +1,12 @@
 import * as React from 'react'
-import { useFS, useSession, useProject, useAISettings } from '@/contexts'
-import type { AIMessage } from '@/lib/ai'
-import { createTools, type WiggumTools } from '@/lib/tools'
-import {
-  initLoopState,
-  readLoopState,
-  buildLoopContext,
-  updateIteration,
-  appendProgress,
-  checkComplete,
-  checkWaiting,
-  setStatus,
-  cleanupLoopState,
-  readConfig,
-} from '@/lib/commands/ralph'
+import { useFS, useProject, useAISettings } from '@/contexts'
+import type { AIMessage, LLMProvider } from '@/lib/llm'
+import { ShellExecutor } from '@/lib/shell'
+import { registerAllCommands } from '@/lib/shell/commands'
+import { runRalphLoop, type RalphCallbacks } from '@/lib/ralph'
+import { Git } from '@/lib/git'
 
 export interface UseChatOptions {
-  /** Custom AI SDK native tools (defaults to createTools() if not provided) */
-  tools?: WiggumTools
   /** Callback when a message is received */
   onMessage?: (message: AIMessage) => void
   /** Callback on error */
@@ -31,14 +20,14 @@ export interface UseChatOptions {
 export interface ChatState {
   messages: AIMessage[]
   isLoading: boolean
-  streamingContent: string
   error: string | null
   ralphStatus: 'idle' | 'running' | 'waiting' | 'complete' | 'error'
   ralphIteration: number
+  streamingContent: string
 }
 
 /**
- * Hook for AI chat functionality with automatic loop
+ * Hook for AI chat functionality with the Ralph autonomous loop
  *
  * Every message goes through the autonomous loop:
  * - Simple tasks complete in 1 iteration
@@ -47,136 +36,65 @@ export interface ChatState {
  */
 export function useAIChat(options: UseChatOptions = {}) {
   const { fs } = useFS()
-  const { createRalphSendMessageNative } = useSession()
   const { currentProject } = useProject()
-  const { isConfigured } = useAISettings()
+  const { isConfigured, getProvider } = useAISettings()
 
   const [state, setState] = React.useState<ChatState>({
     messages: [],
     isLoading: false,
-    streamingContent: '',
     error: null,
     ralphStatus: 'idle',
     ralphIteration: 0,
+    streamingContent: '',
   })
 
   const abortRef = React.useRef<AbortController | null>(null)
+  const isRunningRef = React.useRef(false)
 
   // Get project path or default
   const cwd = currentProject?.path ?? '/projects/default'
 
-  // Create AI SDK native tools
-  const tools = React.useMemo(() => {
-    // Use provided tools or create default tools
-    if (options.tools) {
-      console.log('[useAIChat] Using provided tools:', Object.keys(options.tools))
-      return options.tools
-    }
-
+  // Create shell executor and git instance
+  const { shell, git } = React.useMemo(() => {
     if (!fs) {
-      console.log('[useAIChat] No filesystem, returning empty tools')
-      return {} as WiggumTools
+      return { shell: null, git: null }
     }
-
-    // Create native tools with filesystem access
-    const nativeTools = createTools({ fs, cwd })
-    console.log('[useAIChat] Created native tools with cwd:', cwd, 'tools:', Object.keys(nativeTools))
-    return nativeTools
-  }, [fs, cwd, options.tools])
-
-  /**
-   * Run the autonomous loop
-   */
-  const runLoop = React.useCallback(
-    async (task: string, sendMessage: (prompt: string) => Promise<string>) => {
-      if (!fs) {
-        throw new Error('Filesystem not ready')
-      }
-
-      // Read config for max iterations
-      const config = await readConfig(fs, cwd)
-      const maxIterations = config.maxIterations
-
-      let iteration = 0
-      let complete = false
-      let waiting = false
-
-      while (!complete && !waiting && iteration < maxIterations) {
-        // Check for abort
-        if (abortRef.current?.signal.aborted) {
-          throw new DOMException('Generation aborted', 'AbortError')
-        }
-
-        iteration++
-
-        // Update iteration state
-        setState((s) => ({ ...s, ralphIteration: iteration }))
-        options.onIteration?.(iteration)
-        await updateIteration(fs, cwd, iteration)
-
-        // Read fresh state
-        const loopState = await readLoopState(fs, cwd)
-
-        // Build context for this iteration
-        const context = buildLoopContext(loopState, iteration)
-
-        // Send to AI (this executes tools and returns final content)
-        console.log('[useAIChat] Sending to AI:', { iteration, contextLength: context.length })
-        const response = await sendMessage(context)
-        console.log('[useAIChat] AI response:', { responseLength: response?.length })
-
-        // Log progress
-        await appendProgress(fs, cwd, iteration, response)
-
-        // Add assistant message to UI
-        const assistantMessage: AIMessage = {
-          role: 'assistant',
-          content: response,
-        }
-        setState((s) => ({
-          ...s,
-          messages: [...s.messages, assistantMessage],
-          streamingContent: '',
-        }))
-        options.onMessage?.(assistantMessage)
-
-        // Check for completion or waiting
-        complete = await checkComplete(fs, cwd)
-        waiting = await checkWaiting(fs, cwd)
-
-        // Small delay between iterations (not on first)
-        if (!complete && !waiting && iteration > 1) {
-          await new Promise((resolve) => setTimeout(resolve, 500))
-        }
-      }
-
-      // Determine final status
-      if (complete) {
-        return 'complete' as const
-      } else if (waiting) {
-        return 'waiting' as const
-      } else {
-        // Hit max iterations
-        return 'idle' as const
-      }
-    },
-    [fs, cwd, options]
-  )
+    const gitInstance = new Git(fs, cwd)
+    const shellExecutor = new ShellExecutor(fs, gitInstance)
+    // Register all built-in shell commands
+    registerAllCommands(shellExecutor)
+    console.log('[useAIChat] Shell commands registered:', shellExecutor.listCommands().map(c => c.name))
+    return { shell: shellExecutor, git: gitInstance }
+  }, [fs, cwd])
 
   /**
-   * Send a message - starts the autonomous loop
+   * Send a message - starts the Ralph autonomous loop
    */
   const sendMessage = React.useCallback(
     async (content: string) => {
-      const toolCount = Object.keys(tools).length
-      console.log('[useAIChat] sendMessage called:', { content, fs: !!fs, isConfigured, toolCount })
+      console.log('[useAIChat] sendMessage called:', { content, fs: !!fs, isConfigured, shell: !!shell })
 
-      if (!fs || !isConfigured) {
-        console.log('[useAIChat] Not ready:', { fs: !!fs, isConfigured })
+      if (!fs || !isConfigured || !shell || !git) {
+        console.log('[useAIChat] Not ready:', { fs: !!fs, isConfigured, shell: !!shell, git: !!git })
         setState((s) => ({ ...s, error: 'Not ready - check API key and filesystem' }))
         options.onError?.(new Error('Not ready'))
         return
       }
+
+      // Get provider
+      const provider = getProvider()
+      if (!provider) {
+        setState((s) => ({ ...s, error: 'Failed to create LLM provider' }))
+        options.onError?.(new Error('Failed to create LLM provider'))
+        return
+      }
+
+      // Prevent concurrent runs
+      if (isRunningRef.current) {
+        console.log('[useAIChat] Already running, ignoring')
+        return
+      }
+      isRunningRef.current = true
 
       // Reset state
       setState((s) => ({
@@ -185,7 +103,6 @@ export function useAIChat(options: UseChatOptions = {}) {
         error: null,
         ralphStatus: 'running',
         ralphIteration: 0,
-        streamingContent: '',
       }))
       options.onStatusChange?.('running')
 
@@ -195,23 +112,101 @@ export function useAIChat(options: UseChatOptions = {}) {
       // Add user message to UI
       const userMessage: AIMessage = { role: 'user', content }
       setState((s) => ({ ...s, messages: [...s.messages, userMessage] }))
+      options.onMessage?.(userMessage)
+
+      // Setup Ralph callbacks
+      const callbacks: RalphCallbacks = {
+        signal: abortRef.current.signal,  // Pass abort signal for cancellation
+        onIterationStart: (iteration) => {
+          console.log('[useAIChat] Iteration start:', iteration)
+          setState((s) => ({ ...s, ralphIteration: iteration }))
+          options.onIteration?.(iteration)
+        },
+        onIterationEnd: (iteration) => {
+          console.log('[useAIChat] Iteration end:', iteration)
+        },
+        onToolCall: (command, result) => {
+          console.log('[useAIChat] Tool call:', { command, resultLength: result.length })
+        },
+        onMessage: (content) => {
+          // LLM sent a text response - add to messages (with duplicate prevention)
+          console.log('[useAIChat] Received message from LLM:', content.slice(0, 100))
+          const assistantMessage: AIMessage = {
+            role: 'assistant',
+            content,
+          }
+          setState((s) => {
+            // Prevent duplicate messages (check last message)
+            const lastMsg = s.messages[s.messages.length - 1]
+            if (lastMsg?.role === 'assistant' && lastMsg?.content === content) {
+              console.log('[useAIChat] Skipping duplicate message')
+              return s
+            }
+            return {
+              ...s,
+              messages: [...s.messages, assistantMessage],
+            }
+          })
+          options.onMessage?.(assistantMessage)
+        },
+        onComplete: (iterations) => {
+          console.log('[useAIChat] Complete after iterations:', iterations)
+        },
+        onError: (error) => {
+          console.error('[useAIChat] Ralph error:', error)
+          options.onError?.(error)
+        },
+      }
 
       try {
-        // Initialize loop state with the user's task
-        await initLoopState(fs, cwd, content)
+        // Run the Ralph loop
+        const result = await runRalphLoop(
+          provider,
+          fs,
+          shell,
+          git,
+          cwd,
+          content,
+          callbacks
+        )
 
-        // Create sendMessage function with native tools
-        console.log('[useAIChat] Creating AI sendMessage with native tools:', Object.keys(tools))
-        const aiSendMessage = createRalphSendMessageNative(tools)
+        // Determine final status
+        let finalStatus: 'idle' | 'complete' | 'waiting' | 'error' = 'idle'
+        if (result.success) {
+          finalStatus = result.error?.includes('Waiting') ? 'waiting' : 'complete'
+        } else if (result.error) {
+          finalStatus = 'error'
+        }
 
-        // Run the loop
-        const finalStatus = await runLoop(content, aiSendMessage)
+        // Add final message if there was an error or waiting
+        if (result.error && !result.success) {
+          const errorMessage: AIMessage = {
+            role: 'assistant',
+            content: `Error: ${result.error}`,
+          }
+          setState((s) => ({
+            ...s,
+            messages: [...s.messages, errorMessage],
+          }))
+          options.onMessage?.(errorMessage)
+        } else if (result.error?.includes('Waiting')) {
+          const waitingMessage: AIMessage = {
+            role: 'assistant',
+            content: 'Waiting for your input. Please provide more information.',
+          }
+          setState((s) => ({
+            ...s,
+            messages: [...s.messages, waitingMessage],
+          }))
+          options.onMessage?.(waitingMessage)
+        }
 
-        // Update final status
+        // Update final state
         setState((s) => ({
           ...s,
           isLoading: false,
           ralphStatus: finalStatus,
+          error: result.success ? null : (result.error ?? null),
         }))
         options.onStatusChange?.(finalStatus)
       } catch (err) {
@@ -234,136 +229,56 @@ export function useAIChat(options: UseChatOptions = {}) {
         }))
         options.onError?.(err instanceof Error ? err : new Error(message))
         options.onStatusChange?.('error')
-
-        // Set error status in .ralph/
-        try {
-          await setStatus(fs, cwd, 'error')
-        } catch {
-          // Ignore
-        }
       } finally {
         abortRef.current = null
+        isRunningRef.current = false
       }
     },
-    [fs, isConfigured, cwd, options, createRalphSendMessageNative, runLoop, tools]
+    [fs, isConfigured, cwd, options, getProvider, shell, git]
   )
 
   /**
    * Cancel ongoing generation
    */
-  const cancel = React.useCallback(async () => {
-    abortRef.current?.abort()
+  const cancel = React.useCallback(() => {
+    console.log('[useAIChat] Cancel requested, abortRef:', !!abortRef.current)
+    if (abortRef.current) {
+      abortRef.current.abort()
+      console.log('[useAIChat] Abort signal sent')
+    }
+    isRunningRef.current = false
     setState((s) => ({
       ...s,
       isLoading: false,
-      streamingContent: '',
       ralphStatus: 'idle',
     }))
     options.onStatusChange?.('idle')
-
-    // Set status to idle
-    if (fs) {
-      try {
-        await setStatus(fs, cwd, 'idle')
-      } catch {
-        // Ignore
-      }
-    }
-  }, [fs, cwd, options])
+  }, [options])
 
   /**
    * Clear chat history
    */
-  const clearHistory = React.useCallback(async () => {
+  const clearHistory = React.useCallback(() => {
     setState({
       messages: [],
       isLoading: false,
-      streamingContent: '',
       error: null,
       ralphStatus: 'idle',
       ralphIteration: 0,
+      streamingContent: '',
     })
-
-    // Clean up .ralph/
-    if (fs) {
-      try {
-        await cleanupLoopState(fs, cwd)
-      } catch {
-        // Ignore
-      }
-    }
-  }, [fs, cwd])
-
-  /**
-   * Resume from waiting state
-   */
-  const resume = React.useCallback(async () => {
-    if (!fs || !isConfigured) {
-      return
-    }
-
-    // Read current state
-    const loopState = await readLoopState(fs, cwd)
-    if (loopState.status !== 'waiting') {
-      return
-    }
-
-    // Set status to running
-    await setStatus(fs, cwd, 'running')
-
-    setState((s) => ({
-      ...s,
-      isLoading: true,
-      ralphStatus: 'running',
-    }))
-    options.onStatusChange?.('running')
-
-    abortRef.current = new AbortController()
-
-    try {
-      const aiSendMessage = createRalphSendMessageNative(tools)
-      const finalStatus = await runLoop(loopState.task, aiSendMessage)
-
-      setState((s) => ({
-        ...s,
-        isLoading: false,
-        ralphStatus: finalStatus,
-      }))
-      options.onStatusChange?.(finalStatus)
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') {
-        setState((s) => ({
-          ...s,
-          isLoading: false,
-          ralphStatus: 'idle',
-        }))
-        return
-      }
-
-      const message = err instanceof Error ? err.message : 'Failed to resume'
-      setState((s) => ({
-        ...s,
-        isLoading: false,
-        error: message,
-        ralphStatus: 'error',
-      }))
-      options.onError?.(err instanceof Error ? err : new Error(message))
-    } finally {
-      abortRef.current = null
-    }
-  }, [fs, isConfigured, cwd, options, createRalphSendMessageNative, runLoop, tools])
+  }, [])
 
   return {
     messages: state.messages,
-    streamingContent: state.streamingContent,
     isLoading: state.isLoading,
     error: state.error,
     ralphStatus: state.ralphStatus,
     ralphIteration: state.ralphIteration,
+    streamingContent: state.streamingContent,
     sendMessage,
     cancel,
     clearHistory,
-    resume,
-    isReady: !!fs && isConfigured,
+    isReady: !!fs && isConfigured && !!shell && !!git,
   }
 }

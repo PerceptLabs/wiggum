@@ -6,7 +6,7 @@ interface FileEditorProps {
   path: string
   content: string
   onChange?: (content: string) => void
-  onSave?: (content: string) => void
+  onSave?: () => void | Promise<void>
   onClose?: () => void
   isModified?: boolean
   readOnly?: boolean
@@ -38,14 +38,14 @@ export function FileEditor({
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
         if (!readOnly) {
-          onSave?.(localContent)
+          onSave?.()
         }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [localContent, onSave, readOnly])
+  }, [onSave, readOnly])
 
   // Sync scroll between textarea and line numbers
   const handleScroll = () => {
@@ -83,7 +83,7 @@ export function FileEditor({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => onSave?.(localContent)}
+                onClick={() => onSave?.()}
                 disabled={readOnly || !isModified}
               >
                 <Save className="h-4 w-4" />

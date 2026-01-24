@@ -4,7 +4,7 @@ import Prism from 'prismjs'
 import { Bot } from 'lucide-react'
 import { cn } from '@wiggum/stack'
 import { ToolCallDisplay } from './ToolCallDisplay'
-import type { AIToolCall } from '@/lib/ai'
+import type { AIToolCall } from '@/lib/llm'
 
 // Import common Prism languages
 import 'prismjs/components/prism-javascript'

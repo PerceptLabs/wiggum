@@ -38,9 +38,12 @@ export function ChatPane({ className }: ChatPaneProps) {
   } = useChat()
 
   const {
-    availableProviders,
-    selectedModelId,
+    providerOptions,
+    getModelsForProvider,
+    selectedProvider,
     selectedModel,
+    selectedModelId,
+    setSelectedProvider,
     setSelectedModel,
     isConfigured,
   } = useAISettings()
@@ -51,21 +54,22 @@ export function ChatPane({ className }: ChatPaneProps) {
   const modelsByProvider = React.useMemo(() => {
     const groups: Array<{ providerId: string; providerName: string; models: Array<{ id: string; label: string }> }> = []
 
-    for (const provider of availableProviders) {
-      if (provider.models.length > 0) {
+    for (const provider of providerOptions) {
+      const models = getModelsForProvider(provider.id)
+      if (models.length > 0) {
         groups.push({
           providerId: provider.id,
           providerName: provider.name,
-          models: provider.models.map((m) => ({
-            id: `${provider.id}:${m.id}`,
-            label: m.label,
+          models: models.map((modelName) => ({
+            id: `${provider.id}:${modelName}`,
+            label: modelName,
           })),
         })
       }
     }
 
     return groups
-  }, [availableProviders])
+  }, [providerOptions, getModelsForProvider])
 
   const handleSend = async (content: string) => {
     await sendMessage(content)
@@ -116,7 +120,7 @@ export function ChatPane({ className }: ChatPaneProps) {
                   disabled={isLoading}
                 >
                   <span className="max-w-[120px] truncate">
-                    {selectedModel?.label || 'Select model'}
+                    {selectedModel || 'Select model'}
                   </span>
                   <ChevronDown className="h-3 w-3 opacity-60" />
                 </Button>
@@ -131,7 +135,7 @@ export function ChatPane({ className }: ChatPaneProps) {
                     {group.models.map((model) => (
                       <DropdownMenuItem
                         key={model.id}
-                        onClick={() => setSelectedModel(model.id)}
+                        onClick={() => setSelectedModel(model.label)}
                         className="flex items-center justify-between"
                       >
                         <span className="truncate">{model.label}</span>

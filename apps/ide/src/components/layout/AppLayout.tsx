@@ -1,10 +1,11 @@
 import * as React from 'react'
-import { PanelRightClose, PanelRight } from 'lucide-react'
+import { PanelRightClose, PanelRight, GripVertical } from 'lucide-react'
+import { Panel, Group, Separator } from 'react-resizable-panels'
 import { Button, Tooltip, TooltipContent, TooltipTrigger, TooltipProvider, cn } from '@wiggum/stack'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { LogsPanel } from './LogsPanel'
-import { LayoutProvider, useLayout, DEFAULT_PREVIEW_WIDTH } from './LayoutContext'
+import { LayoutProvider, useLayout } from './LayoutContext'
 
 interface Project {
   id: string
@@ -50,7 +51,7 @@ function AppLayoutInner({
   preview,
   codeEditor,
 }: AppLayoutProps) {
-  const { previewVisible, togglePreview, previewWidth, viewMode } = useLayout()
+  const { previewVisible, togglePreview, viewMode } = useLayout()
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
@@ -73,37 +74,33 @@ function AppLayoutInner({
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar with file tree */}
-        <Sidebar
-          onSearch={onSearch}
-          onInitGit={onInitGit}
-          isGitInitialized={isGitInitialized}
-        >
+        <Sidebar onSearch={onSearch} onInitGit={onInitGit} isGitInitialized={isGitInitialized}>
           {sidebar}
         </Sidebar>
 
-        {/* Main content area */}
+        {/* Main content area with resizable panels */}
         <main className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex flex-1 overflow-hidden">
+          <Group orientation="horizontal" className="flex-1">
             {/* Chat pane (always visible) */}
-            <div className="flex flex-1 flex-col overflow-hidden">
-              {chat}
-            </div>
+            <Panel defaultSize={previewVisible ? 55 : 100} minSize={30}>
+              <div className="flex flex-col h-full overflow-hidden">{chat}</div>
+            </Panel>
 
             {/* Right panel - switches between Preview and Code Editor */}
             {viewMode === 'code' ? (
               // Code editor view
-              <aside
-                className="flex flex-col border-l-3 border-border bg-card"
-                style={{ width: previewWidth || DEFAULT_PREVIEW_WIDTH }}
-              >
-                {codeEditor}
-              </aside>
+              <>
+                <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors data-[resize-handle-active]:bg-primary" />
+                <Panel defaultSize={45} minSize={20}>
+                  <aside className="flex flex-col h-full bg-card">{codeEditor}</aside>
+                </Panel>
+              </>
             ) : (
               // Preview view
               <>
                 {/* Preview toggle button (when preview is hidden) */}
                 {!previewVisible && (
-                  <div className="flex items-start border-l-3 border-border p-2">
+                  <div className="flex items-start border-l border-border p-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="outline" size="icon" onClick={togglePreview}>
@@ -115,29 +112,40 @@ function AppLayoutInner({
                   </div>
                 )}
 
-                {/* Preview pane */}
+                {/* Preview pane with resize handle */}
                 {previewVisible && (
-                  <aside
-                    className="flex flex-col border-l-3 border-border bg-card"
-                    style={{ width: previewWidth || DEFAULT_PREVIEW_WIDTH }}
-                  >
-                    <div className="flex h-12 items-center justify-between border-b-2 border-border px-3">
-                      <span className="text-sm font-bold uppercase tracking-wide">Preview</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={togglePreview}>
-                            <PanelRightClose className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent side="left">Hide preview</TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className="flex-1 overflow-hidden">{preview}</div>
-                  </aside>
+                  <>
+                    <Separator className="w-2 bg-border hover:bg-primary/50 transition-colors data-[resize-handle-active]:bg-primary flex items-center justify-center group">
+                      <GripVertical className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                    </Separator>
+                    <Panel defaultSize={45} minSize={20}>
+                      <aside className="flex flex-col h-full bg-card">
+                        <div className="flex h-10 items-center justify-between border-b border-border px-3">
+                          <span className="text-sm font-semibold uppercase tracking-wide">
+                            Preview
+                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={togglePreview}
+                              >
+                                <PanelRightClose className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">Hide preview</TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className="flex-1 overflow-hidden">{preview}</div>
+                      </aside>
+                    </Panel>
+                  </>
                 )}
               </>
             )}
-          </div>
+          </Group>
         </main>
       </div>
     </div>
