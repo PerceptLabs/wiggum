@@ -1,9 +1,33 @@
 import * as React from 'react'
 import { ScrollArea, cn } from '@wiggum/stack'
+import { Terminal } from 'lucide-react'
 import { UserMessage } from './UserMessage'
 import { AssistantMessage } from './AssistantMessage'
 import { StreamingMessage } from './StreamingMessage'
 import type { AIMessage } from '@/lib/llm'
+
+/** Ralph status message - shows reasoning/intent */
+function StatusMessage({ content }: { content: string }) {
+  return (
+    <div className="px-4 py-1">
+      <p className="text-xs text-muted-foreground italic">
+        {content}
+      </p>
+    </div>
+  )
+}
+
+/** Ralph action echo - shows command being executed */
+function ActionMessage({ content }: { content: string }) {
+  return (
+    <div className="px-4 py-1">
+      <div className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground">
+        <Terminal className="h-3 w-3" />
+        <span>{content}</span>
+      </div>
+    </div>
+  )
+}
 
 interface MessageListProps {
   messages: AIMessage[]
@@ -51,6 +75,17 @@ export function MessageList({
           }
 
           if (message.role === 'assistant') {
+            // Status messages (Ralph's reasoning)
+            if (message._displayType === 'status') {
+              return <StatusMessage key={index} content={message.content || ''} />
+            }
+
+            // Action echo messages (command summaries)
+            if (message._displayType === 'action') {
+              return <ActionMessage key={index} content={message.content || ''} />
+            }
+
+            // Regular assistant messages
             return (
               <AssistantMessage
                 key={index}

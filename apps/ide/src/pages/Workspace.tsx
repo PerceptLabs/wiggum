@@ -165,17 +165,24 @@ function WorkspaceContent({
   // HTML file preview state - for previewing selected HTML files
   const [htmlFileContent, setHtmlFileContent] = React.useState<string | null>(null)
 
-  // Check if selected file is HTML
+  // Check if selected file is HTML or TSX/JSX
   const isHtmlFile = fileTree.selectedFile?.toLowerCase().endsWith('.html')
+  const isTsxFile = fileTree.selectedFile?.toLowerCase().endsWith('.tsx') ||
+                    fileTree.selectedFile?.toLowerCase().endsWith('.jsx')
+  const isPreviewableFile = isHtmlFile || isTsxFile
 
-  // Load HTML file content when an HTML file is selected
+  // Load HTML file content or trigger build for TSX/JSX files
   React.useEffect(() => {
     if (isHtmlFile && fileContent.content) {
       setHtmlFileContent(fileContent.content)
-    } else if (!isHtmlFile) {
+    } else if (isTsxFile) {
+      // Trigger build when TSX/JSX file is selected
+      preview.build()
+      setHtmlFileContent(null)
+    } else {
       setHtmlFileContent(null)
     }
-  }, [isHtmlFile, fileContent.content])
+  }, [isHtmlFile, isTsxFile, fileContent.content, preview])
 
   // File dialog state (new file, new folder, rename)
   const [fileDialog, setFileDialog] = React.useState<FileDialogState>({
@@ -323,6 +330,21 @@ function WorkspaceContent({
     }
   }, [fileContent])
 
+  // Handle navigating to error location
+  const handleGoToError = React.useCallback(
+    (file: string, line: number) => {
+      // Resolve file path relative to project
+      const fullPath = file.startsWith('/')
+        ? file
+        : `${currentProject.path}/${file}`
+
+      fileTree.selectFile(fullPath)
+      // TODO: If editor supports it, scroll to line
+      console.log(`[Preview] Navigate to ${fullPath}:${line}`)
+    },
+    [currentProject.path, fileTree]
+  )
+
   // Dialog titles and placeholders
   const dialogConfig = {
     newFile: { title: 'New File', placeholder: 'filename.ts', description: 'Enter a name for the new file' },
@@ -366,11 +388,13 @@ function WorkspaceContent({
         chat={<ChatPane />}
         preview={
           <PreviewPane
-            html={htmlFileContent ?? preview.html ?? undefined}
+            html={isHtmlFile ? htmlFileContent ?? undefined : preview.html ?? undefined}
             error={preview.error ?? undefined}
+            errors={preview.errors ?? undefined}
             isLoading={preview.isBuilding}
             onRefresh={preview.build}
-            currentFile={isHtmlFile ? fileTree.selectedFile ?? undefined : undefined}
+            onGoToError={handleGoToError}
+            currentFile={isPreviewableFile ? fileTree.selectedFile ?? undefined : undefined}
           />
         }
         codeEditor={

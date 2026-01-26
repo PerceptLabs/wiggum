@@ -128,6 +128,32 @@ export function useAIChat(options: UseChatOptions = {}) {
         onToolCall: (command, result) => {
           console.log('[useAIChat] Tool call:', { command, resultLength: result.length })
         },
+        onStatus: (status) => {
+          // Add status message (Ralph's reasoning) to UI
+          console.log('[useAIChat] Status:', status)
+          const statusMessage: AIMessage = {
+            role: 'assistant',
+            content: status,
+            _displayType: 'status',
+          }
+          setState((s) => ({
+            ...s,
+            messages: [...s.messages, statusMessage],
+          }))
+        },
+        onAction: (action) => {
+          // Add action echo message to UI
+          console.log('[useAIChat] Action:', action)
+          const actionMessage: AIMessage = {
+            role: 'assistant',
+            content: action,
+            _displayType: 'action',
+          }
+          setState((s) => ({
+            ...s,
+            messages: [...s.messages, actionMessage],
+          }))
+        },
         onMessage: (content) => {
           // LLM sent a text response - add to messages (with duplicate prevention)
           console.log('[useAIChat] Received message from LLM:', content.slice(0, 100))

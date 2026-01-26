@@ -1,6 +1,15 @@
 import * as React from 'react'
-import { RefreshCw, ExternalLink, AlertCircle, Monitor, Tablet, Smartphone } from 'lucide-react'
+import {
+  RefreshCw,
+  ExternalLink,
+  AlertCircle,
+  Monitor,
+  Tablet,
+  Smartphone,
+  FileCode,
+} from 'lucide-react'
 import { Button, Tooltip, TooltipContent, TooltipTrigger, cn } from '@wiggum/stack'
+import type { BuildError } from '@/lib/build'
 
 // Viewport presets for responsive preview
 const VIEWPORT_PRESETS = [
@@ -14,10 +23,15 @@ type ViewportPreset = (typeof VIEWPORT_PRESETS)[number]
 interface PreviewPaneProps {
   html?: string
   url?: string
+  /** Simple error message (backwards compatibility) */
   error?: string
+  /** Structured build errors with location info */
+  errors?: BuildError[]
   isLoading?: boolean
   onRefresh?: () => void
   onOpenExternal?: () => void
+  /** Navigate to error location in editor */
+  onGoToError?: (file: string, line: number) => void
   className?: string
   /** Current file being previewed */
   currentFile?: string
@@ -27,9 +41,11 @@ export function PreviewPane({
   html,
   url,
   error,
+  errors,
   isLoading = false,
   onRefresh,
   onOpenExternal,
+  onGoToError,
   className,
   currentFile,
 }: PreviewPaneProps) {
@@ -134,7 +150,46 @@ export function PreviewPane({
 
       {/* Content */}
       <div className="flex-1 relative overflow-auto">
-        {error ? (
+        {errors && errors.length > 0 ? (
+          <div className="h-full bg-destructive/5 p-4 overflow-auto">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertCircle className="w-5 h-5 text-destructive" />
+              <h3 className="font-semibold text-destructive">
+                Build Failed ({errors.length} error{errors.length > 1 ? 's' : ''})
+              </h3>
+            </div>
+
+            <div className="space-y-3">
+              {errors.map((err, i) => (
+                <div
+                  key={i}
+                  className="bg-background rounded-lg p-3 border border-destructive/20"
+                >
+                  {err.file && (
+                    <button
+                      type="button"
+                      onClick={() => onGoToError?.(err.file!, err.line ?? 1)}
+                      className="text-sm text-primary hover:underline mb-1 flex items-center gap-1"
+                    >
+                      <FileCode className="w-3 h-3" />
+                      {err.file}
+                      {err.line ? `:${err.line}` : ''}
+                      {err.column ? `:${err.column}` : ''}
+                    </button>
+                  )}
+                  <pre className="text-sm text-destructive whitespace-pre-wrap">
+                    {err.message}
+                  </pre>
+                  {err.snippet && (
+                    <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-x-auto font-mono">
+                      {err.snippet}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : error ? (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <AlertCircle className="h-8 w-8 text-destructive mb-2" />
             <p className="text-sm font-medium text-destructive">Build Error</p>

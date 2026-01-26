@@ -6,13 +6,16 @@
   "license": "MIT",
   "description": "Wiggum monorepo - Browser-based AI coding platform",
   "scripts": {
-    "dev": "pnpm --filter @wiggum/ide dev",
-    "build": "pnpm -r build",
+    "bundle:stack": "npx tsx scripts/bundle-stack.ts",
+    "dev": "pnpm bundle:stack && pnpm --filter @wiggum/ide dev",
+    "build": "pnpm bundle:stack && pnpm -r build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "test:run": "pnpm -r test:run"
   },
   "devDependencies": {
+    "esbuild": "^0.24.0",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3"
   },
   "packageManager": "pnpm@9.15.0",

@@ -25,6 +25,12 @@ export { shellTool, executeShellTool } from './shell-tool';
 
 // Type aliases for backwards compatibility with old @/lib/ai types
 import type { Message, ToolCall } from './client';
-export type AIMessage = Message;
+
+/** Extended message type for UI with optional display metadata */
+export interface AIMessage extends Message {
+  /** UI display type - 'status' for reasoning, 'action' for command echoes */
+  _displayType?: 'status' | 'action';
+}
+
 export type AIToolCall = ToolCall;
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';

@@ -97,12 +97,32 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         // Create starter files
         await fs.writeFile(`${path}/README.md`, `# ${name}\n\nCreated with Wiggum.\n`)
 
-        // Main entry point
+        // Create package.json with @wiggum/stack dependency
+        await fs.writeFile(
+          `${path}/package.json`,
+          JSON.stringify(
+            {
+              name: name.toLowerCase().replace(/\s+/g, '-'),
+              private: true,
+              type: 'module',
+              dependencies: {
+                react: '^19.0.0',
+                'react-dom': '^19.0.0',
+                '@wiggum/stack': 'workspace:*',
+              },
+            },
+            null,
+            2
+          )
+        )
+
+        // Main entry point with CSS import
         await fs.writeFile(
           `${path}/src/main.tsx`,
           `import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import './index.css'
 
 const root = createRoot(document.getElementById('root')!)
 root.render(
@@ -113,16 +133,36 @@ root.render(
 `
         )
 
-        // App component
+        // CSS file - Tailwind is loaded via CDN in preview
+        await fs.writeFile(
+          `${path}/src/index.css`,
+          `/*
+ * Custom styles go here.
+ * Tailwind is loaded via CDN in the preview iframe.
+ * Use Tailwind classes in your components for styling.
+ */
+`
+        )
+
+        // App component with @wiggum/stack
         await fs.writeFile(
           `${path}/src/App.tsx`,
-          `import React from 'react'
+          `import { Card, CardHeader, CardTitle, CardContent, Button } from '@wiggum/stack'
 
 export default function App() {
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>Hello, ${name}!</h1>
-      <p>Edit <code>src/App.tsx</code> to get started.</p>
+    <div className="min-h-screen bg-background p-8">
+      <Card className="max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle>Welcome to ${name}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground">
+            Edit <code className="bg-muted px-1 rounded">src/App.tsx</code> to get started.
+          </p>
+          <Button>Get Started</Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }

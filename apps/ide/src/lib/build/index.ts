@@ -3,6 +3,7 @@ import type { BuildResult, BuildOptions } from './types'
 import { initialize, build, transform, stop, isInitialized } from './esbuild'
 import { createFSPlugin } from './plugins/fsPlugin'
 import { createESMPlugin, createModuleCache } from './plugins/esmPlugin'
+import { createWiggumStackPlugin } from './plugins/wiggumStackPlugin'
 import * as path from 'path-browserify'
 
 // Re-export types
@@ -23,7 +24,7 @@ export { CDN_CONFIGS } from './types'
 export { initialize, transform, stop, isInitialized }
 
 // Re-export plugins
-export { createFSPlugin, createESMPlugin, createModuleCache, preloadModules } from './plugins'
+export { createFSPlugin, createESMPlugin, createModuleCache, preloadModules, createWiggumStackPlugin } from './plugins'
 export type { FSPluginOptions, ESMPluginOptions } from './plugins'
 
 /**
@@ -146,10 +147,14 @@ export async function buildProject(
   const moduleCache = options.moduleCache ?? createModuleCache()
 
   const plugins = [
+    // Handle @wiggum/stack imports with pre-bundled code
+    createWiggumStackPlugin(),
+    // Handle virtual filesystem files
     createFSPlugin({
       fs,
       projectRoot: projectPath,
     }),
+    // Handle external npm packages via CDN
     createESMPlugin({
       cdn: options.cdn ?? 'esm.sh',
       cache: moduleCache,

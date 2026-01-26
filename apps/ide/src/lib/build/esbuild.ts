@@ -69,8 +69,12 @@ export async function initialize(wasmURL?: string): Promise<void> {
 
   state.initPromise = (async () => {
     try {
+      console.time('[esbuild] Initialize total')
+
       // Load esbuild from CDN (browser.min.js exposes global esbuild)
+      console.time('[esbuild] Load from CDN')
       const esbuild = await loadEsbuildFromCDN()
+      console.timeEnd('[esbuild] Load from CDN')
 
       // Check if initialize function exists
       if (typeof esbuild.initialize !== 'function') {
@@ -80,13 +84,16 @@ export async function initialize(wasmURL?: string): Promise<void> {
         )
       }
 
+      console.time('[esbuild] Initialize WASM')
       await esbuild.initialize({
         wasmURL: wasmURL || ESBUILD_WASM_URL,
         worker: true,
       })
+      console.timeEnd('[esbuild] Initialize WASM')
 
       state.esbuild = esbuild
       state.initialized = true
+      console.timeEnd('[esbuild] Initialize total')
     } catch (err) {
       state.error = err instanceof Error ? err : new Error(String(err))
       state.initPromise = undefined // Allow retry
@@ -146,6 +153,7 @@ export async function build(
   plugins?: esbuildTypes.Plugin[]
 ): Promise<BuildResult> {
   const startTime = Date.now()
+  console.time('[esbuild] Build')
 
   // Ensure initialized
   if (!state.initialized) {
@@ -155,6 +163,7 @@ export async function build(
   const esbuild = getEsbuild()
 
   try {
+    console.time('[esbuild] esbuild.build()')
     const result = await esbuild.build({
       entryPoints: [options.entryPoint],
       outdir: options.outdir,
@@ -176,8 +185,10 @@ export async function build(
       plugins: plugins ?? [],
       absWorkingDir: options.workingDir ?? '/',
     })
+    console.timeEnd('[esbuild] esbuild.build()')
 
     const duration = Date.now() - startTime
+    console.timeEnd('[esbuild] Build')
 
     return {
       success: result.errors.length === 0,
@@ -192,6 +203,7 @@ export async function build(
     }
   } catch (err) {
     const duration = Date.now() - startTime
+    console.timeEnd('[esbuild] Build')
 
     // Handle build failures that throw
     if (err && typeof err === 'object' && 'errors' in err) {

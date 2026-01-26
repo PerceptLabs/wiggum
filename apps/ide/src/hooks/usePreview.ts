@@ -7,7 +7,9 @@ import {
   isInitialized,
   createModuleCache,
 } from '@/lib/build'
-import type { BuildResult, BuildProjectOptions } from '@/lib/build'
+import type { BuildResult, BuildProjectOptions, BuildError } from '@/lib/build'
+
+const BUILD_TIMEOUT_MS = 30000
 
 export interface UsePreviewOptions extends Omit<BuildProjectOptions, 'moduleCache'> {
   /** Auto-build on file changes */
@@ -19,8 +21,10 @@ export interface UsePreviewOptions extends Omit<BuildProjectOptions, 'moduleCach
 export interface UsePreviewResult {
   /** Generated HTML for iframe */
   html: string | null
-  /** Build error message */
+  /** Build error message (first error summary) */
   error: string | null
+  /** Structured build errors with location info */
+  errors: BuildError[] | null
   /** Whether currently building */
   isBuilding: boolean
   /** Whether esbuild is initialized */
@@ -45,6 +49,7 @@ export function usePreview(
 
   const [html, setHtml] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
+  const [errors, setErrors] = React.useState<BuildError[] | null>(null)
   const [isBuilding, setIsBuilding] = React.useState(false)
   const [isReady, setIsReady] = React.useState(false)
   const [lastBuild, setLastBuild] = React.useState<BuildResult | null>(null)
@@ -75,12 +80,27 @@ export function usePreview(
 
     setIsBuilding(true)
     setError(null)
+    setErrors(null)
 
     try {
-      const result = await buildProject(fs, projectPath, {
+      console.time('[Preview] Build total')
+
+      // Build with timeout
+      const buildPromise = buildProject(fs, projectPath, {
         ...buildOptions,
         moduleCache: moduleCacheRef.current,
       })
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Build timeout: exceeded 30 seconds')),
+          BUILD_TIMEOUT_MS
+        )
+      )
+
+      const result = await Promise.race([buildPromise, timeoutPromise])
+
+      console.timeEnd('[Preview] Build total')
 
       setLastBuild(result)
       setDuration(result.duration ?? null)
@@ -92,28 +112,26 @@ export function usePreview(
         )
 
         if (mainOutput) {
+          console.time('[Preview] Generate HTML')
           const generatedHtml = generateHTML(mainOutput.contents)
+          console.timeEnd('[Preview] Generate HTML')
           setHtml(generatedHtml)
           setError(null)
+          setErrors(null)
         } else {
           setError('No JavaScript output generated')
         }
       } else if (result.errors && result.errors.length > 0) {
-        const errorMessages = result.errors
-          .map((e) => {
-            let msg = e.message
-            if (e.file) {
-              msg = `${e.file}${e.line ? `:${e.line}` : ''}: ${msg}`
-            }
-            return msg
-          })
-          .join('\n')
-
-        setError(errorMessages)
+        // Preserve structured errors for UI
+        setErrors(result.errors)
+        // Also set summary string for backwards compatibility
+        setError(result.errors[0].message)
         setHtml(null)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Build failed')
+      const message = err instanceof Error ? err.message : 'Build failed'
+      setError(message)
+      setErrors([{ message }])
       setHtml(null)
     } finally {
       setIsBuilding(false)
@@ -130,6 +148,7 @@ export function usePreview(
   return {
     html,
     error,
+    errors,
     isBuilding,
     isReady,
     lastBuild,
