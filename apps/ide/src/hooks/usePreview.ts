@@ -2,11 +2,11 @@ import * as React from 'react'
 import { useFS } from '@/contexts'
 import {
   buildProject,
-  generateHTML,
   initialize,
   isInitialized,
   createModuleCache,
 } from '@/lib/build'
+import { writePreviewFile, clearPreviewCache } from '@/lib/preview-cache'
 import type { BuildResult, BuildProjectOptions, BuildError } from '@/lib/build'
 
 const BUILD_TIMEOUT_MS = 30000
@@ -19,8 +19,8 @@ export interface UsePreviewOptions extends Omit<BuildProjectOptions, 'moduleCach
 }
 
 export interface UsePreviewResult {
-  /** Generated HTML for iframe */
-  html: string | null
+  /** Build version - increments on each successful build */
+  buildVersion: number
   /** Build error message (first error summary) */
   error: string | null
   /** Structured build errors with location info */
@@ -47,7 +47,7 @@ export function usePreview(
   const { fs, isReady: fsReady } = useFS()
   const { autoBuild = true, debounceMs = 500, ...buildOptions } = options
 
-  const [html, setHtml] = React.useState<string | null>(null)
+  const [buildVersion, setBuildVersion] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
   const [errors, setErrors] = React.useState<BuildError[] | null>(null)
   const [isBuilding, setIsBuilding] = React.useState(false)
@@ -85,6 +85,41 @@ export function usePreview(
     try {
       console.time('[Preview] Build total')
 
+      // Extract project ID from path (e.g., /projects/abc123 -> abc123)
+      const projectId = projectPath.split('/').filter(Boolean).pop() || 'default'
+
+      // --- Check for standalone HTML files first ---
+      // If there's a .html file in the project root (not index.html), serve it directly
+      // This handles cases where Ralph creates landing pages, static sites, etc.
+      try {
+        const files = await fs.readdir(projectPath)
+        const standaloneHtmlFiles = files.filter(
+          (f: string) => f.endsWith('.html') && f !== 'index.html'
+        )
+
+        if (standaloneHtmlFiles.length > 0) {
+          // Found standalone HTML - serve the first one directly (no esbuild needed)
+          const htmlFile = standaloneHtmlFiles[0]
+          console.log(`[Preview] Found standalone HTML: ${htmlFile}, serving directly`)
+
+          const htmlContent = await fs.readFile(`${projectPath}/${htmlFile}`, 'utf8') as string
+
+          // Write to preview cache
+          await clearPreviewCache(projectId)
+          await writePreviewFile(projectId, '/index.html', htmlContent, 'text/html')
+
+          console.timeEnd('[Preview] Build total')
+          setBuildVersion((v) => v + 1)
+          setError(null)
+          setErrors(null)
+          setIsBuilding(false)
+          return
+        }
+      } catch {
+        // Ignore errors reading directory, proceed with React build
+      }
+
+      // --- Standard React/TypeScript build ---
       // Build with timeout
       const buildPromise = buildProject(fs, projectPath, {
         ...buildOptions,
@@ -112,27 +147,69 @@ export function usePreview(
         )
 
         if (mainOutput) {
-          console.time('[Preview] Generate HTML')
-          const generatedHtml = generateHTML(mainOutput.contents)
-          console.timeEnd('[Preview] Generate HTML')
-          setHtml(generatedHtml)
-          setError(null)
-          setErrors(null)
+          // Write bundle to dist folder for SW mode
+          try {
+            const distPath = `${projectPath}/dist`
+            await fs.mkdir(distPath, { recursive: true })
+
+            // Write bundle
+            await fs.writeFile(`${distPath}/bundle.js`, mainOutput.contents)
+
+            // Read and copy index.html from project root
+            let indexHtml: string
+            try {
+              indexHtml = await fs.readFile(`${projectPath}/index.html`, 'utf8') as string
+            } catch {
+              // Fallback: generate basic index.html if missing
+              indexHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="./src/main.tsx"></script>
+</body>
+</html>`
+            }
+            // Replace the src/main.tsx reference with bundle.js
+            const distHtml = indexHtml.replace(
+              /src="\.\/src\/main\.tsx"/,
+              'src="./bundle.js"'
+            )
+            await fs.writeFile(`${distPath}/index.html`, distHtml)
+
+            // Write to preview cache for direct SW access
+            // This enables "Open in new tab" without postMessage!
+            await clearPreviewCache(projectId)
+            await writePreviewFile(projectId, '/index.html', distHtml, 'text/html')
+            await writePreviewFile(
+              projectId,
+              '/bundle.js',
+              mainOutput.contents,
+              'application/javascript'
+            )
+
+            // Increment build version to trigger preview reload
+            setBuildVersion((v) => v + 1)
+            setError(null)
+            setErrors(null)
+          } catch (writeErr) {
+            setError(`Failed to write dist files: ${writeErr instanceof Error ? writeErr.message : 'Unknown error'}`)
+          }
         } else {
           setError('No JavaScript output generated')
         }
       } else if (result.errors && result.errors.length > 0) {
-        // Preserve structured errors for UI
         setErrors(result.errors)
-        // Also set summary string for backwards compatibility
         setError(result.errors[0].message)
-        setHtml(null)
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Build failed'
       setError(message)
       setErrors([{ message }])
-      setHtml(null)
     } finally {
       setIsBuilding(false)
     }
@@ -146,7 +223,7 @@ export function usePreview(
   }, [projectPath, isReady, fsReady, autoBuild]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
-    html,
+    buildVersion,
     error,
     errors,
     isBuilding,

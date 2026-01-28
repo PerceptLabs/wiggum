@@ -1,8 +1,5 @@
 export { FileTree } from './FileTree'
-export { FileTreeItem } from './FileTreeItem'
 export { FileEditor } from './FileEditor'
 export { CodeEditorPane } from './CodeEditorPane'
 export { PreviewPane } from './PreviewPane'
-export { FileProvider, useFileContext } from './FileContext'
-export type { FileEntry } from './FileContext'
 export type { GitFileStatus, GitStatusMap } from './FileTree'

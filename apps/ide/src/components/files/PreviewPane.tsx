@@ -11,6 +11,31 @@ import {
 import { Button, Tooltip, TooltipContent, TooltipTrigger, cn } from '@wiggum/stack'
 import type { BuildError } from '@/lib/build'
 
+/**
+ * Get MIME type for a file path
+ */
+function getContentType(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() || ''
+  const types: Record<string, string> = {
+    html: 'text/html',
+    css: 'text/css',
+    js: 'application/javascript',
+    mjs: 'application/javascript',
+    json: 'application/json',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    svg: 'image/svg+xml',
+    ico: 'image/x-icon',
+    woff: 'font/woff',
+    woff2: 'font/woff2',
+    ttf: 'font/ttf',
+    eot: 'application/vnd.ms-fontobject',
+  }
+  return types[ext] || 'text/plain'
+}
+
 // Viewport presets for responsive preview
 const VIEWPORT_PRESETS = [
   { name: 'Desktop', width: '100%', height: '100%', icon: Monitor },
@@ -20,8 +45,16 @@ const VIEWPORT_PRESETS = [
 
 type ViewportPreset = (typeof VIEWPORT_PRESETS)[number]
 
+/**
+ * Check if a path has a file extension (for SPA fallback logic)
+ */
+function hasFileExtension(path: string): boolean {
+  const lastSegment = path.split('/').pop() || ''
+  return lastSegment.includes('.') && !lastSegment.startsWith('.')
+}
+
 interface PreviewPaneProps {
-  html?: string
+  /** URL to load directly in iframe */
   url?: string
   /** Simple error message (backwards compatibility) */
   error?: string
@@ -35,10 +68,17 @@ interface PreviewPaneProps {
   className?: string
   /** Current file being previewed */
   currentFile?: string
+
+  // --- Service Worker mode props ---
+  /** Project path for SW mode file serving */
+  projectPath?: string
+  /** Build version - increments on each build to trigger reload */
+  buildVersion?: number
+  /** Callback to read a file from the virtual filesystem (supports binary) */
+  onReadFile?: (path: string) => Promise<string | Uint8Array | null>
 }
 
 export function PreviewPane({
-  html,
   url,
   error,
   errors,
@@ -48,37 +88,165 @@ export function PreviewPane({
   onGoToError,
   className,
   currentFile,
+  // SW mode props
+  projectPath,
+  buildVersion = 0,
+  onReadFile,
 }: PreviewPaneProps) {
   const iframeRef = React.useRef<HTMLIFrameElement>(null)
   const [viewport, setViewport] = React.useState<ViewportPreset>(VIEWPORT_PRESETS[0])
+  const [swReady, setSwReady] = React.useState(false)
+  const [iframeKey, setIframeKey] = React.useState(0)
 
-  // Update iframe content when html changes
+  // Determine which mode we're in
+  const isSwMode = projectPath && onReadFile
+
+  // Handle JSON-RPC fetch requests from Service Worker (via bridge)
   React.useEffect(() => {
-    if (iframeRef.current && html) {
-      const doc = iframeRef.current.contentDocument
-      if (doc) {
-        doc.open()
-        doc.write(html)
-        doc.close()
+    if (!isSwMode || !onReadFile) {
+      return
+    }
+
+    const handleMessage = async (event: MessageEvent) => {
+      const { jsonrpc, id, method, params } = event.data || {}
+
+      // Only handle JSON-RPC fetch requests
+      if (jsonrpc !== '2.0' || method !== 'fetch') {
+        return
+      }
+
+      // Only respond to messages from our iframe
+      if (event.source !== iframeRef.current?.contentWindow) {
+        return
+      }
+
+      const { url: requestUrl } = params || {}
+      if (!requestUrl) return
+
+      try {
+        let content: string | Uint8Array | null = null
+        let contentType = 'text/plain'
+        let status = 200
+
+        // Read from dist folder in LightningFS
+        const distPath = `${projectPath}/dist${requestUrl === '/' ? '/index.html' : requestUrl}`
+
+        content = await onReadFile(distPath)
+
+        if (content !== null) {
+          contentType = getContentType(requestUrl === '/' ? '/index.html' : requestUrl)
+        } else {
+          // SPA fallback: serve index.html for routes without file extension
+          if (!hasFileExtension(requestUrl)) {
+            content = await onReadFile(`${projectPath}/dist/index.html`)
+            if (content !== null) {
+              contentType = 'text/html'
+            }
+          }
+
+          // Still not found
+          if (content === null) {
+            status = 404
+            content = `File not found: ${requestUrl}`
+          }
+        }
+
+        // Encode content for postMessage transfer
+        let encodedBody: string
+        if (typeof content === 'string') {
+          // Text file - base64 encode with UTF-8 support
+          encodedBody = btoa(unescape(encodeURIComponent(content)))
+        } else if (content instanceof Uint8Array) {
+          // Binary file - convert to base64
+          encodedBody = btoa(String.fromCharCode(...content))
+        } else {
+          encodedBody = ''
+        }
+
+        // Send response back to iframe (bridge will forward to SW)
+        iframeRef.current?.contentWindow?.postMessage(
+          {
+            jsonrpc: '2.0',
+            id,
+            result: {
+              status,
+              headers: { 'Content-Type': contentType },
+              body: encodedBody,
+            },
+          },
+          '*'
+        )
+      } catch (err) {
+        // Send error response
+        iframeRef.current?.contentWindow?.postMessage(
+          {
+            jsonrpc: '2.0',
+            id,
+            error: {
+              code: -32000,
+              message: err instanceof Error ? err.message : 'Unknown error',
+            },
+          },
+          '*'
+        )
       }
     }
-  }, [html])
+
+    window.addEventListener('message', handleMessage)
+    return () => {
+      window.removeEventListener('message', handleMessage)
+    }
+  }, [isSwMode, projectPath, onReadFile])
+
+  // SW mode: Trigger reload when build version changes
+  React.useEffect(() => {
+    if (!isSwMode) return
+    if (buildVersion === 0) return // Skip initial state
+
+    // Force iframe reload by changing key (ensures clean SW re-registration)
+    setIframeKey((k) => k + 1)
+  }, [buildVersion, isSwMode])
 
   // Open preview in new tab
-  const handleOpenExternal = React.useCallback(() => {
-    if (html) {
-      const blob = new Blob([html], { type: 'text/html' })
-      const blobUrl = URL.createObjectURL(blob)
-      window.open(blobUrl, '_blank')
-      // Clean up after a delay
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
-    } else if (url) {
+  const handleOpenExternal = React.useCallback(async () => {
+    if (isSwMode && projectPath) {
+      // Extract project ID from projectPath (e.g., "/projects/1it1yd238l8" → "1it1yd238l8")
+      const projectId = projectPath.split('/').pop()
+      if (projectId) {
+        // Open preview with project ID - SW will serve files from IndexedDB cache
+        window.open(`/preview/?project=${projectId}`, '_blank')
+        onOpenExternal?.()
+        return
+      }
+    }
+    
+    // Fallback for direct URL mode
+    if (url) {
       window.open(url, '_blank')
     }
     onOpenExternal?.()
-  }, [html, url, onOpenExternal])
+  }, [isSwMode, projectPath, url, onOpenExternal])
 
   const isDesktopMode = viewport.name === 'Desktop'
+
+  // Determine iframe src
+  const iframeSrc = React.useMemo(() => {
+    if (isSwMode) {
+      // Use /preview/ path - the SW is scoped to this path only
+      // and won't interfere with the main IDE
+      return '/preview/'
+    }
+    return url || 'about:blank'
+  }, [isSwMode, url])
+
+  // Handle iframe load event (for SW mode)
+  const handleIframeLoad = React.useCallback(() => {
+    if (isSwMode) {
+      setSwReady(true)
+    }
+  }, [isSwMode])
+
+  const hasContent = url || (isSwMode && buildVersion > 0)
 
   return (
     <div className={cn('flex flex-col h-full bg-muted/30', className)}>
@@ -138,7 +306,7 @@ export function PreviewPane({
                 size="icon"
                 className="h-7 w-7"
                 onClick={handleOpenExternal}
-                disabled={!html && !url}
+                disabled={!hasContent}
               >
                 <ExternalLink className="h-4 w-4" />
               </Button>
@@ -204,22 +372,18 @@ export function PreviewPane({
               <p className="text-sm text-muted-foreground">Building...</p>
             </div>
           </div>
-        ) : html || url ? (
+        ) : hasContent ? (
           <div
             className={cn(
               'h-full',
-              // Desktop mode: full size
               isDesktopMode && 'w-full',
-              // Non-desktop: center with padding
               !isDesktopMode && 'flex items-start justify-center p-4'
             )}
           >
             <div
               className={cn(
                 'bg-white transition-all duration-200',
-                // Desktop mode: no styling
                 isDesktopMode && 'w-full h-full',
-                // Non-desktop: device frame styling
                 !isDesktopMode && 'rounded-lg shadow-xl border border-gray-300 overflow-hidden'
               )}
               style={
@@ -234,11 +398,13 @@ export function PreviewPane({
               }
             >
               <iframe
+                key={iframeKey}
                 ref={iframeRef}
-                src={url || 'about:blank'}
+                src={iframeSrc}
                 className="w-full h-full border-0"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
                 title="Preview"
+                onLoad={handleIframeLoad}
               />
             </div>
           </div>

@@ -1,331 +1,250 @@
 import * as React from 'react'
-import { Tree, NodeApi } from 'react-arborist'
-import useResizeObserver from 'use-resize-observer'
 import {
-  FolderPlus,
-  FilePlus,
-  RefreshCw,
+  ChevronRight,
   File,
   Folder,
   FolderOpen,
-  ChevronRight,
-  ChevronDown,
+  FilePlus,
+  FolderPlus,
+  RefreshCw,
   Bot,
+  AlertCircle,
 } from 'lucide-react'
-import { Button, Tooltip, TooltipContent, TooltipTrigger, cn } from '@wiggum/stack'
-import { FileProvider, type FileEntry } from './FileContext'
+import { Button, Input, cn } from '@wiggum/stack'
+import type { FileNode } from '@/hooks/useFileTree'
 
-/** Git file status from isomorphic-git */
 export type GitFileStatus = 'modified' | 'added' | 'deleted' | 'untracked' | 'ignored' | 'unchanged'
-
-/** Map of file path to git status */
 export type GitStatusMap = Map<string, GitFileStatus>
 
 interface FileTreeProps {
-  entries: FileEntry[]
-  onFileSelect?: (path: string) => void
-  /** Called when a directory is toggled (for lazy-loading children) */
-  onToggleDir?: (path: string) => void
+  nodes: FileNode[]
+  onFileSelect: (path: string) => void
+  onToggleDir: (path: string) => void
+  selectedPath: string | null
+  activeDirectory: string | null
+  gitStatus?: GitStatusMap
   onNewFile?: () => void
   onNewFolder?: () => void
   onRefresh?: () => void
-  onDelete?: (path: string) => void
-  onRename?: (path: string) => void
-  /** Search query for filtering */
-  searchQuery?: string
-  /** Git status map for file indicators */
-  gitStatus?: GitStatusMap
-  /** Selected file path */
-  selectedPath?: string
-  className?: string
-}
-
-// Convert FileEntry[] to react-arborist format
-interface TreeNode {
-  id: string // path (used as unique ID)
-  name: string
-  children?: TreeNode[]
-}
-
-/**
- * Sort entries: directories first, .ralph at top, then alphabetically
- */
-function sortEntries(entries: FileEntry[]): FileEntry[] {
-  return [...entries].sort((a, b) => {
-    if (a.type === b.type) {
-      // .ralph directory should be at the top
-      if (a.name === '.ralph') return -1
-      if (b.name === '.ralph') return 1
-      return a.name.localeCompare(b.name)
-    }
-    return a.type === 'directory' ? -1 : 1
-  })
-}
-
-/**
- * Convert FileEntry[] to react-arborist TreeNode[] format
- */
-function toTreeData(entries: FileEntry[]): TreeNode[] {
-  const sorted = sortEntries(entries)
-  return sorted.map((entry) => ({
-    id: entry.path,
-    name: entry.name,
-    children:
-      entry.type === 'directory' && entry.children ? toTreeData(entry.children) : undefined,
-  }))
+  isLoading?: boolean
+  error?: string | null
 }
 
 export function FileTree({
-  entries,
+  nodes,
   onFileSelect,
   onToggleDir,
+  selectedPath,
+  gitStatus,
   onNewFile,
   onNewFolder,
   onRefresh,
-  onDelete,
-  onRename,
-  searchQuery,
-  gitStatus,
-  selectedPath,
-  className,
+  isLoading,
+  error,
 }: FileTreeProps) {
-  // Convert entries to react-arborist format
-  const treeData = React.useMemo(() => toTreeData(entries), [entries])
+  const [searchQuery, setSearchQuery] = React.useState('')
 
-  // Context menu state
-  const [contextMenu, setContextMenu] = React.useState<{
-    x: number
-    y: number
-    path: string
-  } | null>(null)
-
-  // Dynamic height from container
-  const { ref: containerRef, height = 400 } = useResizeObserver<HTMLDivElement>()
-
-  // Handle context menu
-  const handleContextMenu = React.useCallback((e: React.MouseEvent, path: string) => {
-    e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, path })
-  }, [])
-
-  const closeContextMenu = () => setContextMenu(null)
+  // Filter tree based on search
+  const filteredNodes = React.useMemo(() => {
+    if (!searchQuery.trim()) return nodes
+    return filterAndExpandMatches(nodes, searchQuery.toLowerCase())
+  }, [nodes, searchQuery])
 
   return (
-    <FileProvider onFileSelect={onFileSelect} onToggleDir={onToggleDir}>
-      <div className={cn('flex flex-col h-full', className)}>
-        {/* Toolbar */}
-        <div className="flex items-center justify-between pb-2 flex-shrink-0">
-          <span className="text-xs font-medium text-muted-foreground uppercase">Files</span>
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={onNewFile}
-                  aria-label="New file"
-                >
-                  <FilePlus className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New file</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={onNewFolder}
-                  aria-label="New folder"
-                >
-                  <FolderPlus className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New folder</TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6"
-                  onClick={onRefresh}
-                  aria-label="Refresh"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
-            </Tooltip>
+    <div className="flex flex-col h-full bg-card">
+      {/* Toolbar */}
+      <div className="p-2 border-b border-border space-y-2">
+        <Input
+          placeholder="Search files..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="h-7 text-sm"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground uppercase font-medium">Files</span>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={onNewFile}
+              title="New file"
+            >
+              <FilePlus className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={onNewFolder}
+              title="New folder"
+            >
+              <FolderPlus className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={onRefresh}
+              disabled={isLoading}
+              title="Refresh"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', isLoading && 'animate-spin')} />
+            </Button>
           </div>
         </div>
+      </div>
 
-        {/* Tree container - flex-1 to fill remaining space */}
-        <div ref={containerRef} className="flex-1 overflow-hidden min-h-0">
-          {treeData.length === 0 ? (
-            <div className="py-4 text-center text-sm text-muted-foreground">
-              {searchQuery ? 'No matching files' : 'No files yet'}
-            </div>
-          ) : (
-            <Tree<TreeNode>
-              data={treeData}
-              openByDefault={false}
-              width="100%"
-              height={height}
-              indent={12}
-              rowHeight={26}
-              searchTerm={searchQuery}
-              searchMatch={(node, term) =>
-                node.data.name.toLowerCase().includes(term.toLowerCase())
-              }
-              selection={selectedPath}
-              onSelect={(nodes: NodeApi<TreeNode>[]) => {
-                const node = nodes[0]
-                if (node) {
-                  if (node.isLeaf) {
-                    onFileSelect?.(node.id)
-                  } else {
-                    onToggleDir?.(node.id)
-                  }
-                }
-              }}
-            >
-              {(props) => (
-                <FileNode {...props} gitStatus={gitStatus} onContextMenu={handleContextMenu} />
-              )}
-            </Tree>
-          )}
-        </div>
-
-        {/* Context Menu (positioned absolutely) */}
-        {contextMenu && (
-          <div className="fixed inset-0 z-50" onClick={closeContextMenu}>
-            <div
-              className="absolute bg-popover border rounded-md shadow-md py-1 min-w-32"
-              style={{ left: contextMenu.x, top: contextMenu.y }}
-            >
-              <button
-                type="button"
-                className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent"
-                onClick={() => {
-                  onRename?.(contextMenu.path)
-                  closeContextMenu()
-                }}
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent text-destructive"
-                onClick={() => {
-                  onDelete?.(contextMenu.path)
-                  closeContextMenu()
-                }}
-              >
-                Delete
-              </button>
-            </div>
+      {/* Tree or error/empty state */}
+      <div className="flex-1 overflow-auto p-2">
+        {error ? (
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-destructive">
+            <AlertCircle className="h-8 w-8" />
+            <p className="text-sm text-center">{error}</p>
+            <Button variant="outline" size="sm" onClick={onRefresh}>
+              Retry
+            </Button>
           </div>
+        ) : filteredNodes.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            {searchQuery ? 'No matching files' : 'No files yet'}
+          </p>
+        ) : (
+          filteredNodes.map((node) => (
+            <TreeNode
+              key={node.path}
+              node={node}
+              depth={0}
+              onFileSelect={onFileSelect}
+              onToggleDir={onToggleDir}
+              selectedPath={selectedPath}
+              gitStatus={gitStatus}
+            />
+          ))
         )}
       </div>
-    </FileProvider>
-  )
-}
-
-// Custom node renderer props
-interface FileNodeProps {
-  node: NodeApi<TreeNode>
-  style: React.CSSProperties
-  dragHandle?: React.RefCallback<HTMLElement>
-  gitStatus?: GitStatusMap
-  onContextMenu: (e: React.MouseEvent, path: string) => void
-}
-
-// Custom node renderer
-function FileNode({
-  node,
-  style,
-  dragHandle,
-  gitStatus,
-  onContextMenu,
-}: FileNodeProps) {
-  const isRalph = node.data.name === '.ralph'
-  const status = gitStatus?.get(node.id)
-  const isFolder = !node.isLeaf
-
-  const Icon = isRalph ? Bot : isFolder ? (node.isOpen ? FolderOpen : Folder) : File
-
-  const statusColors: Record<GitFileStatus, string> = {
-    modified: 'bg-yellow-500',
-    added: 'bg-green-500',
-    deleted: 'bg-red-500',
-    untracked: 'bg-gray-400',
-    ignored: 'bg-gray-300',
-    unchanged: '',
-  }
-
-  return (
-    <div
-      ref={dragHandle}
-      style={style}
-      className={cn(
-        'flex items-center gap-1 px-2 py-0.5 cursor-pointer rounded text-sm',
-        'hover:bg-accent',
-        node.isSelected && 'bg-accent'
-      )}
-      onClick={(e) => {
-        e.stopPropagation()
-        if (isFolder) {
-          node.toggle()
-        } else {
-          node.select()
-        }
-      }}
-      onContextMenu={(e) => onContextMenu(e, node.id)}
-      data-path={node.id}
-      data-is-directory={isFolder}
-    >
-      {/* Expand/collapse indicator */}
-      {isFolder ? (
-        <span className="w-4 flex-shrink-0">
-          {node.isOpen ? (
-            <ChevronDown className="w-3 h-3" />
-          ) : (
-            <ChevronRight className="w-3 h-3" />
-          )}
-        </span>
-      ) : (
-        <span className="w-4 flex-shrink-0" />
-      )}
-
-      {/* Icon */}
-      <Icon className={cn('w-4 h-4 flex-shrink-0', isRalph && 'text-primary')} />
-
-      {/* Name (editable when renaming) */}
-      {node.isEditing ? (
-        <input
-          type="text"
-          defaultValue={node.data.name}
-          autoFocus
-          className="flex-1 bg-background border px-1 text-sm min-w-0"
-          onBlur={() => node.reset()}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') node.submit(e.currentTarget.value)
-            if (e.key === 'Escape') node.reset()
-          }}
-        />
-      ) : (
-        <span className="truncate flex-1 min-w-0">{node.data.name}</span>
-      )}
-
-      {/* Git status indicator */}
-      {status && status !== 'unchanged' && (
-        <span className={cn('w-2 h-2 rounded-full flex-shrink-0', statusColors[status])} />
-      )}
     </div>
   )
+}
+
+interface TreeNodeProps {
+  node: FileNode
+  depth: number
+  onFileSelect: (path: string) => void
+  onToggleDir: (path: string) => void
+  selectedPath: string | null
+  gitStatus?: GitStatusMap
+}
+
+function TreeNode({
+  node,
+  depth,
+  onFileSelect,
+  onToggleDir,
+  selectedPath,
+  gitStatus,
+}: TreeNodeProps) {
+  const isSelected = node.path === selectedPath
+  const status = gitStatus?.get(node.path)
+  const isRalph = node.name === '.ralph'
+
+  const handleClick = () => {
+    if (node.type === 'directory') {
+      onToggleDir(node.path)
+    } else {
+      onFileSelect(node.path)
+    }
+  }
+
+  const Icon = isRalph
+    ? Bot
+    : node.type === 'directory'
+      ? node.isExpanded
+        ? FolderOpen
+        : Folder
+      : File
+
+  return (
+    <>
+      <div
+        className={cn(
+          'flex items-center gap-1 py-1 px-2 cursor-pointer rounded text-sm hover:bg-accent',
+          isSelected && 'bg-accent'
+        )}
+        style={{ paddingLeft: depth * 12 + 8 }}
+        onClick={handleClick}
+      >
+        {node.type === 'directory' ? (
+          <ChevronRight
+            className={cn('w-4 h-4 transition-transform shrink-0', node.isExpanded && 'rotate-90')}
+          />
+        ) : (
+          <span className="w-4 shrink-0" />
+        )}
+        <Icon className={cn('w-4 h-4 shrink-0', isRalph && 'text-primary')} />
+        <span className="truncate flex-1">{node.name}</span>
+        {status && status !== 'unchanged' && <GitStatusDot status={status} />}
+      </div>
+
+      {node.type === 'directory' &&
+        node.isExpanded &&
+        node.children.map((child) => (
+          <TreeNode
+            key={child.path}
+            node={child}
+            depth={depth + 1}
+            onFileSelect={onFileSelect}
+            onToggleDir={onToggleDir}
+            selectedPath={selectedPath}
+            gitStatus={gitStatus}
+          />
+        ))}
+    </>
+  )
+}
+
+const GIT_STATUS_COLORS: Record<GitFileStatus, string> = {
+  modified: 'bg-yellow-500',
+  added: 'bg-green-500',
+  deleted: 'bg-red-500',
+  untracked: 'bg-gray-400',
+  ignored: 'bg-gray-300',
+  unchanged: '',
+}
+
+function GitStatusDot({ status }: { status: GitFileStatus }) {
+  return <span className={cn('w-2 h-2 rounded-full shrink-0', GIT_STATUS_COLORS[status])} />
+}
+
+/**
+ * Filter tree to only show branches containing matches.
+ * All ancestor directories of matches have isExpanded = true.
+ */
+function filterAndExpandMatches(nodes: FileNode[], query: string): FileNode[] {
+  const result: FileNode[] = []
+
+  for (const node of nodes) {
+    const nameMatches = node.name.toLowerCase().includes(query)
+
+    if (node.type === 'directory') {
+      // Recursively filter children
+      const filteredChildren = filterAndExpandMatches(node.children, query)
+
+      // Include this directory if it matches OR has matching descendants
+      if (nameMatches || filteredChildren.length > 0) {
+        result.push({
+          ...node,
+          isExpanded: true, // Auto-expand to show matches
+          children: filteredChildren.length > 0 ? filteredChildren : node.children,
+        })
+      }
+    } else {
+      // Include file if it matches
+      if (nameMatches) {
+        result.push(node)
+      }
+    }
+  }
+
+  return result
 }

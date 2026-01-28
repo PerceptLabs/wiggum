@@ -5,59 +5,63 @@ export interface FileNode {
   name: string
   path: string
   type: 'file' | 'directory'
-  children?: FileNode[]
+  isExpanded: boolean
+  children: FileNode[]
 }
 
 /**
- * Hook for managing file tree state and operations
+ * Hook for managing file tree state with eager loading.
+ *
+ * Key design decisions:
+ * - Load entire tree on mount (projects are small, <500 files)
+ * - isExpanded stored on each node (not in separate Set)
+ * - toggleDir is synchronous (just flips a boolean)
+ * - No lazy loading (eliminates race conditions)
  */
 export function useFileTree(rootPath: string | null) {
   const { fs, isReady } = useFS()
   const [tree, setTree] = React.useState<FileNode[]>([])
-  const [expandedDirs, setExpandedDirs] = React.useState<Set<string>>(new Set())
   const [selectedFile, setSelectedFile] = React.useState<string | null>(null)
+  const [activeDirectory, setActiveDirectory] = React.useState<string | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
-  // Load directory contents
-  const loadDirectory = React.useCallback(
+  // Load entire tree recursively (eager loading)
+  const loadFullTree = React.useCallback(
     async (dirPath: string): Promise<FileNode[]> => {
       if (!fs) return []
 
-      try {
-        const entries = await fs.readdir(dirPath)
-        const nodes: FileNode[] = []
+      const entries = await fs.readdir(dirPath)
+      const nodes: FileNode[] = []
 
-        for (const entry of entries) {
-          // Skip hidden files and node_modules
-          if (entry.startsWith('.') || entry === 'node_modules') continue
+      for (const entry of entries) {
+        // Skip node_modules
+        if (entry === 'node_modules') continue
 
-          const fullPath = dirPath === '/' ? `/${entry}` : `${dirPath}/${entry}`
+        const fullPath = dirPath === '/' ? `/${entry}` : `${dirPath}/${entry}`
+
+        try {
           const stat = await fs.stat(fullPath)
+          const isDir = stat.isDirectory()
 
           nodes.push({
             name: entry,
             path: fullPath,
-            type: stat.isDirectory() ? 'directory' : 'file',
+            type: isDir ? 'directory' : 'file',
+            isExpanded: false,
+            children: isDir ? await loadFullTree(fullPath) : [],
           })
+        } catch {
+          // Skip files we can't stat
         }
-
-        // Sort: directories first, then alphabetically
-        return nodes.sort((a, b) => {
-          if (a.type !== b.type) {
-            return a.type === 'directory' ? -1 : 1
-          }
-          return a.name.localeCompare(b.name)
-        })
-      } catch (err) {
-        console.error('Failed to load directory:', dirPath, err)
-        return []
       }
+
+      return sortNodes(nodes)
     },
     [fs]
   )
 
-  // Load root directory
+  // Refresh entire tree with error handling
   const refresh = React.useCallback(async () => {
     if (!fs || !isReady || !rootPath) return
 
@@ -65,70 +69,52 @@ export function useFileTree(rootPath: string | null) {
     setError(null)
 
     try {
-      const nodes = await loadDirectory(rootPath)
+      const nodes = await loadFullTree(rootPath)
       setTree(nodes)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load file tree')
     } finally {
       setIsLoading(false)
     }
-  }, [fs, isReady, rootPath, loadDirectory])
+  }, [fs, isReady, rootPath, loadFullTree])
 
   // Load on mount and when root changes
   React.useEffect(() => {
     refresh()
   }, [refresh])
 
-  // Toggle directory expansion
-  const toggleDir = React.useCallback(
-    async (path: string) => {
-      setExpandedDirs((prev) => {
-        const next = new Set(prev)
-        if (next.has(path)) {
-          next.delete(path)
-        } else {
-          next.add(path)
-        }
-        return next
-      })
-
-      // Load children if not already loaded
-      setTree((prev) => {
-        const loadChildren = async (nodes: FileNode[]): Promise<FileNode[]> => {
-          return Promise.all(
-            nodes.map(async (node) => {
-              if (node.path === path && node.type === 'directory' && !node.children) {
-                const children = await loadDirectory(path)
-                return { ...node, children }
-              }
-              if (node.children) {
-                return { ...node, children: await loadChildren(node.children) }
-              }
-              return node
-            })
-          )
-        }
-
-        // Trigger async update
-        loadChildren(prev).then(setTree)
-        return prev
-      })
-    },
-    [loadDirectory]
-  )
-
-  // Select a file
-  const selectFile = React.useCallback((path: string | null) => {
-    setSelectedFile(path)
+  // Synchronous toggle - just flip the boolean
+  const toggleDir = React.useCallback((path: string) => {
+    setTree((prev) => updateNodeExpansion(prev, path))
+    setActiveDirectory(path)
   }, [])
+
+  // Select a file and update active directory
+  const selectFile = React.useCallback(
+    (path: string | null) => {
+      setSelectedFile(path)
+      if (path) {
+        // Set active directory to parent of selected file
+        const parent = path.substring(0, path.lastIndexOf('/'))
+        setActiveDirectory(parent || rootPath)
+      }
+    },
+    [rootPath]
+  )
 
   // Create a new file
   const createFile = React.useCallback(
     async (path: string, content = '') => {
       if (!fs) return
 
-      await fs.writeFile(path, content, 'utf8')
-      await refresh()
+      try {
+        await fs.writeFile(path, content, 'utf8')
+        await refresh()
+      } catch (err) {
+        throw new Error(
+          `Failed to create file: ${err instanceof Error ? err.message : 'Unknown error'}`
+        )
+      }
     },
     [fs, refresh]
   )
@@ -138,8 +124,14 @@ export function useFileTree(rootPath: string | null) {
     async (path: string) => {
       if (!fs) return
 
-      await fs.mkdir(path)
-      await refresh()
+      try {
+        await fs.mkdir(path)
+        await refresh()
+      } catch (err) {
+        throw new Error(
+          `Failed to create directory: ${err instanceof Error ? err.message : 'Unknown error'}`
+        )
+      }
     },
     [fs, refresh]
   )
@@ -149,13 +141,19 @@ export function useFileTree(rootPath: string | null) {
     async (path: string) => {
       if (!fs) return
 
-      const stat = await fs.stat(path)
-      if (stat.isDirectory()) {
-        await fs.rmdir(path)
-      } else {
-        await fs.unlink(path)
+      try {
+        const stat = await fs.stat(path)
+        if (stat.isDirectory()) {
+          await fs.rmdir(path, { recursive: true })
+        } else {
+          await fs.unlink(path)
+        }
+        await refresh()
+      } catch (err) {
+        throw new Error(
+          `Failed to delete: ${err instanceof Error ? err.message : 'Unknown error'}`
+        )
       }
-      await refresh()
     },
     [fs, refresh]
   )
@@ -165,16 +163,22 @@ export function useFileTree(rootPath: string | null) {
     async (oldPath: string, newPath: string) => {
       if (!fs) return
 
-      await fs.rename(oldPath, newPath)
-      await refresh()
+      try {
+        await fs.rename(oldPath, newPath)
+        await refresh()
+      } catch (err) {
+        throw new Error(
+          `Failed to rename: ${err instanceof Error ? err.message : 'Unknown error'}`
+        )
+      }
     },
     [fs, refresh]
   )
 
   return {
     tree,
-    expandedDirs,
     selectedFile,
+    activeDirectory,
     isLoading,
     error,
     toggleDir,
@@ -185,4 +189,34 @@ export function useFileTree(rootPath: string | null) {
     renameEntry,
     refresh,
   }
+}
+
+/**
+ * Recursively update isExpanded for a specific path
+ */
+function updateNodeExpansion(nodes: FileNode[], targetPath: string): FileNode[] {
+  return nodes.map((node) => {
+    if (node.path === targetPath) {
+      return { ...node, isExpanded: !node.isExpanded }
+    }
+    if (node.children.length > 0) {
+      return { ...node, children: updateNodeExpansion(node.children, targetPath) }
+    }
+    return node
+  })
+}
+
+/**
+ * Sort nodes: .ralph first, then directories, then files alphabetically
+ */
+function sortNodes(nodes: FileNode[]): FileNode[] {
+  return [...nodes].sort((a, b) => {
+    // .ralph always first
+    if (a.name === '.ralph') return -1
+    if (b.name === '.ralph') return 1
+    // Directories before files
+    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
+    // Alphabetical within same type
+    return a.name.localeCompare(b.name)
+  })
 }

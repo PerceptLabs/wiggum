@@ -6,6 +6,40 @@ import { registerAllCommands } from '@/lib/shell/commands'
 import { runRalphLoop, type RalphCallbacks } from '@/lib/ralph'
 import { Git } from '@/lib/git'
 
+// Storage key for chat messages (scoped by project)
+const getChatStorageKey = (projectId: string | undefined) =>
+  projectId ? `wiggum-chat-${projectId}` : null
+
+// Load messages from localStorage
+function loadMessagesFromStorage(projectId: string | undefined): AIMessage[] {
+  const key = getChatStorageKey(projectId)
+  if (!key) return []
+  try {
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return []
+}
+
+// Save messages to localStorage
+function saveMessagesToStorage(projectId: string | undefined, messages: AIMessage[]): void {
+  const key = getChatStorageKey(projectId)
+  if (!key) return
+  try {
+    // Only save user and assistant messages (not status/action ephemeral messages)
+    const persistableMessages = messages.filter(
+      (m) => !('_displayType' in m) || m._displayType === undefined
+    )
+    localStorage.setItem(key, JSON.stringify(persistableMessages))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export interface UseChatOptions {
   /** Callback when a message is received */
   onMessage?: (message: AIMessage) => void
@@ -50,9 +84,34 @@ export function useAIChat(options: UseChatOptions = {}) {
 
   const abortRef = React.useRef<AbortController | null>(null)
   const isRunningRef = React.useRef(false)
+  const lastLoadedProjectRef = React.useRef<string | null>(null)
 
   // Get project path or default
   const cwd = currentProject?.path ?? '/projects/default'
+
+  // Load messages from storage when project is available or changes
+  React.useEffect(() => {
+    if (!currentProject?.id) {
+      // No project - clear messages if we had previously loaded something
+      if (lastLoadedProjectRef.current !== null) {
+        setState((s) => ({ ...s, messages: [] }))
+        lastLoadedProjectRef.current = null
+      }
+      return
+    }
+
+    // Only load if this is a different project than what we last loaded
+    if (lastLoadedProjectRef.current !== currentProject.id) {
+      const messages = loadMessagesFromStorage(currentProject.id)
+      setState((s) => ({ ...s, messages }))
+      lastLoadedProjectRef.current = currentProject.id
+    }
+  }, [currentProject?.id])
+
+  // Persist messages to storage when they change
+  React.useEffect(() => {
+    saveMessagesToStorage(currentProject?.id, state.messages)
+  }, [state.messages, currentProject?.id])
 
   // Create shell executor and git instance
   const { shell, git } = React.useMemo(() => {
@@ -293,7 +352,16 @@ export function useAIChat(options: UseChatOptions = {}) {
       ralphIteration: 0,
       streamingContent: '',
     })
-  }, [])
+    // Also clear from storage
+    const key = getChatStorageKey(currentProject?.id)
+    if (key) {
+      try {
+        localStorage.removeItem(key)
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  }, [currentProject?.id])
 
   return {
     messages: state.messages,

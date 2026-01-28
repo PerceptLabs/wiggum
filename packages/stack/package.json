@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "license": "MIT",
-  "description": "UI component library and utilities for Wiggum",
+  "description": "Theme-agnostic UI component library for Wiggum - 53 components built on Radix primitives",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -39,12 +39,20 @@
     },
     "./styles/globals.css": {
       "import": "./src/styles/globals.css"
-    }
+    },
+    "./styles/themes/neobrutalist.css": {
+      "import": "./src/styles/themes/neobrutalist.css"
+    },
+    "./styles/themes/*": {
+      "import": "./src/styles/themes/*"
+    },
+    "./SKILL.md": "./SKILL.md"
   },
   "files": [
     "src",
     "tokens.json",
-    "tailwind.config.ts"
+    "tailwind.config.ts",
+    "SKILL.md"
   ],
   "scripts": {
     "lint": "eslint src",

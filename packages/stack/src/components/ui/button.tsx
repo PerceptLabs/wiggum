@@ -5,7 +5,15 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-bold uppercase tracking-wide transition-all duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border-2 border-border",
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm",
+    "font-bold uppercase tracking-wide",  // neobrutalist typography
+    "transition-all duration-100",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+    "disabled:pointer-events-none disabled:opacity-50",
+    "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+    "border-2 border-border",
+  ].join(" "),
   {
     variants: {
       variant: {
@@ -17,10 +25,8 @@ const buttonVariants = cva(
           "bg-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-accent hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)] dark:hover:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)] dark:active:shadow-none",
         secondary:
           "bg-secondary text-secondary-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)] dark:hover:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)] dark:active:shadow-none",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground border-transparent",
-        link:
-          "text-primary underline-offset-4 hover:underline border-transparent",
+        ghost: "hover:bg-accent hover:text-accent-foreground border-transparent",
+        link: "text-primary underline-offset-4 hover:underline border-transparent",
       },
       size: {
         default: "h-10 px-5 py-2",

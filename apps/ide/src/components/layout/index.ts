@@ -1,5 +1,4 @@
-export { AppLayout } from './AppLayout'
+export { AppLayout, useLayout } from './AppLayout'
 export { Header } from './Header'
-export { Sidebar } from './Sidebar'
 export { LogsPanel } from './LogsPanel'
-export { LayoutProvider, useLayout, type ViewMode } from './LayoutContext'
+export { LayoutProvider, type ViewMode } from './LayoutContext'

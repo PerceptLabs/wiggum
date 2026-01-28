@@ -1,0 +1,163 @@
+/*
+ * Neobrutalist Theme for @wiggum/stack
+ * 
+ * Inspired by Ralph Wiggum from The Simpsons.
+ * Features: Hard shadows, thick borders, sharp corners, bold typography.
+ * 
+ * Import this AFTER globals.css:
+ *   @import "path/to/globals.css";
+ *   @import "path/to/themes/neobrutalist.css";
+ */
+
+:root {
+  /* === NEOBRUTALIST COLORS === */
+  /* Light mode: Cream & Black with Simpsons Yellow accent */
+  --background: 55 100% 98%;         /* #FFFDF5 - cream */
+  --foreground: 0 0% 4%;             /* near black */
+  --card: 55 100% 98%;
+  --card-foreground: 0 0% 4%;
+  --popover: 55 100% 98%;
+  --popover-foreground: 0 0% 4%;
+  --primary: 50 100% 53%;            /* #FFD90F - Simpsons Yellow */
+  --primary-foreground: 0 0% 4%;
+  --secondary: 45 50% 92%;
+  --secondary-foreground: 0 0% 4%;
+  --muted: 45 30% 90%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 50 100% 53%;
+  --accent-foreground: 0 0% 4%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 0%;                 /* pure black borders */
+  --input: 0 0% 0%;
+  --ring: 50 100% 53%;               /* yellow focus ring */
+  
+  /* === NEOBRUTALIST SHAPE === */
+  --radius: 0px;                     /* sharp corners - signature trait */
+  --border-width: 2px;               /* thick borders */
+  
+  /* === NEOBRUTALIST SHADOWS === */
+  /* Hard offset shadows - no blur, solid black */
+  --shadow: 4px 4px 0px 0px rgba(0, 0, 0, 1);
+  --shadow-sm: 2px 2px 0px 0px rgba(0, 0, 0, 1);
+  --shadow-md: 4px 4px 0px 0px rgba(0, 0, 0, 1);
+  --shadow-lg: 6px 6px 0px 0px rgba(0, 0, 0, 1);
+  --shadow-xl: 8px 8px 0px 0px rgba(0, 0, 0, 1);
+  
+  /* Interactive states - shadow shrinks on hover, disappears on active */
+  --shadow-hover: 2px 2px 0px 0px rgba(0, 0, 0, 1);
+  --shadow-active: 0px 0px 0px 0px rgba(0, 0, 0, 1);
+  
+  /* === NEOBRUTALIST MOTION === */
+  --transition-fast: 100ms;
+  --transition-normal: 100ms;        /* snappy feel */
+  --transition-slow: 150ms;
+  
+  /* Translate on interaction - element "pushes in" */
+  --hover-translate-x: 2px;
+  --hover-translate-y: 2px;
+  --active-translate-x: 4px;
+  --active-translate-y: 4px;
+  
+  /* === NEOBRUTALIST TYPOGRAPHY === */
+  --heading-weight: 700;
+  --heading-transform: uppercase;
+  --heading-tracking: 0.05em;
+  --button-weight: 700;
+  --button-transform: uppercase;
+  --button-tracking: 0.05em;
+
+  /* Chart colors - bold, high contrast */
+  --chart-1: 50 100% 53%;            /* yellow */
+  --chart-2: 173 58% 39%;            /* teal */
+  --chart-3: 0 84% 60%;              /* red */
+  --chart-4: 262 83% 58%;            /* purple */
+  --chart-5: 24 95% 53%;             /* orange */
+  
+  /* Sidebar - neobrutalist variant */
+  --sidebar-background: 55 100% 98%;
+  --sidebar-foreground: 0 0% 4%;
+  --sidebar-primary: 50 100% 53%;
+  --sidebar-primary-foreground: 0 0% 4%;
+  --sidebar-accent: 45 50% 92%;
+  --sidebar-accent-foreground: 0 0% 4%;
+  --sidebar-border: 0 0% 0%;
+  --sidebar-ring: 50 100% 53%;
+}
+
+.dark {
+  /* Dark mode: Charcoal & Yellow */
+  --background: 0 0% 10%;            /* #1A1A1A - charcoal */
+  --foreground: 55 100% 98%;         /* cream text */
+  --card: 0 0% 14%;
+  --card-foreground: 55 100% 98%;
+  --popover: 0 0% 14%;
+  --popover-foreground: 55 100% 98%;
+  --primary: 50 100% 53%;            /* Simpsons Yellow stays */
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 20%;
+  --secondary-foreground: 55 100% 98%;
+  --muted: 0 0% 18%;
+  --muted-foreground: 0 0% 60%;
+  --accent: 50 100% 53%;
+  --accent-foreground: 0 0% 4%;
+  --destructive: 0 62% 50%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 50 100% 53%;             /* yellow borders in dark mode */
+  --input: 50 100% 53%;
+  --ring: 50 100% 53%;
+
+  /* Dark mode shadows use yellow */
+  --shadow: 4px 4px 0px 0px hsl(50 100% 53%);
+  --shadow-sm: 2px 2px 0px 0px hsl(50 100% 53%);
+  --shadow-md: 4px 4px 0px 0px hsl(50 100% 53%);
+  --shadow-lg: 6px 6px 0px 0px hsl(50 100% 53%);
+  --shadow-xl: 8px 8px 0px 0px hsl(50 100% 53%);
+  --shadow-hover: 2px 2px 0px 0px hsl(50 100% 53%);
+  --shadow-active: 0px 0px 0px 0px hsl(50 100% 53%);
+
+  /* Chart colors - dark mode */
+  --chart-1: 50 100% 53%;
+  --chart-2: 160 60% 45%;
+  --chart-3: 0 70% 55%;
+  --chart-4: 280 65% 60%;
+  --chart-5: 30 90% 55%;
+  
+  /* Sidebar - dark mode */
+  --sidebar-background: 0 0% 10%;
+  --sidebar-foreground: 55 100% 98%;
+  --sidebar-primary: 50 100% 53%;
+  --sidebar-primary-foreground: 0 0% 4%;
+  --sidebar-accent: 0 0% 18%;
+  --sidebar-accent-foreground: 55 100% 98%;
+  --sidebar-border: 50 100% 53%;
+  --sidebar-ring: 50 100% 53%;
+}
+
+/* Override Tailwind radius values for sharp corners */
+@theme inline {
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+}
+
+/* === NEOBRUTALIST SCROLLBARS === */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border: 2px solid hsl(var(--border));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--border));
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.8);
+}

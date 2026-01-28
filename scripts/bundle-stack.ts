@@ -23,8 +23,20 @@ async function bundleStack() {
     format: 'esm',
     write: false,
     minify: false, // Keep readable for debugging
-    external: ['react', 'react-dom', 'react/jsx-runtime'], // Provided by preview HTML importmap
+    external: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'use-sync-external-store',
+      'use-sync-external-store/shim',
+    ], // Provided by preview HTML importmap
     target: 'es2020',
+    // Use automatic JSX runtime (generates imports, not React.createElement)
+    jsx: 'automatic',
+    jsxImportSource: 'react',
+    // Force ESM resolution - prioritize module/browser fields over main (CJS)
+    mainFields: ['module', 'browser', 'main'],
+    conditions: ['module', 'browser', 'import'],
     // Handle CSS-in-JS and Tailwind classes
     loader: {
       '.css': 'text',

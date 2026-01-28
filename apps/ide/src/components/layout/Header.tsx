@@ -4,16 +4,15 @@ import {
   Settings,
   Moon,
   Sun,
-  PanelLeftClose,
-  PanelLeft,
   Hammer,
-  Code2,
   Terminal,
   RefreshCw,
   ExternalLink,
   ChevronDown,
   FolderOpen,
   Plus,
+  Eye,
+  Code2,
 } from 'lucide-react'
 import {
   Button,
@@ -28,7 +27,7 @@ import {
   Input,
   cn,
 } from '@wiggum/stack'
-import { useLayout, type ViewMode } from './LayoutContext'
+import { useLayout } from './LayoutContext'
 
 interface Project {
   id: string
@@ -46,6 +45,7 @@ interface HeaderProps {
   onRefreshPreview?: () => void
   previewUrl?: string
   isBuilding?: boolean
+  isPreviewable?: boolean
 }
 
 export function Header({
@@ -58,9 +58,10 @@ export function Header({
   onRefreshPreview,
   previewUrl,
   isBuilding = false,
+  isPreviewable = true,
 }: HeaderProps) {
   const navigate = useNavigate()
-  const { sidebarCollapsed, toggleSidebar, viewMode, setViewMode, toggleLogs, logsOpen } = useLayout()
+  const { viewMode, setViewMode, toggleLogs, logsOpen } = useLayout()
   const [theme, setTheme] = React.useState<'light' | 'dark'>('dark')
 
   const toggleTheme = () => {
@@ -77,21 +78,8 @@ export function Header({
 
   return (
     <header className="flex h-14 items-center justify-between border-b-3 border-border bg-primary px-4 shadow-[0_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[0_4px_0px_0px_hsl(50,100%,53%)]">
-      {/* Left section: Sidebar toggle, logo, project selector */}
+      {/* Left section: Logo and project selector */}
       <div className="flex items-center gap-3">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" size="icon" onClick={toggleSidebar} className="bg-background">
-              {sidebarCollapsed ? (
-                <PanelLeft className="h-4 w-4" />
-              ) : (
-                <PanelLeftClose className="h-4 w-4" />
-              )}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}</TooltipContent>
-        </Tooltip>
-
         <div className="flex items-center gap-2">
           <WiggumLogo />
           <span className="font-bold text-lg uppercase tracking-wide text-primary-foreground">Wiggum</span>
@@ -133,7 +121,7 @@ export function Header({
       </div>
 
       {/* Center section: URL bar (only in preview mode) */}
-      {viewMode === 'preview' && (
+      {viewMode === 'preview' && isPreviewable && (
         <div className="flex items-center gap-2">
           <div className="flex items-center border-2 border-border bg-background">
             <Input
@@ -191,24 +179,52 @@ export function Header({
           <TooltipContent>Build project</TooltipContent>
         </Tooltip>
 
-        {/* CODE button */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={viewMode === 'code' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode(viewMode === 'code' ? 'preview' : 'code')}
-              className={cn(
-                'gap-2 font-bold uppercase',
-                viewMode === 'code' ? 'bg-primary text-primary-foreground' : 'bg-background'
-              )}
-            >
-              <Code2 className="h-4 w-4" />
-              Code
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{viewMode === 'code' ? 'Back to preview' : 'View code editor'}</TooltipContent>
-        </Tooltip>
+        {/* Preview | Code toggle group */}
+        <div className="flex border-2 border-border rounded-md overflow-hidden">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('preview')}
+                disabled={!isPreviewable}
+                className={cn(
+                  'rounded-none border-0 gap-1.5 font-bold uppercase',
+                  viewMode === 'preview' && isPreviewable
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-background hover:bg-accent',
+                  !isPreviewable && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <Eye className="h-4 w-4" />
+                Preview
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isPreviewable ? 'View live preview' : 'No previewable content'}
+            </TooltipContent>
+          </Tooltip>
+          <div className="w-px bg-border" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setViewMode('code')}
+                className={cn(
+                  'rounded-none border-0 gap-1.5 font-bold uppercase',
+                  viewMode === 'code'
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-background hover:bg-accent'
+                )}
+              >
+                <Code2 className="h-4 w-4" />
+                Code
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>View code editor</TooltipContent>
+          </Tooltip>
+        </div>
 
         {/* LOGS button */}
         <Tooltip>

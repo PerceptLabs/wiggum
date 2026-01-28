@@ -5,6 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>wiggum</title>
+    <script>
+      // Clean up any stale Service Workers from preview system
+      // Only keep SWs scoped to /preview/ - unregister everything else
+      // This prevents stale SWs from intercepting the main IDE
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var i = 0; i < regs.length; i++) {
+            var reg = regs[i];
+            // Keep /preview/ scoped SW, unregister everything else
+            if (!reg.scope.includes('/preview/')) {
+              console.log('[IDE] Unregistering stale SW:', reg.scope);
+              reg.unregister();
+            }
+          }
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

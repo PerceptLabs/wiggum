@@ -3,10 +3,45 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
+import fs from 'fs'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    // Serve /preview/* from public/preview/ BEFORE SPA fallback
+    {
+      name: 'serve-preview-static',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.startsWith('/preview')) {
+            // Map /preview/ to /preview/index.html
+            let filePath = req.url.split('?')[0] // Remove query string
+            if (filePath === '/preview' || filePath === '/preview/') {
+              filePath = '/preview/index.html'
+            }
+
+            const fullPath = path.join(__dirname, 'public', filePath)
+
+            if (fs.existsSync(fullPath)) {
+              const content = fs.readFileSync(fullPath)
+              const ext = path.extname(fullPath)
+              const mimeTypes: Record<string, string> = {
+                '.html': 'text/html',
+                '.js': 'application/javascript',
+                '.css': 'text/css',
+              }
+              res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream')
+              res.end(content)
+              return
+            }
+          }
+          next()
+        })
+      },
+    },
+    react(),
+    tailwindcss(),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -22,10 +57,19 @@ export default defineConfig({
       exclude: ['esbuild-wasm'],
     },
   },
-  // Serve the esbuild-wasm files from node_modules
+  // Allow importing from workspace packages and node_modules
   server: {
     fs: {
-      allow: ['..', '../../node_modules'],
+      // Allow serving files from:
+      // - The IDE app itself
+      // - Parent directories (for monorepo packages)
+      // - node_modules
+      allow: [
+        '..',                      // apps/
+        '../..',                   // monorepo root
+        '../../packages',          // packages/ directory
+        '../../node_modules',      // root node_modules
+      ],
     },
   },
   define: {

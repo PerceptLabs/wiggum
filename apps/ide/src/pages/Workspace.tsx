@@ -1,9 +1,10 @@
 import * as React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useProject } from '@/contexts'
+import { useProject, useFS } from '@/contexts'
 import { useFileTree, useFileContent, useGit, usePreview } from '@/hooks'
-import { AppLayout } from '@/components/layout'
-import { FileTree, PreviewPane, CodeEditorPane, FileProvider, type GitStatusMap, type GitFileStatus, type FileEntry } from '@/components/files'
+import type { FileNode } from '@/hooks/useFileTree'
+import { AppLayout, useLayout } from '@/components/layout'
+import { FileTree, PreviewPane, CodeEditorPane, type GitStatusMap, type GitFileStatus } from '@/components/files'
 import { ChatPane, ChatProvider } from '@/components/chat'
 import {
   Dialog,
@@ -15,30 +16,26 @@ import {
   Button,
 } from '@wiggum/stack'
 
+/**
+ * Check if a file path is a binary file type
+ */
+function isBinaryFile(path: string): boolean {
+  const ext = path.split('.').pop()?.toLowerCase() || ''
+  const binaryExtensions = new Set([
+    'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp',
+    'woff', 'woff2', 'ttf', 'eot', 'otf',
+    'mp3', 'wav', 'ogg', 'mp4', 'webm',
+    'pdf', 'zip', 'tar', 'gz',
+  ])
+  return binaryExtensions.has(ext)
+}
+
 type FileDialogMode = 'newFile' | 'newFolder' | 'rename' | null
 
 interface FileDialogState {
   mode: FileDialogMode
   name: string
   targetPath?: string // For rename - the file being renamed
-}
-
-/**
- * Recursively check if a path is a directory in the file tree
- */
-function checkIfDirectory(path: string, entries: FileEntry[]): boolean {
-  for (const entry of entries) {
-    if (entry.path === path) {
-      return entry.type === 'directory'
-    }
-    if (entry.children) {
-      const result = checkIfDirectory(path, entry.children)
-      if (result !== false) {
-        return result
-      }
-    }
-  }
-  return false
 }
 
 export function Workspace() {
@@ -95,45 +92,43 @@ export function Workspace() {
   }
 
   return (
-    <FileProvider>
-      <ChatProvider>
-        <WorkspaceContent
-          projects={projects}
-          currentProject={currentProject}
-          onProjectSelect={handleProjectSelect}
-          onNewProject={() => setIsCreateOpen(true)}
-          fileTree={fileTree}
-          git={git}
-          preview={preview}
-        />
+    <ChatProvider>
+      <WorkspaceContent
+        projects={projects}
+        currentProject={currentProject}
+        onProjectSelect={handleProjectSelect}
+        onNewProject={() => setIsCreateOpen(true)}
+        fileTree={fileTree}
+        git={git}
+        preview={preview}
+      />
 
-        {/* Create project dialog */}
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Project</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <Input
-                placeholder="Project name"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
-                autoFocus
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleCreateProject} disabled={!newProjectName.trim()}>
-                  Create
-                </Button>
-              </div>
+      {/* Create project dialog */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Project</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <Input
+              placeholder="Project name"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateProject} disabled={!newProjectName.trim()}>
+                Create
+              </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </ChatProvider>
-    </FileProvider>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </ChatProvider>
   )
 }
 
@@ -156,8 +151,8 @@ function WorkspaceContent({
   git,
   preview,
 }: WorkspaceContentProps) {
-  // Search query state
-  const [searchQuery, setSearchQuery] = React.useState('')
+  // Filesystem access for Service Worker preview mode
+  const { fs } = useFS()
 
   // File content management
   const fileContent = useFileContent(fileTree.selectedFile)
@@ -167,9 +162,32 @@ function WorkspaceContent({
 
   // Check if selected file is HTML or TSX/JSX
   const isHtmlFile = fileTree.selectedFile?.toLowerCase().endsWith('.html')
-  const isTsxFile = fileTree.selectedFile?.toLowerCase().endsWith('.tsx') ||
-                    fileTree.selectedFile?.toLowerCase().endsWith('.jsx')
+  const isTsxFile =
+    fileTree.selectedFile?.toLowerCase().endsWith('.tsx') ||
+    fileTree.selectedFile?.toLowerCase().endsWith('.jsx')
   const isPreviewableFile = isHtmlFile || isTsxFile
+
+  // Determine if project is previewable (has entry point)
+  const isPreviewable = React.useMemo(() => {
+    const hasEntry = (nodes: FileNode[]): boolean => {
+      for (const node of nodes) {
+        if (
+          node.name === 'main.tsx' ||
+          node.name === 'main.jsx' ||
+          node.name === 'index.html' ||
+          node.name === 'index.tsx' ||
+          node.name === 'index.jsx'
+        ) {
+          return true
+        }
+        if (node.type === 'directory' && hasEntry(node.children)) {
+          return true
+        }
+      }
+      return false
+    }
+    return hasEntry(fileTree.tree)
+  }, [fileTree.tree])
 
   // Load HTML file content or trigger build for TSX/JSX files
   React.useEffect(() => {
@@ -244,29 +262,7 @@ function WorkspaceContent({
     return () => clearInterval(interval)
   }, [git.isRepo, git.status, currentProject.path])
 
-  /**
-   * Get the target directory for creating new files/folders
-   * - If a directory is selected: create inside that directory
-   * - If a file is selected: create in the same directory (sibling)
-   * - If nothing selected: create at project root
-   */
-  const getTargetDirectory = React.useCallback(() => {
-    if (!fileTree.selectedFile) {
-      return currentProject.path
-    }
-
-    const isDir = checkIfDirectory(fileTree.selectedFile, fileTree.tree)
-
-    if (isDir) {
-      return fileTree.selectedFile
-    } else {
-      // Extract parent directory from file path
-      const lastSlash = fileTree.selectedFile.lastIndexOf('/')
-      return lastSlash > 0 ? fileTree.selectedFile.substring(0, lastSlash) : currentProject.path
-    }
-  }, [fileTree.selectedFile, fileTree.tree, currentProject.path])
-
-  // Handle new file
+  // Handle new file - use activeDirectory from fileTree
   const handleNewFile = () => {
     setFileDialog({ mode: 'newFile', name: '' })
   }
@@ -292,12 +288,13 @@ function WorkspaceContent({
     const { mode, name, targetPath } = fileDialog
     if (!name.trim()) return
 
+    // Use activeDirectory from fileTree, or fall back to project root
+    const targetDir = fileTree.activeDirectory || currentProject.path
+
     try {
       if (mode === 'newFile') {
-        const targetDir = getTargetDirectory()
         await fileTree.createFile(`${targetDir}/${name.trim()}`)
       } else if (mode === 'newFolder') {
-        const targetDir = getTargetDirectory()
         await fileTree.createDirectory(`${targetDir}/${name.trim()}`)
       } else if (mode === 'rename' && targetPath) {
         const parentPath = targetPath.substring(0, targetPath.lastIndexOf('/'))
@@ -307,6 +304,7 @@ function WorkspaceContent({
       setFileDialog({ mode: null, name: '' })
     } catch (err) {
       console.error('File operation failed:', err)
+      // TODO: Show toast notification for errors
     }
   }
 
@@ -318,6 +316,7 @@ function WorkspaceContent({
       setDeleteTarget(null)
     } catch (err) {
       console.error('Delete failed:', err)
+      // TODO: Show toast notification for errors
     }
   }
 
@@ -334,9 +333,7 @@ function WorkspaceContent({
   const handleGoToError = React.useCallback(
     (file: string, line: number) => {
       // Resolve file path relative to project
-      const fullPath = file.startsWith('/')
-        ? file
-        : `${currentProject.path}/${file}`
+      const fullPath = file.startsWith('/') ? file : `${currentProject.path}/${file}`
 
       fileTree.selectFile(fullPath)
       // TODO: If editor supports it, scroll to line
@@ -345,10 +342,38 @@ function WorkspaceContent({
     [currentProject.path, fileTree]
   )
 
+  // Read file callback for Service Worker preview mode (supports binary files)
+  const handleReadFile = React.useCallback(
+    async (path: string): Promise<string | Uint8Array | null> => {
+      if (!fs) return null
+      try {
+        // Check if binary file (images, fonts, etc.)
+        if (isBinaryFile(path)) {
+          const content = await fs.readFile(path)
+          return content as Uint8Array
+        }
+        // Text file
+        const content = await fs.readFile(path, 'utf8')
+        return content as string
+      } catch {
+        return null
+      }
+    },
+    [fs]
+  )
+
   // Dialog titles and placeholders
   const dialogConfig = {
-    newFile: { title: 'New File', placeholder: 'filename.ts', description: 'Enter a name for the new file' },
-    newFolder: { title: 'New Folder', placeholder: 'folder-name', description: 'Enter a name for the new folder' },
+    newFile: {
+      title: 'New File',
+      placeholder: 'filename.ts',
+      description: `Create in: ${fileTree.activeDirectory || currentProject.path}`,
+    },
+    newFolder: {
+      title: 'New Folder',
+      placeholder: 'folder-name',
+      description: `Create in: ${fileTree.activeDirectory || currentProject.path}`,
+    },
     rename: { title: 'Rename', placeholder: 'new-name', description: 'Enter a new name' },
   }
 
@@ -360,41 +385,40 @@ function WorkspaceContent({
         currentProject={currentProject}
         onProjectSelect={onProjectSelect}
         onNewProject={onNewProject}
-        // Sidebar props
-        onSearch={setSearchQuery}
-        onInitGit={git.init}
-        isGitInitialized={git.isRepo}
         // Build props
         onBuild={preview.build}
         onRefreshPreview={preview.build}
         previewUrl="localhost:3000"
         isBuilding={preview.isBuilding}
+        isPreviewable={isPreviewable}
         // Content slots
-        sidebar={
+        fileTree={
           <FileTree
-            entries={fileTree.tree}
+            nodes={fileTree.tree}
             onFileSelect={fileTree.selectFile}
             onToggleDir={fileTree.toggleDir}
             selectedPath={fileTree.selectedFile}
+            activeDirectory={fileTree.activeDirectory}
             onRefresh={fileTree.refresh}
             onNewFile={handleNewFile}
             onNewFolder={handleNewFolder}
-            onRename={handleRename}
-            onDelete={handleDelete}
-            searchQuery={searchQuery}
             gitStatus={gitStatusMap}
+            isLoading={fileTree.isLoading}
+            error={fileTree.error}
           />
         }
         chat={<ChatPane />}
         preview={
           <PreviewPane
-            html={isHtmlFile ? htmlFileContent ?? undefined : preview.html ?? undefined}
             error={preview.error ?? undefined}
             errors={preview.errors ?? undefined}
             isLoading={preview.isBuilding}
             onRefresh={preview.build}
             onGoToError={handleGoToError}
-            currentFile={isPreviewableFile ? fileTree.selectedFile ?? undefined : undefined}
+            currentFile={isPreviewableFile ? (fileTree.selectedFile ?? undefined) : undefined}
+            projectPath={currentProject.path}
+            buildVersion={preview.buildVersion}
+            onReadFile={handleReadFile}
           />
         }
         codeEditor={
@@ -447,7 +471,8 @@ function WorkspaceContent({
           <DialogHeader>
             <DialogTitle>Delete File</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{deleteTarget?.split('/').pop()}"? This action cannot be undone.
+              Are you sure you want to delete "{deleteTarget?.split('/').pop()}"? This action cannot
+              be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-4">

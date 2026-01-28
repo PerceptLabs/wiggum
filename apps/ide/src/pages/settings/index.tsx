@@ -2,7 +2,6 @@ import * as React from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Settings as SettingsIcon, Plug, Wrench } from 'lucide-react'
 import { Button, cn } from '@wiggum/stack'
-import { Sidebar } from '@/components/layout'
 
 const NAV_ITEMS = [
   {
