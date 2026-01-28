@@ -40,7 +40,7 @@
   /* Hard offset shadows - no blur, solid black */
   --shadow: 4px 4px 0px 0px rgba(0, 0, 0, 1);
   --shadow-sm: 2px 2px 0px 0px rgba(0, 0, 0, 1);
-  --shadow-md: 4px 4px 0px 0px rgba(0, 0, 0, 1);
+  --shadow-md: 3px 3px 0px 0px rgba(0, 0, 0, 1);
   --shadow-lg: 6px 6px 0px 0px rgba(0, 0, 0, 1);
   --shadow-xl: 8px 8px 0px 0px rgba(0, 0, 0, 1);
   
@@ -110,7 +110,7 @@
   /* Dark mode shadows use yellow */
   --shadow: 4px 4px 0px 0px hsl(50 100% 53%);
   --shadow-sm: 2px 2px 0px 0px hsl(50 100% 53%);
-  --shadow-md: 4px 4px 0px 0px hsl(50 100% 53%);
+  --shadow-md: 3px 3px 0px 0px hsl(50 100% 53%);
   --shadow-lg: 6px 6px 0px 0px hsl(50 100% 53%);
   --shadow-xl: 8px 8px 0px 0px hsl(50 100% 53%);
   --shadow-hover: 2px 2px 0px 0px hsl(50 100% 53%);

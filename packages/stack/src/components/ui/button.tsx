@@ -12,19 +12,19 @@ const buttonVariants = cva(
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
     "disabled:pointer-events-none disabled:opacity-50",
     "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-    "border-2 border-border",
+    "border-[length:var(--border-width)] border-border",
   ].join(" "),
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)] dark:hover:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)] dark:active:shadow-none",
+          "bg-primary text-primary-foreground [box-shadow:var(--shadow)] hover:[box-shadow:var(--shadow-hover)] hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] active:[box-shadow:var(--shadow-active)] active:translate-x-[var(--active-translate-x)] active:translate-y-[var(--active-translate-y)]",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)] dark:hover:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)] dark:active:shadow-none",
+          "bg-destructive text-destructive-foreground [box-shadow:var(--shadow)] hover:[box-shadow:var(--shadow-hover)] hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] active:[box-shadow:var(--shadow-active)] active:translate-x-[var(--active-translate-x)] active:translate-y-[var(--active-translate-y)]",
         outline:
-          "bg-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-accent hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)] dark:hover:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)] dark:active:shadow-none",
+          "bg-background [box-shadow:var(--shadow)] hover:bg-accent hover:[box-shadow:var(--shadow-hover)] hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] active:[box-shadow:var(--shadow-active)] active:translate-x-[var(--active-translate-x)] active:translate-y-[var(--active-translate-y)]",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)] dark:hover:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)] dark:active:shadow-none",
+          "bg-secondary text-secondary-foreground [box-shadow:var(--shadow)] hover:[box-shadow:var(--shadow-hover)] hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] active:[box-shadow:var(--shadow-active)] active:translate-x-[var(--active-translate-x)] active:translate-y-[var(--active-translate-y)]",
         ghost: "hover:bg-accent hover:text-accent-foreground border-transparent",
         link: "text-primary underline-offset-4 hover:underline border-transparent",
       },
