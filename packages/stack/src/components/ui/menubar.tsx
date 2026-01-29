@@ -197,7 +197,7 @@ const MenubarLabel = React.forwardRef<
   <MenubarPrimitive.Label
     ref={ref}
     className={cn(
-      "px-2 py-1.5 text-sm font-semibold",
+      "px-2 py-1.5 text-sm [font-weight:var(--menu-label-weight,600)]",
       inset && "pl-8",
       className
     )}
@@ -225,7 +225,7 @@ const MenubarShortcut = ({
   return (
     <span
       className={cn(
-        "ml-auto text-xs tracking-widest text-muted-foreground",
+        "ml-auto text-xs [letter-spacing:var(--shortcut-tracking,0.1em)] text-muted-foreground",
         className
       )}
       {...props}

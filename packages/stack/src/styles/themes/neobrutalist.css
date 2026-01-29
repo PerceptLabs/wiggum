@@ -1,15 +1,20 @@
 /*
  * Neobrutalist Theme for @wiggum/stack
- * 
+ *
  * Inspired by Ralph Wiggum from The Simpsons.
  * Features: Hard shadows, thick borders, sharp corners, bold typography.
- * 
+ *
+ * Usage: Wrap your app with data-theme="neobrutalist"
+ *   <div data-theme="neobrutalist">
+ *     <App />
+ *   </div>
+ *
  * Import this AFTER globals.css:
  *   @import "path/to/globals.css";
  *   @import "path/to/themes/neobrutalist.css";
  */
 
-:root {
+[data-theme="neobrutalist"] {
   /* === NEOBRUTALIST COLORS === */
   /* Light mode: Cream & Black with Simpsons Yellow accent */
   --background: 55 100% 98%;         /* #FFFDF5 - cream */
@@ -31,11 +36,11 @@
   --border: 0 0% 0%;                 /* pure black borders */
   --input: 0 0% 0%;
   --ring: 50 100% 53%;               /* yellow focus ring */
-  
+
   /* === NEOBRUTALIST SHAPE === */
   --radius: 0px;                     /* sharp corners - signature trait */
   --border-width: 2px;               /* thick borders */
-  
+
   /* === NEOBRUTALIST SHADOWS === */
   /* Hard offset shadows - no blur, solid black */
   --shadow: 4px 4px 0px 0px rgba(0, 0, 0, 1);
@@ -43,29 +48,52 @@
   --shadow-md: 3px 3px 0px 0px rgba(0, 0, 0, 1);
   --shadow-lg: 6px 6px 0px 0px rgba(0, 0, 0, 1);
   --shadow-xl: 8px 8px 0px 0px rgba(0, 0, 0, 1);
-  
+
   /* Interactive states - shadow shrinks on hover, disappears on active */
   --shadow-hover: 2px 2px 0px 0px rgba(0, 0, 0, 1);
   --shadow-active: 0px 0px 0px 0px rgba(0, 0, 0, 1);
-  
+
   /* === NEOBRUTALIST MOTION === */
   --transition-fast: 100ms;
   --transition-normal: 100ms;        /* snappy feel */
   --transition-slow: 150ms;
-  
+
   /* Translate on interaction - element "pushes in" */
   --hover-translate-x: 2px;
   --hover-translate-y: 2px;
   --active-translate-x: 4px;
   --active-translate-y: 4px;
-  
+
   /* === NEOBRUTALIST TYPOGRAPHY === */
-  --heading-weight: 700;
-  --heading-transform: uppercase;
-  --heading-tracking: 0.05em;
-  --button-weight: 700;
-  --button-transform: uppercase;
-  --button-tracking: 0.05em;
+  /* Tier 1: Core neobrutalist look - bold uppercase with wide tracking */
+  --btn-weight: 700;
+  --btn-transform: uppercase;
+  --btn-tracking: 0.025em;
+
+  --badge-weight: 700;
+  --badge-transform: uppercase;
+  --badge-tracking: 0.025em;
+
+  --card-title-weight: 700;
+  --card-title-transform: uppercase;
+  --card-title-tracking: 0.025em;
+
+  --dialog-title-weight: 700;
+  --dialog-title-transform: uppercase;
+  --dialog-title-tracking: 0.025em;
+
+  --tabs-weight: 700;
+  --tabs-transform: uppercase;
+  --tabs-tracking: 0.025em;
+
+  /* Tier 2: Menu labels - semibold */
+  --menu-label-weight: 600;
+
+  /* Tier 3: Shortcuts - widest tracking */
+  --shortcut-tracking: 0.1em;
+
+  /* Special: File input */
+  --input-file-weight: 700;
 
   /* Chart colors - bold, high contrast */
   --chart-1: 50 100% 53%;            /* yellow */
@@ -73,7 +101,7 @@
   --chart-3: 0 84% 60%;              /* red */
   --chart-4: 262 83% 58%;            /* purple */
   --chart-5: 24 95% 53%;             /* orange */
-  
+
   /* Sidebar - neobrutalist variant */
   --sidebar-background: 55 100% 98%;
   --sidebar-foreground: 0 0% 4%;
@@ -85,7 +113,9 @@
   --sidebar-ring: 50 100% 53%;
 }
 
-.dark {
+/* Dark mode variants */
+[data-theme="neobrutalist"].dark,
+.dark [data-theme="neobrutalist"] {
   /* Dark mode: Charcoal & Yellow */
   --background: 0 0% 10%;            /* #1A1A1A - charcoal */
   --foreground: 55 100% 98%;         /* cream text */
@@ -122,7 +152,7 @@
   --chart-3: 0 70% 55%;
   --chart-4: 280 65% 60%;
   --chart-5: 30 90% 55%;
-  
+
   /* Sidebar - dark mode */
   --sidebar-background: 0 0% 10%;
   --sidebar-foreground: 55 100% 98%;
@@ -143,21 +173,21 @@
 }
 
 /* === NEOBRUTALIST SCROLLBARS === */
-::-webkit-scrollbar {
+[data-theme="neobrutalist"] ::-webkit-scrollbar {
   width: 12px;
   height: 12px;
 }
 
-::-webkit-scrollbar-track {
+[data-theme="neobrutalist"] ::-webkit-scrollbar-track {
   background: hsl(var(--muted));
   border: 2px solid hsl(var(--border));
 }
 
-::-webkit-scrollbar-thumb {
+[data-theme="neobrutalist"] ::-webkit-scrollbar-thumb {
   background: hsl(var(--primary));
   border: 2px solid hsl(var(--border));
 }
 
-::-webkit-scrollbar-thumb:hover {
+[data-theme="neobrutalist"] ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary) / 0.8);
 }

@@ -7,7 +7,7 @@ import { cn } from "../../lib/utils"
 const buttonVariants = cva(
   [
     "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm",
-    "font-bold uppercase tracking-wide",  // neobrutalist typography
+    "[font-weight:var(--btn-weight,500)] [text-transform:var(--btn-transform,none)] [letter-spacing:var(--btn-tracking,normal)]",
     "transition-all duration-100",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
     "disabled:pointer-events-none disabled:opacity-50",
