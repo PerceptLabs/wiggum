@@ -73,7 +73,7 @@ export function CodeEditorPane({
   return (
     <div className={cn('flex flex-1 flex-col overflow-hidden', className)}>
       {/* Header */}
-      <div className="flex h-12 items-center justify-between border-b-2 border-border px-4">
+      <div className="flex h-12 items-center justify-between border-b-[length:var(--border-width,1px)] border-border px-4">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -116,7 +116,7 @@ export function CodeEditorPane({
             size="sm"
             onClick={handleSave}
             disabled={!isModified || isLoading}
-            className="gap-2 font-bold uppercase"
+            className="gap-2 [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)]"
           >
             <Save className="h-4 w-4" />
             Save
@@ -150,11 +150,11 @@ export function CodeEditorPane({
 function EmptyState() {
   return (
     <div className="flex flex-1 items-center justify-center p-8">
-      <div className="text-center border-2 border-border bg-card p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)]">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+      <div className="text-center border-[length:var(--border-width,1px)] border-border bg-card p-8 [box-shadow:var(--shadow)]">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-muted [box-shadow:var(--shadow-sm)]">
           <FileCode2 className="h-7 w-7 text-muted-foreground" />
         </div>
-        <h3 className="mb-2 text-xl font-bold uppercase tracking-wide">Select a file</h3>
+        <h3 className="mb-2 text-xl [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Select a file</h3>
         <p className="text-sm text-muted-foreground max-w-sm">
           Choose a file from the sidebar to view and edit its contents.
         </p>

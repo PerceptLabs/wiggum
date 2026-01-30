@@ -84,10 +84,10 @@ export function ChatPane({ className }: ChatPaneProps) {
   return (
     <div className={cn('flex flex-1 flex-col overflow-hidden', className)}>
       {/* Header */}
-      <div className="flex h-12 items-center justify-between border-b-2 border-border px-4">
+      <div className="flex h-12 items-center justify-between border-b-[length:var(--border-width,1px)] border-border px-4">
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-bold uppercase tracking-wide">Chat</span>
+          <span className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Chat</span>
 
           {/* Status indicator - shows during active work */}
           {ralphStatus === 'running' && (
@@ -256,11 +256,11 @@ function EmptyState({ onSuggestionClick, isConfigured }: EmptyStateProps) {
   if (!isConfigured) {
     return (
       <div className="flex flex-1 items-center justify-center p-8">
-        <div className="text-center border-2 border-border bg-card p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)]">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+        <div className="text-center border-[length:var(--border-width,1px)] border-border bg-card p-8 [box-shadow:var(--shadow)]">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-muted [box-shadow:var(--shadow-sm)]">
             <Settings className="h-7 w-7 text-muted-foreground" />
           </div>
-          <h3 className="mb-2 text-xl font-bold uppercase tracking-wide">Setup Required</h3>
+          <h3 className="mb-2 text-xl [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Setup Required</h3>
           <p className="text-sm text-muted-foreground max-w-sm mb-6">
             Configure an AI provider to start using Wiggum.
             Add your API key for OpenAI, Anthropic, Google, or connect to a local Ollama server.
@@ -278,11 +278,11 @@ function EmptyState({ onSuggestionClick, isConfigured }: EmptyStateProps) {
 
   return (
     <div className="flex flex-1 items-center justify-center p-8">
-      <div className="text-center border-2 border-border bg-card p-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)]">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center border-2 border-border bg-primary shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+      <div className="text-center border-[length:var(--border-width,1px)] border-border bg-card p-8 [box-shadow:var(--shadow)]">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-primary [box-shadow:var(--shadow-sm)]">
           <MessageSquare className="h-7 w-7 text-primary-foreground" />
         </div>
-        <h3 className="mb-2 text-xl font-bold uppercase tracking-wide">What would you like to build?</h3>
+        <h3 className="mb-2 text-xl [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">What would you like to build?</h3>
         <p className="text-sm text-muted-foreground max-w-sm mb-6">
           Describe your task and Wiggum will work on it autonomously.
           Simple tasks complete instantly. Complex tasks may take multiple iterations.
@@ -299,7 +299,7 @@ function EmptyState({ onSuggestionClick, isConfigured }: EmptyStateProps) {
                 'border border-border bg-background',
                 'transition-all duration-150',
                 'hover:border-primary hover:bg-primary/5',
-                'hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]',
+                'hover:[box-shadow:var(--shadow-sm)]',
                 'hover:translate-x-[-1px] hover:translate-y-[-1px]',
                 'active:translate-x-0 active:translate-y-0 active:shadow-none'
               )}

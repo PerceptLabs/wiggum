@@ -16,17 +16,19 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProviders>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/project/:id" element={<Workspace />} />
-            <Route path="/settings" element={<Settings />}>
-              <Route index element={<GeneralSettings />} />
-              <Route path="integrations" element={<IntegrationsSettings />} />
-              <Route path="advanced" element={<AdvancedSettings />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+        <div data-theme="neobrutalist" className="contents">
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/project/:id" element={<Workspace />} />
+              <Route path="/settings" element={<Settings />}>
+                <Route index element={<GeneralSettings />} />
+                <Route path="integrations" element={<IntegrationsSettings />} />
+                <Route path="advanced" element={<AdvancedSettings />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </div>
       </AppProviders>
     </QueryClientProvider>
   )

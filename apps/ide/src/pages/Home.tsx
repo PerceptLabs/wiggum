@@ -82,19 +82,19 @@ export function Home() {
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className="flex w-64 flex-col border-r-3 border-border bg-card">
+      <aside className="flex w-64 flex-col border-r-[length:var(--border-width,1px)] border-border bg-card">
         {/* Sidebar Header */}
-        <div className="flex h-14 items-center justify-between border-b-2 border-border px-4">
+        <div className="flex h-14 items-center justify-between border-b-[length:var(--border-width,1px)] border-border px-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center border-2 border-border bg-primary shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
-              <span className="text-sm font-black text-primary-foreground">W</span>
+            <div className="flex h-8 w-8 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-primary [box-shadow:var(--shadow-sm)]">
+              <span className="text-sm [font-weight:var(--heading-weight-heavy,900)] text-primary-foreground">W</span>
             </div>
-            <span className="text-lg font-black uppercase tracking-wide">Wiggum</span>
+            <span className="text-lg [font-weight:var(--heading-weight-heavy,900)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Wiggum</span>
           </div>
         </div>
 
         {/* Search */}
-        <div className="border-b-2 border-border p-3">
+        <div className="border-b-[length:var(--border-width,1px)] border-border p-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -109,7 +109,7 @@ export function Home() {
         {/* Projects List */}
         <div className="flex-1 overflow-y-auto p-3">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+            <span className="text-xs [font-weight:var(--label-weight,600)] [text-transform:var(--label-transform,none)] [letter-spacing:var(--label-tracking,normal)] text-muted-foreground">
               Projects
             </span>
             <Button
@@ -143,7 +143,7 @@ export function Home() {
                     'border border-transparent',
                     'transition-all duration-150',
                     'hover:border-border hover:bg-accent',
-                    'hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]'
+                    'hover:[box-shadow:var(--shadow-sm)]'
                   )}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
@@ -165,7 +165,7 @@ export function Home() {
         </div>
 
         {/* Sidebar Footer */}
-        <div className="border-t-2 border-border p-3">
+        <div className="border-t-[length:var(--border-width,1px)] border-border p-3">
           <div className="flex items-center justify-between">
             <Button
               variant="outline"
@@ -188,21 +188,21 @@ export function Home() {
         {/* Hero Section */}
         <div className="w-full max-w-2xl text-center">
           {/* Logo */}
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center border-3 border-border bg-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)]">
-            <span className="text-4xl font-black text-primary-foreground">W</span>
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-primary [box-shadow:var(--shadow)]">
+            <span className="text-4xl [font-weight:var(--heading-weight-heavy,900)] text-primary-foreground">W</span>
           </div>
 
-          <h1 className="mb-2 text-4xl font-black uppercase tracking-tight">Wiggum</h1>
+          <h1 className="mb-2 text-4xl [font-weight:var(--heading-weight-heavy,900)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Wiggum</h1>
           <p className="mb-8 text-lg text-muted-foreground">
             Browser-based AI coding with the ralph command
           </p>
 
           {/* Quick Start Input */}
           <div className="mx-auto max-w-xl">
-            <div className="border-2 border-border bg-card p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)]">
+            <div className="border-[length:var(--border-width,1px)] border-border bg-card p-6 [box-shadow:var(--shadow)]">
               <div className="mb-4 flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
-                <span className="font-bold uppercase tracking-wide">Quick Start</span>
+                <span className="[font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Quick Start</span>
               </div>
               <p className="mb-4 text-sm text-muted-foreground">
                 Describe what you want to build and Wiggum will create a new project for you.
@@ -222,11 +222,11 @@ export function Home() {
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
                 Press{' '}
-                <kbd className="border border-border bg-muted px-1.5 py-0.5 font-bold shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:shadow-[1px_1px_0px_0px_hsl(50,100%,53%)]">
+                <kbd className="border border-border bg-muted px-1.5 py-0.5 [font-weight:var(--kbd-weight,700)] [box-shadow:var(--kbd-shadow)]">
                   Cmd
                 </kbd>{' '}
                 +{' '}
-                <kbd className="border border-border bg-muted px-1.5 py-0.5 font-bold shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:shadow-[1px_1px_0px_0px_hsl(50,100%,53%)]">
+                <kbd className="border border-border bg-muted px-1.5 py-0.5 [font-weight:var(--kbd-weight,700)] [box-shadow:var(--kbd-shadow)]">
                   Enter
                 </kbd>{' '}
                 to create
@@ -237,7 +237,7 @@ export function Home() {
           {/* Or separator */}
           <div className="my-8 flex items-center gap-4">
             <div className="h-0.5 flex-1 bg-border" />
-            <span className="text-sm font-bold uppercase text-muted-foreground">Or</span>
+            <span className="text-sm [font-weight:var(--label-weight,600)] [text-transform:var(--label-transform,none)] text-muted-foreground">Or</span>
             <div className="h-0.5 flex-1 bg-border" />
           </div>
 
@@ -256,7 +256,7 @@ export function Home() {
         {/* Recent Projects */}
         {projects.length > 0 && (
           <div className="mt-12 w-full max-w-2xl">
-            <h2 className="mb-4 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+            <h2 className="mb-4 text-sm [font-weight:var(--label-weight,600)] [text-transform:var(--label-transform,none)] [letter-spacing:var(--label-tracking,normal)] text-muted-foreground">
               Recent Projects
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -265,20 +265,20 @@ export function Home() {
                   key={project.id}
                   onClick={() => navigate(`/project/${project.id}`)}
                   className={cn(
-                    'group cursor-pointer border-2 border-border bg-card p-4',
+                    'group cursor-pointer border-[length:var(--border-width,1px)] border-border bg-card p-4',
                     'transition-all duration-150',
                     'hover:border-primary hover:bg-primary/5',
-                    'hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)]',
+                    'hover:[box-shadow:var(--shadow)]',
                     'hover:translate-x-[-2px] hover:translate-y-[-2px]',
                     'active:translate-x-0 active:translate-y-0 active:shadow-none'
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-muted">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-muted">
                       <FolderOpen className="h-5 w-5 text-primary" />
                     </div>
                     <div className="overflow-hidden">
-                      <h3 className="truncate font-bold">{project.name}</h3>
+                      <h3 className="truncate [font-weight:var(--heading-weight,700)]">{project.name}</h3>
                       <p className="text-xs text-muted-foreground">
                         {new Date(project.updatedAt).toLocaleDateString()}
                       </p>

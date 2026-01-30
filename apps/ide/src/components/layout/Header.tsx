@@ -77,12 +77,12 @@ export function Header({
   }
 
   return (
-    <header className="flex h-14 items-center justify-between border-b-3 border-border bg-primary px-4 shadow-[0_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[0_4px_0px_0px_hsl(50,100%,53%)]">
+    <header className="flex h-14 items-center justify-between border-b-[length:var(--border-width,1px)] border-border bg-primary px-4 [box-shadow:var(--shadow)]">
       {/* Left section: Logo and project selector */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <WiggumLogo />
-          <span className="font-bold text-lg uppercase tracking-wide text-primary-foreground">Wiggum</span>
+          <span className="[font-weight:var(--heading-weight,700)] text-lg [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)] text-primary-foreground">Wiggum</span>
         </div>
 
         <span className="text-primary-foreground/60 font-bold">/</span>
@@ -123,7 +123,7 @@ export function Header({
       {/* Center section: URL bar (only in preview mode) */}
       {viewMode === 'preview' && isPreviewable && (
         <div className="flex items-center gap-2">
-          <div className="flex items-center border-2 border-border bg-background">
+          <div className="flex items-center border-[length:var(--border-width,1px)] border-border bg-background">
             <Input
               value={previewUrl || 'localhost:3000'}
               readOnly
@@ -170,7 +170,7 @@ export function Header({
               size="sm"
               onClick={onBuild}
               disabled={isBuilding}
-              className="gap-2 bg-background font-bold uppercase"
+              className="gap-2 bg-background"
             >
               <Hammer className={cn('h-4 w-4', isBuilding && 'animate-pulse')} />
               Build
@@ -180,7 +180,7 @@ export function Header({
         </Tooltip>
 
         {/* Preview | Code toggle group */}
-        <div className="flex border-2 border-border rounded-md overflow-hidden">
+        <div className="flex border-[length:var(--border-width,1px)] border-border rounded-md overflow-hidden">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -189,7 +189,7 @@ export function Header({
                 onClick={() => setViewMode('preview')}
                 disabled={!isPreviewable}
                 className={cn(
-                  'rounded-none border-0 gap-1.5 font-bold uppercase',
+                  'rounded-none border-0 gap-1.5',
                   viewMode === 'preview' && isPreviewable
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-background hover:bg-accent',
@@ -212,7 +212,7 @@ export function Header({
                 size="sm"
                 onClick={() => setViewMode('code')}
                 className={cn(
-                  'rounded-none border-0 gap-1.5 font-bold uppercase',
+                  'rounded-none border-0 gap-1.5',
                   viewMode === 'code'
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-background hover:bg-accent'
@@ -234,7 +234,7 @@ export function Header({
               size="sm"
               onClick={toggleLogs}
               className={cn(
-                'gap-2 font-bold uppercase',
+                'gap-2',
                 logsOpen ? 'bg-primary text-primary-foreground' : 'bg-background'
               )}
             >

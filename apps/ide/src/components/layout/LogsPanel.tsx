@@ -37,14 +37,14 @@ export function LogsPanel({ className }: LogsPanelProps) {
       className={cn(
         'absolute right-0 top-full z-50 mt-2 mr-4 w-[500px] max-h-[400px]',
         'flex flex-col',
-        'border-2 border-border bg-card',
-        'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_hsl(50,100%,53%)]',
+        'border-[length:var(--border-width,1px)] border-border bg-card',
+        '[box-shadow:var(--shadow)]',
         className
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b-2 border-border px-4 py-2">
-        <span className="text-sm font-bold uppercase tracking-wide">Build Logs</span>
+      <div className="flex items-center justify-between border-b-[length:var(--border-width,1px)] border-border px-4 py-2">
+        <span className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Build Logs</span>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"

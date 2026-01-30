@@ -83,7 +83,7 @@ export function IntegrationsSettings() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-2xl font-bold uppercase tracking-wide">Integrations</h2>
+        <h2 className="text-2xl [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Integrations</h2>
         <p className="mt-1 text-muted-foreground">Configure AI providers and version control</p>
       </div>
 
@@ -91,7 +91,7 @@ export function IntegrationsSettings() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-primary shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+            <div className="flex h-10 w-10 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-primary [box-shadow:var(--shadow-sm)]">
               <Bot className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
@@ -102,7 +102,7 @@ export function IntegrationsSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold uppercase tracking-wide">Status:</span>
+            <span className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Status:</span>
             {isConfigured ? (
               <Badge variant="success" className="gap-1">
                 <Check className="h-3 w-3" />
@@ -118,7 +118,7 @@ export function IntegrationsSettings() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-sm font-bold uppercase tracking-wide">Provider</Label>
+              <Label className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Provider</Label>
               <Select
                 value={selectedProvider}
                 onValueChange={(providerId) => {
@@ -148,7 +148,7 @@ export function IntegrationsSettings() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold uppercase tracking-wide">Model</Label>
+                <Label className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Model</Label>
                 {providerOptions.find((p) => p.id === selectedProvider)?.isLocal && (
                   <Button
                     variant="ghost"
@@ -192,7 +192,7 @@ export function IntegrationsSettings() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+            <div className="flex h-10 w-10 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-muted [box-shadow:var(--shadow-sm)]">
               <Key className="h-5 w-5" />
             </div>
             <div>
@@ -212,7 +212,7 @@ export function IntegrationsSettings() {
                 <div
                   key={provider.id}
                   className={cn(
-                    'border-2 border-border p-4',
+                    'border-[length:var(--border-width,1px)] border-border p-4',
                     'transition-all duration-150',
                     hasKey && 'border-green-500/50 bg-green-500/5'
                   )}
@@ -277,7 +277,7 @@ export function IntegrationsSettings() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+              <div className="flex h-10 w-10 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-muted [box-shadow:var(--shadow-sm)]">
                 <Server className="h-5 w-5" />
               </div>
               <div>
@@ -313,7 +313,7 @@ export function IntegrationsSettings() {
                 <div
                   key={provider.id}
                   className={cn(
-                    'border-2 border-border p-4',
+                    'border-[length:var(--border-width,1px)] border-border p-4',
                     'transition-all duration-150',
                     localStatus?.available && 'border-green-500/50 bg-green-500/5'
                   )}
@@ -404,7 +404,7 @@ export function IntegrationsSettings() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+            <div className="flex h-10 w-10 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-muted [box-shadow:var(--shadow-sm)]">
               <Globe className="h-5 w-5" />
             </div>
             <div>
@@ -422,7 +422,7 @@ export function IntegrationsSettings() {
 
             return (
               <div className={cn(
-                'border-2 border-border p-4',
+                'border-[length:var(--border-width,1px)] border-border p-4',
                 'transition-all duration-150',
                 customEndpoint && 'border-blue-500/50 bg-blue-500/5'
               )}>
@@ -430,7 +430,7 @@ export function IntegrationsSettings() {
                   {/* Endpoint URL */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-sm font-bold uppercase tracking-wide">Endpoint URL</Label>
+                      <Label className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Endpoint URL</Label>
                       {customEndpoint && !isEditingUrl && (
                         <Button
                           variant="outline"
@@ -473,7 +473,7 @@ export function IntegrationsSettings() {
                   {/* API Key (optional) */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-sm font-bold uppercase tracking-wide">API Key (Optional)</Label>
+                      <Label className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">API Key (Optional)</Label>
                       {customApiKey && !isEditingKey && (
                         <Button
                           variant="outline"
@@ -528,7 +528,7 @@ export function IntegrationsSettings() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+            <div className="flex h-10 w-10 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-muted [box-shadow:var(--shadow-sm)]">
               <GitBranch className="h-5 w-5" />
             </div>
             <div>
@@ -539,7 +539,7 @@ export function IntegrationsSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-sm font-bold uppercase tracking-wide">Username</Label>
+            <Label className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Username</Label>
             <Input
               placeholder="Your name"
               value={gitUsername}
@@ -547,7 +547,7 @@ export function IntegrationsSettings() {
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-sm font-bold uppercase tracking-wide">Email</Label>
+            <Label className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Email</Label>
             <Input
               type="email"
               placeholder="your@email.com"

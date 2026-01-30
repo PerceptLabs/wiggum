@@ -32,11 +32,11 @@ export function AssistantMessage({
 }: AssistantMessageProps) {
   return (
     <div className={cn('flex gap-3 px-4 py-4', className)}>
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-secondary text-secondary-foreground shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-secondary text-secondary-foreground [box-shadow:var(--shadow-sm)]">
         <Bot className="h-5 w-5" />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">
-        <p className="text-sm font-bold uppercase tracking-wide">Wiggum</p>
+        <p className="text-sm [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Wiggum</p>
 
         {/* Tool calls */}
         {toolCalls && toolCalls.length > 0 && (
@@ -87,11 +87,11 @@ export function AssistantMessage({
                   return (
                     <div className="relative">
                       {language && (
-                        <div className="absolute right-2 top-2 text-xs font-bold uppercase text-muted-foreground">
+                        <div className="absolute right-2 top-2 text-xs [font-weight:var(--label-weight,600)] [text-transform:var(--label-transform,none)] text-muted-foreground">
                           {language}
                         </div>
                       )}
-                      <pre className="overflow-x-auto border-2 border-border bg-muted p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+                      <pre className="overflow-x-auto border-[length:var(--border-width,1px)] border-border bg-muted p-4 [box-shadow:var(--shadow-sm)]">
                         <code
                           className={cn('font-mono text-sm', className)}
                           dangerouslySetInnerHTML={{ __html: highlighted }}

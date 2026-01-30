@@ -95,6 +95,21 @@
   /* Special: File input */
   --input-file-weight: 700;
 
+  /* Headings - two weight levels for IDE components */
+  --heading-weight: 700;             /* for font-bold */
+  --heading-weight-heavy: 900;       /* for font-black */
+  --heading-transform: uppercase;
+  --heading-tracking: 0.025em;
+
+  /* Labels (section headers, small caps) */
+  --label-weight: 700;
+  --label-transform: uppercase;
+  --label-tracking: 0.05em;
+
+  /* Keyboard shortcuts */
+  --kbd-weight: 700;
+  --kbd-shadow: 1px 1px 0px 0px rgba(0, 0, 0, 1);
+
   /* Chart colors - bold, high contrast */
   --chart-1: 50 100% 53%;            /* yellow */
   --chart-2: 173 58% 39%;            /* teal */
@@ -145,6 +160,9 @@
   --shadow-xl: 8px 8px 0px 0px hsl(50 100% 53%);
   --shadow-hover: 2px 2px 0px 0px hsl(50 100% 53%);
   --shadow-active: 0px 0px 0px 0px hsl(50 100% 53%);
+
+  /* Keyboard shortcuts - dark mode */
+  --kbd-shadow: 1px 1px 0px 0px hsl(50 100% 53%);
 
   /* Chart colors - dark mode */
   --chart-1: 50 100% 53%;

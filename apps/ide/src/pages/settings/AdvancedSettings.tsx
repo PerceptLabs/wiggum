@@ -64,7 +64,7 @@ export function AdvancedSettings() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-2xl font-bold uppercase tracking-wide">Advanced</h2>
+        <h2 className="text-2xl [font-weight:var(--heading-weight,700)] [text-transform:var(--heading-transform,none)] [letter-spacing:var(--heading-tracking,normal)]">Advanced</h2>
         <p className="mt-1 text-muted-foreground">Storage and system information</p>
       </div>
 
@@ -72,7 +72,7 @@ export function AdvancedSettings() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-muted shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+            <div className="flex h-10 w-10 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-muted [box-shadow:var(--shadow-sm)]">
               <HardDrive className="h-5 w-5" />
             </div>
             <div>
@@ -82,7 +82,7 @@ export function AdvancedSettings() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between border-2 border-border bg-muted p-4">
+          <div className="flex items-center justify-between border-[length:var(--border-width,1px)] border-border bg-muted p-4">
             <div className="flex items-center gap-3">
               <Database className="h-5 w-5 text-muted-foreground" />
               <div>
@@ -113,7 +113,7 @@ export function AdvancedSettings() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-primary shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_hsl(50,100%,53%)]">
+            <div className="flex h-10 w-10 items-center justify-center border-[length:var(--border-width,1px)] border-border bg-primary [box-shadow:var(--shadow-sm)]">
               <Info className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>

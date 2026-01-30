@@ -79,7 +79,7 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(function
   }
 
   return (
-    <form onSubmit={handleSubmit} className={cn('border-t-3 border-border bg-background p-4', className)}>
+    <form onSubmit={handleSubmit} className={cn('border-t-[length:var(--border-width,1px)] border-border bg-background p-4', className)}>
       <div className="flex items-end gap-3">
         <div className="relative flex-1">
           <Textarea
@@ -143,8 +143,8 @@ export const ChatInput = React.forwardRef<ChatInputRef, ChatInputProps>(function
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">
-        Press <kbd className="border border-border bg-muted px-1.5 py-0.5 font-bold shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:shadow-[1px_1px_0px_0px_hsl(50,100%,53%)]">Cmd</kbd> +{' '}
-        <kbd className="border border-border bg-muted px-1.5 py-0.5 font-bold shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] dark:shadow-[1px_1px_0px_0px_hsl(50,100%,53%)]">Enter</kbd> to send
+        Press <kbd className="border border-border bg-muted px-1.5 py-0.5 [font-weight:var(--kbd-weight,700)] [box-shadow:var(--kbd-shadow)]">Cmd</kbd> +{' '}
+        <kbd className="border border-border bg-muted px-1.5 py-0.5 [font-weight:var(--kbd-weight,700)] [box-shadow:var(--kbd-shadow)]">Enter</kbd> to send
       </p>
     </form>
   )
