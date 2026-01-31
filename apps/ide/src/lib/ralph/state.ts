@@ -8,7 +8,9 @@ export const RALPH_DIR = '.ralph'
 
 export interface RalphState {
   task: string
-  progress: string
+  intent: string
+  plan: string
+  summary: string
   feedback: string
   iteration: number
   status: string
@@ -16,7 +18,9 @@ export interface RalphState {
 
 const FILES = {
   task: `${RALPH_DIR}/task.md`,
-  progress: `${RALPH_DIR}/progress.md`,
+  intent: `${RALPH_DIR}/intent.md`,
+  plan: `${RALPH_DIR}/plan.md`,
+  summary: `${RALPH_DIR}/summary.md`,
   feedback: `${RALPH_DIR}/feedback.md`,
   iteration: `${RALPH_DIR}/iteration.txt`,
   status: `${RALPH_DIR}/status.txt`,
@@ -39,7 +43,9 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
   await fs.mkdir(ralphDir, { recursive: true })
 
   await fs.writeFile(path.join(cwd, FILES.task), `# Task\n\n${task}\n`)
-  await fs.writeFile(path.join(cwd, FILES.progress), '# Progress\n\n')
+  await fs.writeFile(path.join(cwd, FILES.intent), '')
+  await fs.writeFile(path.join(cwd, FILES.plan), '')
+  await fs.writeFile(path.join(cwd, FILES.summary), '')
   await fs.writeFile(path.join(cwd, FILES.feedback), '')
   await fs.writeFile(path.join(cwd, FILES.iteration), '0')
   await fs.writeFile(path.join(cwd, FILES.status), 'running')
@@ -51,7 +57,9 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
 export async function getRalphState(fs: JSRuntimeFS, cwd: string): Promise<RalphState> {
   return {
     task: await readFile(fs, path.join(cwd, FILES.task), ''),
-    progress: await readFile(fs, path.join(cwd, FILES.progress), ''),
+    intent: await readFile(fs, path.join(cwd, FILES.intent), ''),
+    plan: await readFile(fs, path.join(cwd, FILES.plan), ''),
+    summary: await readFile(fs, path.join(cwd, FILES.summary), ''),
     feedback: await readFile(fs, path.join(cwd, FILES.feedback), ''),
     iteration: parseInt(await readFile(fs, path.join(cwd, FILES.iteration), '0'), 10),
     status: await readFile(fs, path.join(cwd, FILES.status), 'running'),
@@ -81,10 +89,3 @@ export async function setIteration(fs: JSRuntimeFS, cwd: string, iteration: numb
   await fs.writeFile(path.join(cwd, FILES.iteration), String(iteration))
 }
 
-/**
- * Append to progress file
- */
-export async function appendProgress(fs: JSRuntimeFS, cwd: string, entry: string): Promise<void> {
-  const current = await readFile(fs, path.join(cwd, FILES.progress), '')
-  await fs.writeFile(path.join(cwd, FILES.progress), current + '\n' + entry)
-}

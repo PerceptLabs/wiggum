@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { ScrollArea, cn } from '@wiggum/stack'
-import { Terminal } from 'lucide-react'
+import { Terminal, Sparkles, CheckCircle } from 'lucide-react'
 import { UserMessage } from './UserMessage'
 import { AssistantMessage } from './AssistantMessage'
 import { StreamingMessage } from './StreamingMessage'
@@ -24,6 +24,38 @@ function ActionMessage({ content }: { content: string }) {
       <div className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground">
         <Terminal className="h-3 w-3" />
         <span>{content}</span>
+      </div>
+    </div>
+  )
+}
+
+/** Ralph intent message - opening acknowledgment */
+function IntentMessage({ content }: { content: string }) {
+  return (
+    <div className="px-4 py-2">
+      <div className="flex items-start gap-2">
+        <div className="rounded-full bg-primary/10 p-1">
+          <Sparkles className="h-3 w-3 text-primary" />
+        </div>
+        <p className="text-sm text-foreground">
+          {content}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/** Ralph summary message - closing summary */
+function SummaryMessage({ content }: { content: string }) {
+  return (
+    <div className="px-4 py-2">
+      <div className="flex items-start gap-2">
+        <div className="rounded-full bg-green-500/10 p-1">
+          <CheckCircle className="h-3 w-3 text-green-500" />
+        </div>
+        <p className="text-sm text-foreground">
+          {content}
+        </p>
       </div>
     </div>
   )
@@ -83,6 +115,16 @@ export function MessageList({
             // Action echo messages (command summaries)
             if (message._displayType === 'action') {
               return <ActionMessage key={index} content={message.content || ''} />
+            }
+
+            // Intent messages (Ralph's opening acknowledgment)
+            if (message._displayType === 'intent') {
+              return <IntentMessage key={index} content={message.content || ''} />
+            }
+
+            // Summary messages (Ralph's closing summary)
+            if (message._displayType === 'summary') {
+              return <SummaryMessage key={index} content={message.content || ''} />
             }
 
             // Regular assistant messages

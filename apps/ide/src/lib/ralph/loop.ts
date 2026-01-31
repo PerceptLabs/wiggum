@@ -12,17 +12,35 @@ import type { Git } from '../git'
 import type { LLMProvider, Message, Tool } from '../llm/client'
 import { chat } from '../llm/client'
 import type { ShellExecutor } from '../shell/executor'
-import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration, appendProgress } from './state'
+import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration } from './state'
 import { getSkillsContent } from './skills'
 
 const BASE_SYSTEM_PROMPT = `You are Ralph, an autonomous coding agent.
 
 You have one tool: shell. Use it to run commands, read/write files, and complete tasks.
-Your memory is stored in .ralph/ files. Read them to understand context.
+
+Available commands: cat, echo, touch, mkdir, rm, cp, mv, ls, pwd, find, grep, head, tail, wc, sort, uniq, git
+
+No npm, node, python, curl, or other tools.
+
 After each action, git commits your work automatically.
 
-When done, write "complete" to .ralph/status.txt.
-If you need human input, write "waiting" to .ralph/status.txt.
+## Your Memory (.ralph/ directory)
+
+- task.md: The user's original request (read-only)
+- intent.md: Your opening acknowledgment (write once at start)
+- plan.md: Your working TODO list (update as you progress)
+- summary.md: Your closing summary (write when complete)
+- feedback.md: Human input if you requested it
+- status.txt: Write "complete" when done, "waiting" if you need input
+
+## Workflow
+
+1. First iteration: Read task.md, then write intent.md (1-2 sentences: what you'll create)
+2. Write your plan to plan.md (simple checkbox list of tasks)
+3. Work through tasks, updating plan.md as you complete items
+4. When finished: Write summary.md (1-2 sentences: what you created and where)
+5. Write "complete" to status.txt
 
 ## Status Updates
 
@@ -36,13 +54,10 @@ Rules:
 GOOD _status examples:
 - "Extracting shared validation logic"
 - "Checking how the API handles nulls"
-- "This should fix the type error from earlier"
-- "Using useReducer since state got complex"
 
-BAD _status (just restates the command - omit these):
+BAD _status (omit these):
 - "Writing the Button component"
-- "Reading the file"
-- "Running the build command"`
+- "Reading the file"`
 
 function buildSystemPrompt(skillsContent: string): string {
   return BASE_SYSTEM_PROMPT + skillsContent
@@ -55,7 +70,7 @@ const SHELL_TOOL: Tool = {
   type: 'function',
   function: {
     name: 'shell',
-    description: 'Execute a shell command',
+    description: 'Execute a shell command. Available: cat, echo, touch, mkdir, rm, cp, mv, ls, pwd, find, grep, head, tail, wc, sort, uniq, git. No bash, sh, npm, node, python, curl.',
     parameters: {
       type: 'object',
       properties: {
@@ -78,7 +93,12 @@ export interface RalphCallbacks {
   onStatus?: (status: string) => void
   /** Called with a compact action echo (e.g., "▸ shell: cat file.txt") */
   onAction?: (action: string) => void
-  onMessage?: (content: string) => void  // Called when LLM sends a text response
+  /** Called when intent.md is written */
+  onIntent?: (intent: string) => void
+  /** Called when summary.md is written */
+  onSummary?: (summary: string) => void
+  /** For logging only - NOT displayed in UI */
+  onMessage?: (content: string) => void
   onComplete?: (iterations: number) => void
   onError?: (error: Error) => void
   signal?: AbortSignal  // AbortSignal for cancellation
@@ -127,7 +147,19 @@ export async function runRalphLoop(
       await setIteration(fs, cwd, iteration)
 
       // Build prompt with current state
-      const userPrompt = `# Iteration ${iteration}\n\n${state.task}\n\n## Progress\n${state.progress}\n\n## Feedback\n${state.feedback}`
+      const userPrompt = `# Iteration ${iteration}
+
+## Task
+${state.task}
+
+## Intent
+${state.intent || '(not yet written)'}
+
+## Plan
+${state.plan || '(not yet written)'}
+
+## Feedback
+${state.feedback || '(none)'}`
       const messages: Message[] = [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -160,7 +192,7 @@ export async function runRalphLoop(
           summary = response.content
           console.log('[Ralph] No tool calls, summary:', summary.slice(0, 100), 'isDone:', isDone)
 
-          // Send message to UI
+          // Log message (not displayed in UI - structured output via onIntent/onSummary)
           if (summary) {
             callbacks?.onMessage?.(summary)
           }
@@ -181,8 +213,11 @@ export async function runRalphLoop(
             callbacks?.onStatus?.(args._status)
           }
 
-          // 2. Emit compact action echo
-          callbacks?.onAction?.(`▸ shell: ${args.command}`)
+          // 2. Emit compact action echo (truncate heredocs)
+          const displayCmd = args.command?.includes('<<')
+            ? args.command.split('<<')[0].trim() + ' << ...'
+            : (args.command ?? '')
+          callbacks?.onAction?.(`▸ shell: ${displayCmd}`)
 
           console.log('[Ralph] Executing tool:', tc.function.name, 'command:', args.command)
           const result = await shell.execute(args.command, cwd)
@@ -199,8 +234,16 @@ export async function runRalphLoop(
         }
       }
 
-      // Update progress and commit
-      await appendProgress(fs, cwd, `### Iteration ${iteration}\n${summary.slice(0, 300)}`)
+      // Detect intent/summary changes and fire callbacks
+      const newState = await getRalphState(fs, cwd)
+      if (newState.intent && newState.intent !== state.intent) {
+        callbacks?.onIntent?.(newState.intent.trim())
+      }
+      if (newState.summary && newState.summary !== state.summary) {
+        callbacks?.onSummary?.(newState.summary.trim())
+      }
+
+      // Commit and notify
       await gitCommit(git, `ralph: iteration ${iteration}`)
       callbacks?.onIterationEnd?.(iteration)
 

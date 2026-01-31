@@ -213,26 +213,35 @@ export function useAIChat(options: UseChatOptions = {}) {
             messages: [...s.messages, actionMessage],
           }))
         },
-        onMessage: (content) => {
-          // LLM sent a text response - add to messages (with duplicate prevention)
-          console.log('[useAIChat] Received message from LLM:', content.slice(0, 100))
-          const assistantMessage: AIMessage = {
+        onIntent: (intent) => {
+          // Ralph's opening acknowledgment
+          console.log('[useAIChat] Intent:', intent)
+          const intentMessage: AIMessage = {
             role: 'assistant',
-            content,
+            content: intent,
+            _displayType: 'intent',
           }
-          setState((s) => {
-            // Prevent duplicate messages (check last message)
-            const lastMsg = s.messages[s.messages.length - 1]
-            if (lastMsg?.role === 'assistant' && lastMsg?.content === content) {
-              console.log('[useAIChat] Skipping duplicate message')
-              return s
-            }
-            return {
-              ...s,
-              messages: [...s.messages, assistantMessage],
-            }
-          })
-          options.onMessage?.(assistantMessage)
+          setState((s) => ({
+            ...s,
+            messages: [...s.messages, intentMessage],
+          }))
+        },
+        onSummary: (summary) => {
+          // Ralph's closing summary
+          console.log('[useAIChat] Summary:', summary)
+          const summaryMessage: AIMessage = {
+            role: 'assistant',
+            content: summary,
+            _displayType: 'summary',
+          }
+          setState((s) => ({
+            ...s,
+            messages: [...s.messages, summaryMessage],
+          }))
+        },
+        onMessage: (content) => {
+          // Log only - not displayed in UI (structured output via onIntent/onSummary)
+          console.log('[useAIChat] Message (not rendered):', content.slice(0, 100))
         },
         onComplete: (iterations) => {
           console.log('[useAIChat] Complete after iterations:', iterations)

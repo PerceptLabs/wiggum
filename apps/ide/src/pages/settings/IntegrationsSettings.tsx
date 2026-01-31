@@ -40,11 +40,20 @@ export function IntegrationsSettings() {
   } = useAISettings()
 
   const [editingProvider, setEditingProvider] = React.useState<string | null>(null)
-  const [tempApiKey, setTempApiKey] = React.useState('')
+  const [tempApiKeys, setTempApiKeys] = React.useState<Record<string, string>>({})
+  const [tempApiKey, setTempApiKey] = React.useState('') // For custom endpoint only
   const [tempEndpoint, setTempEndpoint] = React.useState('')
   const [gitUsername, setGitUsername] = React.useState('')
   const [gitEmail, setGitEmail] = React.useState('')
   const [refreshingModels, setRefreshingModels] = React.useState<string | null>(null)
+
+  // Initialize tempEndpoint when editingProvider changes
+  React.useEffect(() => {
+    if (!editingProvider) {
+      const endpoint = getCustomEndpoint('custom')
+      setTempEndpoint(endpoint || '')
+    }
+  }, [editingProvider])
 
   // Get models for selected provider
   const modelsForSelectedProvider = React.useMemo(() => {
@@ -52,9 +61,10 @@ export function IntegrationsSettings() {
   }, [selectedProvider, getModelsForProvider])
 
   const handleSaveApiKey = (providerId: string) => {
-    if (tempApiKey.trim()) {
-      setApiKey(providerId, tempApiKey.trim())
-      setTempApiKey('')
+    const key = tempApiKeys[providerId]
+    if (key?.trim()) {
+      setApiKey(providerId, key.trim())
+      setTempApiKeys(prev => ({ ...prev, [providerId]: '' }))
       setEditingProvider(null)
     }
   }
@@ -235,7 +245,7 @@ export function IntegrationsSettings() {
                         size="sm"
                         onClick={() => {
                           setEditingProvider(provider.id)
-                          setTempApiKey('')
+                          setTempApiKeys(prev => ({ ...prev, [provider.id]: '' }))
                         }}
                       >
                         Update Key
@@ -248,13 +258,13 @@ export function IntegrationsSettings() {
                       <Input
                         type="password"
                         placeholder={`${provider.name} API Key`}
-                        value={tempApiKey}
-                        onChange={(e) => setTempApiKey(e.target.value)}
+                        value={tempApiKeys[provider.id] || ''}
+                        onChange={(e) => setTempApiKeys(prev => ({ ...prev, [provider.id]: e.target.value }))}
                         className="flex-1 font-mono"
                       />
                       <Button
                         onClick={() => handleSaveApiKey(provider.id)}
-                        disabled={!tempApiKey.trim()}
+                        disabled={!tempApiKeys[provider.id]?.trim()}
                       >
                         <Key className="mr-2 h-4 w-4" />
                         Save
@@ -449,7 +459,7 @@ export function IntegrationsSettings() {
                         <Input
                           type="text"
                           placeholder="https://api.example.com/v1"
-                          value={isEditingUrl ? tempEndpoint : ''}
+                          value={tempEndpoint}
                           onChange={(e) => setTempEndpoint(e.target.value)}
                           className="flex-1 font-mono"
                         />

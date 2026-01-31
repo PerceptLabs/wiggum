@@ -18,6 +18,7 @@ import { MessageList } from './MessageList'
 import { ChatInput, type ChatInputRef } from './ChatInput'
 import { useChat } from './ChatContext'
 import { useAISettings } from '@/contexts/AIContext'
+import type { ProviderPreset } from '@/lib/llm'
 import { Link } from 'react-router-dom'
 
 interface ChatPaneProps {
@@ -135,7 +136,11 @@ export function ChatPane({ className }: ChatPaneProps) {
                     {group.models.map((model) => (
                       <DropdownMenuItem
                         key={model.id}
-                        onClick={() => setSelectedModel(model.label)}
+                        onClick={() => {
+                          const [providerId] = model.id.split(':')
+                          setSelectedProvider(providerId as ProviderPreset)
+                          setSelectedModel(model.label)
+                        }}
                         className="flex items-center justify-between"
                       >
                         <span className="truncate">{model.label}</span>

@@ -28,8 +28,8 @@ import type { Message, ToolCall } from './client';
 
 /** Extended message type for UI with optional display metadata */
 export interface AIMessage extends Message {
-  /** UI display type - 'status' for reasoning, 'action' for command echoes */
-  _displayType?: 'status' | 'action';
+  /** UI display type - 'status' for reasoning, 'action' for command echoes, 'intent'/'summary' for structured output */
+  _displayType?: 'status' | 'action' | 'intent' | 'summary';
 }
 
 export type AIToolCall = ToolCall;

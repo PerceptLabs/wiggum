@@ -10,7 +10,6 @@ export {
   isComplete,
   isWaiting,
   setIteration,
-  appendProgress,
   RALPH_DIR,
   type RalphState,
 } from './state'
