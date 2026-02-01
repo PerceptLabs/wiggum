@@ -324,3 +324,59 @@ Make it memorable.
 - No playful elements
 
 **Always honor explicit requests.** If user says "no animations", remove them entirely.
+
+## Overlays & Z-Index (CRITICAL)
+
+Stack components handle this automatically. If you must go custom:
+
+```css
+/* Backdrop */
+.overlay-backdrop {
+  @apply fixed inset-0 bg-black/50 z-40;
+}
+
+/* Content */
+.overlay-content {
+  @apply fixed z-50;
+  /* center it */
+  @apply top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
+}
+```
+
+Z-index scale:
+- `z-10`: Sticky headers
+- `z-20`: Dropdowns, tooltips
+- `z-30`: Fixed sidebars
+- `z-40`: Modal backdrops
+- `z-50`: Modal content
+- `z-[100]`: Dev tools only
+
+**Never** manually layer multiple modals. Use one at a time.
+
+## Native Form Element Fix (CRITICAL)
+
+Radix Select, native `<select>`, and other form elements ignore CSS variables in dark mode. Always include:
+
+```css
+/* In src/index.css, after :root variables */
+select,
+input,
+textarea {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+select option {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+
+/* For autofill */
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px hsl(var(--background)) inset;
+  -webkit-text-fill-color: hsl(var(--foreground));
+}
+```
+
+**Test before marking complete**: Switch to dark mode and verify ALL inputs are readable.

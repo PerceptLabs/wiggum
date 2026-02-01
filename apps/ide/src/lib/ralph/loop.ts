@@ -87,7 +87,8 @@ Create unique themes appropriate to each project's content and mood.
 
 ## Your Memory (.ralph/)
 
-- .ralph/task.md: User's request (read-only)
+- .ralph/origin.md: Project's founding concept and refinements (READ ONLY - harness managed)
+- .ralph/task.md: Current task from user (read-only)
 - .ralph/intent.md: Your acknowledgment (write once)
 - .ralph/plan.md: TODO list (update as you progress)
 - .ralph/summary.md: What you built (write when complete)
@@ -152,7 +153,13 @@ const SHELL_TOOL: Tool = {
   type: 'function',
   function: {
     name: 'shell',
-    description: 'Execute a shell command. Available: cat, echo, touch, mkdir, rm, cp, mv, ls, pwd, find, grep, head, tail, wc, sort, uniq, git. No bash, sh, npm, node, python, curl.',
+    description: `Execute a shell command. Available: cat, echo, touch, mkdir, rm, cp, mv, ls, pwd, find, grep, head, tail, wc, sort, uniq, git. No bash, sh, npm, node, python, curl.
+
+grep has semantic search modes:
+- grep skill "<query>" - Search skills for rules, patterns, examples (typo-tolerant)
+- grep code "<query>" - Search project code (coming soon)
+
+Use grep skill before implementing unfamiliar patterns.`,
     parameters: {
       type: 'object',
       properties: {
@@ -236,6 +243,9 @@ export async function runRalphLoop(
       // Build prompt with current state
       const userPrompt = `# Iteration ${iteration}
 
+## Origin
+${state.origin || '(none)'}
+
 ## Task
 ${state.task}
 
@@ -318,7 +328,31 @@ ${state.feedback || '(none)'}`
 
           messages.push({ role: 'tool', content: output, tool_call_id: tc.id })
           toolCalls++
+
+          // Early exit if Ralph marked complete mid-batch
+          if (await isComplete(fs, cwd)) {
+            console.log('[Ralph] Status set to complete mid-batch, breaking')
+            break
+          }
         }
+      }
+
+      // Break outer while loop if complete
+      if (await isComplete(fs, cwd)) {
+        console.log('[Ralph] Complete after tool batch - running quality gates')
+        const gateResults = await runQualityGates(fs, cwd)
+        const failures = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
+        callbacks?.onGatesChecked?.(gateResults.passed, failures)
+
+        if (gateResults.passed) {
+          const finalState = await getRalphState(fs, cwd)
+          if (finalState.summary) {
+            callbacks?.onSummary?.(finalState.summary.trim())
+          }
+          callbacks?.onComplete?.(iteration)
+          return { success: true, iterations: iteration }
+        }
+        // If gates failed, continue to let the existing logic handle it
       }
 
       // Detect intent/summary changes and fire callbacks
@@ -343,6 +377,10 @@ ${state.feedback || '(none)'}`
 
         if (gateResults.passed) {
           consecutiveGateFailures = 0
+          const finalState = await getRalphState(fs, cwd)
+          if (finalState.summary) {
+            callbacks?.onSummary?.(finalState.summary.trim())
+          }
           callbacks?.onComplete?.(iteration)
           return { success: true, iterations: iteration }
         } else {
@@ -371,6 +409,10 @@ ${state.feedback || '(none)'}`
 
         if (gateResults.passed) {
           consecutiveGateFailures = 0
+          const finalState = await getRalphState(fs, cwd)
+          if (finalState.summary) {
+            callbacks?.onSummary?.(finalState.summary.trim())
+          }
           callbacks?.onComplete?.(iteration)
           return { success: true, iterations: iteration }
         } else {

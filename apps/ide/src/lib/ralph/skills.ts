@@ -4,74 +4,74 @@
  * Imports skills directly at build time using Vite's ?raw import.
  * This ensures skills are always available in the browser bundle.
  *
- * Priority order:
- * 1. Stack's authoritative SKILL.md (from @wiggum/stack)
- * 2. IDE skills (react-best-practices, web-design-guidelines)
- * 3. IDE's wiggum-stack quick reference (supplements the stack skill)
+ * Context reduction: Skills are now searchable via `grep skill "<query>"`
+ * instead of being dumped into every prompt (~800 lines → ~30 lines).
  */
 
 // Stack's authoritative skill (source of truth)
-// Path: apps/ide/src/lib/ralph -> ../../../../.. (root) -> packages/stack/SKILL.md
 import stackSkill from '../../../../../packages/stack/SKILL.md?raw'
 
-// IDE skills - Vercel's best practices
-import reactBestPracticesSkill from '../../skills/react-best-practices/SKILL.md?raw'
-import webDesignGuidelinesSkill from '../../skills/web-design-guidelines/SKILL.md?raw'
-
-// Theming skill - CSS variables and theme customization
+// Consolidated skills
+import codeQualitySkill from '../../skills/code-quality/SKILL.md?raw'
+import creativitySkill from '../../skills/creativity/SKILL.md?raw'
 import themingSkill from '../../skills/theming/SKILL.md?raw'
-
-// IDE's quick reference (supplements the stack skill)
-import wiggumStackQuickRef from '../../skills/wiggum-stack/SKILL.md?raw'
 
 import { parseSkillFile } from '../skills/parser'
 
 /**
  * Skills in priority order:
  * 1. Stack skill - authoritative rules and component documentation
- * 2. Theming skill - CSS variables and theme customization
- * 3. React best practices - performance patterns
- * 4. Web design guidelines - accessibility and UX
- * 5. Quick reference - component cheat sheet
+ * 2. Code quality - React patterns, accessibility, dark mode, overlays
+ * 3. Theming skill - CSS variables, animations, design philosophy
+ * 4. Creativity - Layout patterns, design variety, motion
  */
 const SKILLS = [
   { id: 'stack', content: stackSkill, priority: 1 },
-  { id: 'theming', content: themingSkill, priority: 2 },
-  { id: 'react-best-practices', content: reactBestPracticesSkill, priority: 3 },
-  { id: 'web-design-guidelines', content: webDesignGuidelinesSkill, priority: 4 },
-  { id: 'wiggum-stack-quickref', content: wiggumStackQuickRef, priority: 5 },
+  { id: 'code-quality', content: codeQualitySkill, priority: 2 },
+  { id: 'theming', content: themingSkill, priority: 3 },
+  { id: 'creativity', content: creativitySkill, priority: 4 },
 ]
 
 /**
- * Get formatted skill content for Ralph's system prompt
+ * Get raw skill content for search indexing
+ */
+export function getSkillsRaw(): Array<{ id: string; content: string }> {
+  return SKILLS.map(({ id, content }) => ({ id, content }))
+}
+
+/**
+ * Get skill summaries + grep instructions for Ralph's system prompt
+ * (Replaces the old getSkillsContent that dumped ~800 lines)
  */
 export function getSkillsContent(): string {
-  const skillContents: string[] = []
-
-  // Sort by priority
-  const sortedSkills = [...SKILLS].sort((a, b) => a.priority - b.priority)
-
-  for (const { id, content } of sortedSkills) {
-    try {
-      const { metadata, body } = parseSkillFile(content)
-      skillContents.push(`## ${metadata.name}\n\n${body}`)
-      console.log(`[Ralph] Loaded skill: ${id} (${metadata.name})`)
-    } catch (e) {
-      console.warn(`[Ralph] Failed to parse skill: ${id}`, e)
-    }
-  }
-
-  if (skillContents.length === 0) return ''
-  
   return `
 
 ---
 
-# Skills Reference
+# Skills
 
-These skills define how you write code. Follow them strictly.
+Available knowledge bases you can search:
 
-${skillContents.join('\n\n---\n\n')}`
+| Skill | Topics |
+|-------|--------|
+| stack | Components, imports, project structure |
+| code-quality | React patterns, accessibility, form contrast, overlays |
+| theming | CSS variables, colors, animations, dark mode |
+| creativity | Layout patterns, design variety, motion |
+
+## How to Use
+
+Search skills with grep before implementing unfamiliar patterns:
+
+\`\`\`bash
+grep skill "dark mode form"     # → contrast rules for inputs
+grep skill "bento grid"         # → layout pattern code
+grep skill "dialog z-index"     # → overlay stacking rules
+grep skill "staggered animation" # → CSS keyframe examples
+\`\`\`
+
+**Always grep when unsure.** Skills contain critical rules that prevent bugs.
+`
 }
 
 /**
@@ -79,7 +79,7 @@ ${skillContents.join('\n\n---\n\n')}`
  */
 export function getSkillsMeta(): Array<{ id: string; name: string; description: string }> {
   const meta: Array<{ id: string; name: string; description: string }> = []
-  
+
   for (const { id, content } of SKILLS) {
     try {
       const { metadata } = parseSkillFile(content)
@@ -92,6 +92,6 @@ export function getSkillsMeta(): Array<{ id: string; name: string; description: 
       // Skip invalid skills
     }
   }
-  
+
   return meta
 }

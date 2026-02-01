@@ -1,10 +1,11 @@
 import * as React from 'react'
 import { useFS, useProject, useAISettings } from '@/contexts'
-import type { AIMessage, LLMProvider } from '@/lib/llm'
+import type { AIMessage } from '@/lib/llm'
 import { ShellExecutor } from '@/lib/shell'
 import { registerAllCommands } from '@/lib/shell/commands'
 import { runRalphLoop, type RalphCallbacks } from '@/lib/ralph'
 import { Git } from '@/lib/git'
+import { getSearchDb } from '@/lib/search'
 
 // Storage key for chat messages (scoped by project)
 const getChatStorageKey = (projectId: string | undefined) =>
@@ -123,6 +124,12 @@ export function useAIChat(options: UseChatOptions = {}) {
     // Register all built-in shell commands
     registerAllCommands(shellExecutor)
     console.log('[useAIChat] Shell commands registered:', shellExecutor.listCommands().map(c => c.name))
+
+    // Pre-initialize search db (async, doesn't block)
+    getSearchDb()
+      .then(() => console.log('[useAIChat] Search db initialized'))
+      .catch((err) => console.error('[useAIChat] Failed to initialize search db:', err))
+
     return { shell: shellExecutor, git: gitInstance }
   }, [fs, cwd])
 

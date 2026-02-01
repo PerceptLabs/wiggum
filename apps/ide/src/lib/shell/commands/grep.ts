@@ -1,5 +1,6 @@
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import { resolvePath } from './utils'
+import { getSearchDb, semanticSearch } from '../../search'
 
 /**
  * grep - Search for patterns in files
@@ -31,6 +32,25 @@ export class GrepCommand implements ShellCommand {
         showLineNumbers = true
       } else {
         positionalArgs.push(arg)
+      }
+    }
+
+    // Semantic search modes
+    const mode = positionalArgs[0]?.toLowerCase()
+
+    if (mode === 'skill' || mode === 'skills') {
+      const query = positionalArgs.slice(1).join(' ')
+      if (!query) {
+        return { exitCode: 2, stdout: '', stderr: 'grep skill: missing query' }
+      }
+      return this.searchSkills(query)
+    }
+
+    if (mode === 'code') {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: 'grep code: project indexing not yet implemented',
       }
     }
 
@@ -89,6 +109,28 @@ export class GrepCommand implements ShellCommand {
       stdout: matches.join('\n') + (matches.length > 0 ? '\n' : ''),
       stderr: errors.join('\n'),
     }
+  }
+
+  /**
+   * Search skills using Orama semantic search (typo-tolerant, relevance-ranked)
+   */
+  private async searchSkills(query: string): Promise<ShellResult> {
+    const db = await getSearchDb()
+    const results = await semanticSearch(db, 'skill', query, 5)
+
+    if (results.count === 0) {
+      return { exitCode: 1, stdout: '', stderr: `No matches for "${query}" in skills` }
+    }
+
+    const output = results.hits
+      .map((hit) => {
+        const doc = hit.document
+        const content = doc.content.slice(0, 500) + (doc.content.length > 500 ? '...' : '')
+        return `--- ${doc.source} / ${doc.section} (score: ${hit.score.toFixed(2)}) ---\n${content}`
+      })
+      .join('\n\n')
+
+    return { exitCode: 0, stdout: output + '\n', stderr: '' }
   }
 }
 
