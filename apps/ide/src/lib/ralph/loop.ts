@@ -76,6 +76,15 @@ import { ArrowRight, Check } from 'lucide-react'
 | \`<input>\` | \`<Input>\` |
 | \`<div onClick>\` | \`<Button variant="ghost">\` |
 
+## Theming
+
+Create unique themes appropriate to each project's content and mood.
+
+- Define ALL CSS variables in src/index.css (see theming skill for full list)
+- Add animations and micro-interactions by default for landing pages
+- Include \`@media (prefers-reduced-motion)\` for accessibility
+- Match theme colors and style to project content, not the IDE
+
 ## Your Memory (.ralph/)
 
 - .ralph/task.md: User's request (read-only)
