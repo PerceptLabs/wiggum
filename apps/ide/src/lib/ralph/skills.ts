@@ -18,6 +18,9 @@ import stackSkill from '../../../../../packages/stack/SKILL.md?raw'
 import reactBestPracticesSkill from '../../skills/react-best-practices/SKILL.md?raw'
 import webDesignGuidelinesSkill from '../../skills/web-design-guidelines/SKILL.md?raw'
 
+// Theming skill - CSS variables and theme customization
+import themingSkill from '../../skills/theming/SKILL.md?raw'
+
 // IDE's quick reference (supplements the stack skill)
 import wiggumStackQuickRef from '../../skills/wiggum-stack/SKILL.md?raw'
 
@@ -26,15 +29,17 @@ import { parseSkillFile } from '../skills/parser'
 /**
  * Skills in priority order:
  * 1. Stack skill - authoritative rules and component documentation
- * 2. React best practices - performance patterns
- * 3. Web design guidelines - accessibility and UX
- * 4. Quick reference - component cheat sheet
+ * 2. Theming skill - CSS variables and theme customization
+ * 3. React best practices - performance patterns
+ * 4. Web design guidelines - accessibility and UX
+ * 5. Quick reference - component cheat sheet
  */
 const SKILLS = [
   { id: 'stack', content: stackSkill, priority: 1 },
-  { id: 'react-best-practices', content: reactBestPracticesSkill, priority: 2 },
-  { id: 'web-design-guidelines', content: webDesignGuidelinesSkill, priority: 3 },
-  { id: 'wiggum-stack-quickref', content: wiggumStackQuickRef, priority: 4 },
+  { id: 'theming', content: themingSkill, priority: 2 },
+  { id: 'react-best-practices', content: reactBestPracticesSkill, priority: 3 },
+  { id: 'web-design-guidelines', content: webDesignGuidelinesSkill, priority: 4 },
+  { id: 'wiggum-stack-quickref', content: wiggumStackQuickRef, priority: 5 },
 ]
 
 /**

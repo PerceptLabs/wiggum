@@ -141,10 +141,11 @@ export function usePreview(
       setDuration(result.duration ?? null)
 
       if (result.success && result.outputFiles && result.outputFiles.length > 0) {
-        // Find the main output file
+        // Find the main output files
         const mainOutput = result.outputFiles.find(
           (f) => f.path.endsWith('.js') || f.path.endsWith('.mjs')
         )
+        const cssOutput = result.outputFiles.find((f) => f.path.endsWith('.css'))
 
         if (mainOutput) {
           // Write bundle to dist folder for SW mode
@@ -160,25 +161,91 @@ export function usePreview(
             try {
               indexHtml = await fs.readFile(`${projectPath}/index.html`, 'utf8') as string
             } catch {
-              // Fallback: generate basic index.html if missing
+              // Fallback: generate index.html with Tailwind if missing
               indexHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            background: 'hsl(var(--background))',
+            foreground: 'hsl(var(--foreground))',
+            primary: { DEFAULT: 'hsl(var(--primary))', foreground: 'hsl(var(--primary-foreground))' },
+            secondary: { DEFAULT: 'hsl(var(--secondary))', foreground: 'hsl(var(--secondary-foreground))' },
+            muted: { DEFAULT: 'hsl(var(--muted))', foreground: 'hsl(var(--muted-foreground))' },
+            accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
+            destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
+            card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
+            popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
+            border: 'hsl(var(--border))',
+            input: 'hsl(var(--input))',
+            ring: 'hsl(var(--ring))',
+          },
+          borderRadius: {
+            DEFAULT: 'var(--radius)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --background: 0 0% 100%;
+      --foreground: 0 0% 3.9%;
+      --primary: 0 0% 9%;
+      --primary-foreground: 0 0% 98%;
+      --secondary: 0 0% 96.1%;
+      --secondary-foreground: 0 0% 9%;
+      --muted: 0 0% 96.1%;
+      --muted-foreground: 0 0% 45.1%;
+      --accent: 0 0% 96.1%;
+      --accent-foreground: 0 0% 9%;
+      --destructive: 0 84.2% 60.2%;
+      --destructive-foreground: 0 0% 98%;
+      --card: 0 0% 100%;
+      --card-foreground: 0 0% 3.9%;
+      --popover: 0 0% 100%;
+      --popover-foreground: 0 0% 3.9%;
+      --border: 0 0% 89.8%;
+      --input: 0 0% 89.8%;
+      --ring: 0 0% 3.9%;
+      --radius: 0.5rem;
+    }
+    * { box-sizing: border-box; border-color: hsl(var(--border)); }
+    body { margin: 0; background-color: hsl(var(--background)); color: hsl(var(--foreground)); }
+  </style>
 </head>
 <body>
   <div id="root"></div>
-  <script src="./src/main.tsx"></script>
+  <script type="module" src="./src/main.tsx"></script>
 </body>
 </html>`
             }
+            // Write CSS bundle if present
+            if (cssOutput) {
+              await fs.writeFile(`${distPath}/bundle.css`, cssOutput.contents)
+            }
+
             // Replace the src/main.tsx reference with bundle.js
-            const distHtml = indexHtml.replace(
+            let distHtml = indexHtml.replace(
               /src="\.\/src\/main\.tsx"/,
               'src="./bundle.js"'
             )
+
+            // Add CSS link tag if CSS was bundled
+            if (cssOutput) {
+              distHtml = distHtml.replace(
+                '</head>',
+                '  <link rel="stylesheet" href="./bundle.css">\n</head>'
+              )
+            }
+
             await fs.writeFile(`${distPath}/index.html`, distHtml)
 
             // Write to preview cache for direct SW access
@@ -191,6 +258,11 @@ export function usePreview(
               mainOutput.contents,
               'application/javascript'
             )
+
+            // Write CSS to preview cache if present
+            if (cssOutput) {
+              await writePreviewFile(projectId, '/bundle.css', cssOutput.contents, 'text/css')
+            }
 
             // Increment build version to trigger preview reload
             setBuildVersion((v) => v + 1)

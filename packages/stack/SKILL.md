@@ -14,9 +14,27 @@ Theme-agnostic React component library with 53 components built on Radix primiti
 2. **Always use stack components** - No raw `<button>`, `<input>`, `<div onClick>`, etc.
 3. **File organization**:
    - Max 200 lines per file
-   - Split pages into `sections/` directory  
+   - Split pages into `sections/` directory
    - One exported component per file
 4. **Import from stack** - Never recreate existing components
+
+## Component Mapping (CRITICAL)
+
+**Use @wiggum/stack components, not raw HTML elements.**
+
+| Want This | Import This | Example |
+|-----------|-------------|---------|
+| Button | `Button` | `<Button onClick={fn}>Click</Button>` |
+| Text input | `Input` | `<Input placeholder="Email" />` |
+| Multi-line | `Textarea` | `<Textarea rows={4} />` |
+| Dropdown | `Select` | `<Select>...</Select>` |
+| Checkbox | `Checkbox` | `<Checkbox checked={val} />` |
+| Toggle | `Switch` | `<Switch checked={val} />` |
+| Modal | `Dialog` | `<Dialog>...</Dialog>` |
+| Side panel | `Sheet` | `<Sheet>...</Sheet>` |
+| Tabs | `Tabs` | `<Tabs>...</Tabs>` |
+| Tooltip | `Tooltip` | `<Tooltip>...</Tooltip>` |
+| Loading | `Spinner` | `<Spinner />` |
 
 ## Required Skills
 
@@ -115,16 +133,11 @@ src/
 
 ## Theming
 
-Stack is theme-agnostic. Import a theme to style components:
-
-```css
-/* Your app's CSS */
-@import "@wiggum/stack/styles/globals.css";
-@import "@wiggum/stack/styles/themes/neobrutalist.css"; /* Wiggum's theme */
-```
-
-Available themes:
-- `neobrutalist.css` - Hard shadows, thick borders, Simpsons yellow
+Components are theme-agnostic - they consume CSS variables like `var(--primary)`.
+Define your visual style in `src/index.css`. See the `theming` skill for:
+- Complete variable reference
+- Ready-to-use theme examples
+- Tips for choosing colors
 
 ## Example: Landing Page Section
 

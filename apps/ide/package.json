@@ -20,7 +20,6 @@
     "@wiggum/stack": "workspace:*",
     "autoprefixer": "^10.4.23",
     "esbuild-wasm": "^0.27.2",
-    "gray-matter": "^4.0.3",
     "isomorphic-git": "^1.36.1",
     "jszip": "^3.10.1",
     "lucide-react": "^0.562.0",
