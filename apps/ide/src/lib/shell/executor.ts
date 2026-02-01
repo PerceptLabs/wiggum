@@ -1,8 +1,122 @@
+import * as path from 'path-browserify'
 import type { JSRuntimeFS } from '../fs/types'
 import type { Git } from '../git'
 import { parseCommandLine, normalizePath } from './parser'
 import type { ParsedCommand, ShellCommand, ShellOptions, ShellResult } from './types'
 import { resolvePath, dirname } from './commands/utils'
+
+// ============================================================================
+// FILE VALIDATION - HARNESS ENFORCEMENT
+// ============================================================================
+
+interface WriteValidation {
+  allowed: boolean
+  reason?: string
+  suggestion?: string
+}
+
+/**
+ * Validate file writes - HARNESS ENFORCEMENT
+ * This is not a suggestion to the LLM, it's a hard block.
+ */
+function validateFileWrite(filePath: string, cwd: string): WriteValidation {
+  const ext = path.extname(filePath).toLowerCase()
+  const relativePath = filePath.startsWith(cwd)
+    ? filePath.slice(cwd.length).replace(/^[/\\]/, '')
+    : filePath
+
+  // Allow .ralph/ directory (state files)
+  if (relativePath.startsWith('.ralph/') || relativePath.startsWith('.ralph\\')) {
+    return { allowed: true }
+  }
+
+  // Allow package.json at root
+  if (relativePath === 'package.json') {
+    return { allowed: true }
+  }
+
+  // Block modifications to index.html (contains required Tailwind config)
+  if (relativePath === 'index.html') {
+    return {
+      allowed: false,
+      reason: 'Cannot modify index.html - it contains required Tailwind configuration.',
+      suggestion: 'Customize theme colors in src/index.css instead. See theming skill.',
+    }
+  }
+
+  // Block HTML files - key enforcement
+  if (ext === '.html' || ext === '.htm') {
+    const suggestedPath = relativePath
+      .replace(/\.html?$/, '.tsx')
+      .replace(/^(?!src[/\\])/, 'src/sections/')
+    return {
+      allowed: false,
+      reason: 'HTML files not supported. This is a React project.',
+      suggestion: `Write a React component instead: ${suggestedPath}\n\nNote: Use the Export button to download as a single HTML file when done.`,
+    }
+  }
+
+  // Block CSS files outside src/
+  if (ext === '.css' && !relativePath.startsWith('src/') && !relativePath.startsWith('src\\')) {
+    return {
+      allowed: false,
+      reason: 'CSS files must be in src/',
+      suggestion: 'Use: src/index.css or Tailwind classes directly',
+    }
+  }
+
+  // Block writes outside src/ (except .ralph/ and package.json handled above)
+  const isInSrc = relativePath.startsWith('src/') || relativePath.startsWith('src\\')
+  if (!isInSrc) {
+    return {
+      allowed: false,
+      reason: 'Files must be in src/ directory',
+      suggestion: `Try: src/${path.basename(relativePath)}`,
+    }
+  }
+
+  // Only allow specific extensions in src/
+  const allowedExtensions = ['.tsx', '.ts', '.css', '.json']
+  if (!allowedExtensions.includes(ext)) {
+    return {
+      allowed: false,
+      reason: `Only ${allowedExtensions.join(', ')} files allowed in src/`,
+      suggestion:
+        ext === '.js' || ext === '.jsx'
+          ? `Use TypeScript: ${relativePath.replace(/\.jsx?$/, '.tsx')}`
+          : undefined,
+    }
+  }
+
+  return { allowed: true }
+}
+
+/**
+ * Validate file content before write - HARNESS ENFORCEMENT
+ * Blocks patterns that will fail at runtime (e.g., @tailwind directives)
+ */
+function validateFileContent(filePath: string, content: string): WriteValidation {
+  const ext = path.extname(filePath).toLowerCase()
+
+  // Block @tailwind directives in CSS files - browsers cannot process them
+  if (ext === '.css' && content.includes('@tailwind')) {
+    return {
+      allowed: false,
+      reason: 'Cannot use @tailwind directives - browsers cannot process them.',
+      suggestion: `Define CSS variables instead:\n\n:root {\n  --background: 0 0% 100%;\n  --primary: 210 100% 50%;\n  /* See theming skill for all variables */\n}`,
+    }
+  }
+
+  return { allowed: true }
+}
+
+function formatValidationError(validation: WriteValidation, filePath: string): string {
+  let msg = `❌ Cannot write to ${filePath}\n   ${validation.reason}`
+  if (validation.suggestion) {
+    msg += `\n\n   ${validation.suggestion}`
+  }
+  return msg
+}
 
 /** Shell executor that manages command registration and execution with piping support */
 export class ShellExecutor {
@@ -104,6 +218,26 @@ export class ShellExecutor {
     const normalizedFilename = normalizePath(rawFilename, cwd)
     const filePath = resolvePath(cwd, normalizedFilename)
 
+    // HARNESS ENFORCEMENT: Validate path before write
+    const validation = validateFileWrite(filePath, cwd)
+    if (!validation.allowed) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: formatValidationError(validation, normalizedFilename),
+      }
+    }
+
+    // HARNESS ENFORCEMENT: Validate content before write
+    const contentValidation = validateFileContent(filePath, content)
+    if (!contentValidation.allowed) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: formatValidationError(contentValidation, normalizedFilename),
+      }
+    }
+
     try {
       // Ensure directory exists
       const dir = dirname(filePath)
@@ -140,6 +274,26 @@ export class ShellExecutor {
 
     const normalizedTarget = normalizePath(cmd.redirect.target, cwd)
     const filePath = resolvePath(cwd, normalizedTarget)
+
+    // HARNESS ENFORCEMENT: Validate path before write
+    const validation = validateFileWrite(filePath, cwd)
+    if (!validation.allowed) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: formatValidationError(validation, normalizedTarget),
+      }
+    }
+
+    // HARNESS ENFORCEMENT: Validate content before write
+    const contentValidation = validateFileContent(filePath, content)
+    if (!contentValidation.allowed) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: formatValidationError(contentValidation, normalizedTarget),
+      }
+    }
 
     try {
       // Ensure directory exists
