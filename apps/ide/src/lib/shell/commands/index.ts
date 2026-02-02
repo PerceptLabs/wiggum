@@ -21,6 +21,8 @@ import { TouchCommand } from './touch'
 import { SortCommand } from './sort'
 import { UniqCommand } from './uniq'
 import { GitCommand } from './git'
+import { TreeCommand } from './tree'
+import { ReplaceCommand } from './replace'
 
 /**
  * Register all built-in shell commands with the executor
@@ -43,6 +45,8 @@ export function registerAllCommands(executor: ShellExecutor): void {
   executor.registerCommand(new SortCommand())
   executor.registerCommand(new UniqCommand())
   executor.registerCommand(new GitCommand())
+  executor.registerCommand(new TreeCommand())
+  executor.registerCommand(new ReplaceCommand())
 }
 
 // Export all command classes for individual use
@@ -63,6 +67,8 @@ export { TouchCommand } from './touch'
 export { SortCommand } from './sort'
 export { UniqCommand } from './uniq'
 export { GitCommand } from './git'
+export { TreeCommand } from './tree'
+export { ReplaceCommand } from './replace'
 
 // Export utilities
 export { resolvePath, normalizePath, basename, dirname } from './utils'

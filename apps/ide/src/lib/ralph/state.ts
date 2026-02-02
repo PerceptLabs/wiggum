@@ -185,6 +185,7 @@ async function initProjectScaffold(fs: JSRuntimeFS, cwd: string): Promise<void> 
 
 export interface RalphState {
   task: string
+  origin: string
   intent: string
   plan: string
   summary: string
@@ -195,6 +196,7 @@ export interface RalphState {
 
 const FILES = {
   task: `${RALPH_DIR}/task.md`,
+  origin: `${RALPH_DIR}/origin.md`,
   intent: `${RALPH_DIR}/intent.md`,
   plan: `${RALPH_DIR}/plan.md`,
   summary: `${RALPH_DIR}/summary.md`,
@@ -220,6 +222,29 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
   const ralphDir = path.join(cwd, RALPH_DIR)
   await fs.mkdir(ralphDir, { recursive: true })
 
+  // 2. Handle origin.md specially - preserves project founding concept
+  const originPath = path.join(cwd, FILES.origin)
+  let originExists = false
+  try {
+    await fs.stat(originPath)
+    originExists = true
+  } catch {
+    // File doesn't exist
+  }
+
+  if (!originExists) {
+    // First run: create origin.md with original prompt
+    await fs.writeFile(
+      originPath,
+      `# Project Origin\n\n## Original Prompt\n${task}\n\n## Refinements\n`
+    )
+  } else {
+    // Subsequent runs: append to refinements section
+    const existing = await fs.readFile(originPath, { encoding: 'utf8' }) as string
+    await fs.writeFile(originPath, `${existing}- ${task}\n`)
+  }
+
+  // 3. Initialize ephemeral state files (reset each loop)
   await fs.writeFile(path.join(cwd, FILES.task), `# Task\n\n${task}\n`)
   await fs.writeFile(path.join(cwd, FILES.intent), '')
   await fs.writeFile(path.join(cwd, FILES.plan), '')
@@ -228,7 +253,7 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
   await fs.writeFile(path.join(cwd, FILES.iteration), '0')
   await fs.writeFile(path.join(cwd, FILES.status), 'running')
 
-  // 2. Scaffold React project structure (only if new)
+  // 4. Scaffold React project structure (only if new)
   await initProjectScaffold(fs, cwd)
 }
 
@@ -238,6 +263,7 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
 export async function getRalphState(fs: JSRuntimeFS, cwd: string): Promise<RalphState> {
   return {
     task: await readFile(fs, path.join(cwd, FILES.task), ''),
+    origin: await readFile(fs, path.join(cwd, FILES.origin), ''),
     intent: await readFile(fs, path.join(cwd, FILES.intent), ''),
     plan: await readFile(fs, path.join(cwd, FILES.plan), ''),
     summary: await readFile(fs, path.join(cwd, FILES.summary), ''),

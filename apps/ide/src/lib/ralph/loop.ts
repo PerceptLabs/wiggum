@@ -15,6 +15,10 @@ import type { ShellExecutor } from '../shell/executor'
 import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration } from './state'
 import { getSkillsContent } from './skills'
 import { runQualityGates, generateGateFeedback } from './gates'
+import type { ObservabilityConfig, GateContext, CommandAttempt, HarnessReflection } from '../types/observability'
+import { recordGap, isCommandNotFoundError, parseCommandString } from './gaps'
+import { buildReflectionPrompt, parseReflectionResponse, saveReflection } from './reflection'
+import { getLogBuffer } from '../logger'
 
 const BASE_SYSTEM_PROMPT = `You are Ralph, an autonomous coding agent building React applications.
 
@@ -75,6 +79,24 @@ import { ArrowRight, Check } from 'lucide-react'
 | \`<button>\` | \`<Button>\` |
 | \`<input>\` | \`<Input>\` |
 | \`<div onClick>\` | \`<Button variant="ghost">\` |
+
+## Surgical Edits
+
+For small fixes (typos, renames, one-line changes), use \`replace\` instead of rewriting files:
+
+\`\`\`bash
+# Fix a typo
+replace src/App.tsx "consloe.log" "console.log"
+
+# Rename a component
+replace src/App.tsx "OldName" "NewName"
+
+# Fix a className typo
+replace src/sections/Hero.tsx "classNamew-3" "className w-3"
+\`\`\`
+
+**When to use replace:** Single string changes — typos, renames, small fixes.
+**When to rewrite file:** Multi-line changes, restructuring, new features.
 
 ## Theming
 
@@ -153,11 +175,17 @@ const SHELL_TOOL: Tool = {
   type: 'function',
   function: {
     name: 'shell',
-    description: `Execute a shell command. Available: cat, echo, touch, mkdir, rm, cp, mv, ls, pwd, find, grep, head, tail, wc, sort, uniq, git. No bash, sh, npm, node, python, curl.
+    description: `Execute a shell command. Available: cat, echo, touch, mkdir, rm, cp, mv, ls, pwd, find, grep, head, tail, wc, sort, uniq, git, tree, replace. No bash, sh, npm, node, python, curl.
 
-grep has semantic search modes:
-- grep skill "<query>" - Search skills for rules, patterns, examples (typo-tolerant)
-- grep code "<query>" - Search project code (coming soon)
+grep modes:
+- grep skill "<query>" - Semantic skill search (typo-tolerant)
+- grep code "<query>" - Project code search (coming soon)
+- grep "<pattern>" <file> - Exact regex match
+
+replace: Surgical string replacement. Use for typos, renames, small fixes.
+  Example: replace src/App.tsx "oldText" "newText"
+
+tree: Display directory structure.
 
 Use grep skill before implementing unfamiliar patterns.`,
     parameters: {
@@ -192,7 +220,21 @@ export interface RalphCallbacks {
   onError?: (error: Error) => void
   /** Called when quality gates are checked */
   onGatesChecked?: (passed: boolean, failures: string[]) => void
+  /** Called when a gap is recorded (command not found) */
+  onGapRecorded?: (command: string) => void
+  /** Called when reflection is captured after successful task */
+  onReflectionCaptured?: (reflection: HarnessReflection) => void
   signal?: AbortSignal  // AbortSignal for cancellation
+}
+
+/**
+ * Configuration for Ralph loop execution
+ */
+export interface RalphLoopConfig {
+  /** Observability settings (all features OFF by default) */
+  observability?: ObservabilityConfig
+  /** Gate context for quality gates (e.g., error collector) */
+  gateContext?: GateContext
 }
 
 export interface RalphResult {
@@ -210,6 +252,54 @@ async function gitCommit(git: Git, message: string): Promise<void> {
   }
 }
 
+/**
+ * Capture reflection after successful task completion
+ * Makes a separate LLM call to gather feedback about the harness experience
+ */
+async function captureReflection(
+  provider: LLMProvider,
+  fs: JSRuntimeFS,
+  cwd: string,
+  task: string,
+  iteration: number,
+  commandAttempts: CommandAttempt[],
+  gateContext: GateContext,
+  callbacks?: RalphCallbacks
+): Promise<void> {
+  try {
+    const runtimeErrors = gateContext.errorCollector?.getErrors() || []
+    const contextLogs = getLogBuffer()
+    const taskId = `task-${Date.now()}`
+
+    const reflectionPrompt = buildReflectionPrompt(
+      task,
+      commandAttempts,
+      runtimeErrors,
+      contextLogs,
+      taskId
+    )
+
+    const response = await chat(
+      provider,
+      [
+        { role: 'system', content: 'You are analyzing your experience with a coding harness. Respond with valid JSON only.' },
+        { role: 'user', content: reflectionPrompt }
+      ],
+      [],
+      callbacks?.signal
+    )
+
+    const reflection = parseReflectionResponse(response.content, taskId, runtimeErrors)
+    if (reflection) {
+      await saveReflection(fs, cwd, reflection)
+      callbacks?.onReflectionCaptured?.(reflection)
+      console.log('[Ralph] Reflection captured for task:', taskId)
+    }
+  } catch (err) {
+    console.error('[Ralph] Reflection capture failed:', err)
+  }
+}
+
 export async function runRalphLoop(
   provider: LLMProvider,
   fs: JSRuntimeFS,
@@ -217,7 +307,8 @@ export async function runRalphLoop(
   git: Git,
   cwd: string,
   task: string,
-  callbacks?: RalphCallbacks
+  callbacks?: RalphCallbacks,
+  config?: RalphLoopConfig
 ): Promise<RalphResult> {
   try {
     // 0. Load skills ONCE at loop start (bundled at build time)
@@ -231,6 +322,12 @@ export async function runRalphLoop(
 
     // Track consecutive gate failures for harness-controlled completion
     let consecutiveGateFailures = 0
+
+    // Track command attempts for observability (if enabled)
+    const commandAttempts: CommandAttempt[] = []
+
+    // Build gate context from config
+    const gateContext: GateContext = config?.gateContext || {}
 
     // 2. Run iterations
     for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
@@ -267,7 +364,7 @@ ${state.feedback || '(none)'}`
       let summary = ''
       let completedWithoutTools = false
 
-      while (toolCalls < MAX_TOOL_CALLS_PER_ITERATION) {
+      toolLoop: while (toolCalls < MAX_TOOL_CALLS_PER_ITERATION) {
         // Check for abort before each LLM call
         if (callbacks?.signal?.aborted) {
           console.log('[Ralph] Aborted by user')
@@ -322,6 +419,30 @@ ${state.feedback || '(none)'}`
           console.log('[Ralph] Tool result (truncated):', output.slice(0, 200))
           callbacks?.onToolCall?.(args.command, output)
 
+          // Track command attempt for observability
+          const parsedCmd = parseCommandString(args.command)
+          const isSuccess = result.exitCode === 0
+          commandAttempts.push({
+            command: parsedCmd.command,
+            args: parsedCmd.args,
+            success: isSuccess,
+            error: isSuccess ? undefined : result.stderr,
+            timestamp: Date.now(),
+          })
+
+          // Record gap if command not found and tracking is enabled
+          if (config?.observability?.trackGaps && result.exitCode === 127 && isCommandNotFoundError(result.stderr)) {
+            await recordGap(fs, cwd, {
+              command: parsedCmd.command,
+              args: parsedCmd.args,
+              error: result.stderr,
+              context: task.slice(0, 200),
+              reasoning: args._status,
+              taskId: `iteration-${iteration}`,
+            })
+            callbacks?.onGapRecorded?.(parsedCmd.command)
+          }
+
           // 3. Strip _status from tool call before storing in context
           // We need to modify the response before it goes into messages
           tc.function.arguments = JSON.stringify({ command: args.command })
@@ -332,7 +453,7 @@ ${state.feedback || '(none)'}`
           // Early exit if Ralph marked complete mid-batch
           if (await isComplete(fs, cwd)) {
             console.log('[Ralph] Status set to complete mid-batch, breaking')
-            break
+            break toolLoop
           }
         }
       }
@@ -340,7 +461,7 @@ ${state.feedback || '(none)'}`
       // Break outer while loop if complete
       if (await isComplete(fs, cwd)) {
         console.log('[Ralph] Complete after tool batch - running quality gates')
-        const gateResults = await runQualityGates(fs, cwd)
+        const gateResults = await runQualityGates(fs, cwd, gateContext)
         const failures = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
         callbacks?.onGatesChecked?.(gateResults.passed, failures)
 
@@ -348,6 +469,10 @@ ${state.feedback || '(none)'}`
           const finalState = await getRalphState(fs, cwd)
           if (finalState.summary) {
             callbacks?.onSummary?.(finalState.summary.trim())
+          }
+          // Capture reflection if enabled
+          if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
+            await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
           }
           callbacks?.onComplete?.(iteration)
           return { success: true, iterations: iteration }
@@ -371,7 +496,7 @@ ${state.feedback || '(none)'}`
       // If LLM responded without using any tools, run quality gates
       if (completedWithoutTools) {
         console.log('[Ralph] Completed without tools - running quality gates')
-        const gateResults = await runQualityGates(fs, cwd)
+        const gateResults = await runQualityGates(fs, cwd, gateContext)
         const failures = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
         callbacks?.onGatesChecked?.(gateResults.passed, failures)
 
@@ -380,6 +505,10 @@ ${state.feedback || '(none)'}`
           const finalState = await getRalphState(fs, cwd)
           if (finalState.summary) {
             callbacks?.onSummary?.(finalState.summary.trim())
+          }
+          // Capture reflection if enabled
+          if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
+            await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
           }
           callbacks?.onComplete?.(iteration)
           return { success: true, iterations: iteration }
@@ -403,7 +532,7 @@ ${state.feedback || '(none)'}`
       // Check termination conditions from status file
       if (await isComplete(fs, cwd)) {
         console.log('[Ralph] Status is complete - running quality gates')
-        const gateResults = await runQualityGates(fs, cwd)
+        const gateResults = await runQualityGates(fs, cwd, gateContext)
         const failures = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
         callbacks?.onGatesChecked?.(gateResults.passed, failures)
 
@@ -412,6 +541,10 @@ ${state.feedback || '(none)'}`
           const finalState = await getRalphState(fs, cwd)
           if (finalState.summary) {
             callbacks?.onSummary?.(finalState.summary.trim())
+          }
+          // Capture reflection if enabled
+          if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
+            await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
           }
           callbacks?.onComplete?.(iteration)
           return { success: true, iterations: iteration }

@@ -5,6 +5,35 @@ import { parseCommandLine, normalizePath } from './parser'
 import type { ParsedCommand, ShellCommand, ShellOptions, ShellResult } from './types'
 import { resolvePath, dirname } from './commands/utils'
 
+/**
+ * Callback for gap tracking - called when a command is not found
+ */
+export interface GapCallback {
+  command: string
+  args: string[]
+  error: string
+}
+
+/**
+ * Redirect map for common commands that don't exist in Wiggum
+ * Provides helpful alternatives when users try unavailable commands
+ */
+const COMMAND_REDIRECTS: Record<string, { alt: string; example?: string }> = {
+  sed: { alt: '`replace` for surgical string replacement', example: 'replace src/App.tsx "old" "new"' },
+  awk: { alt: '`grep` + `replace`' },
+  npm: { alt: 'esm.sh imports in your code', example: 'import x from "https://esm.sh/pkg"' },
+  yarn: { alt: 'esm.sh imports in your code', example: 'import x from "https://esm.sh/pkg"' },
+  pnpm: { alt: 'esm.sh imports in your code', example: 'import x from "https://esm.sh/pkg"' },
+  node: { alt: 'Write React components instead' },
+  python: { alt: 'Not supported in this environment' },
+  python3: { alt: 'Not supported in this environment' },
+  pip: { alt: 'Not supported in this environment' },
+  curl: { alt: 'Static data or fetch in your React code' },
+  wget: { alt: 'Static data or fetch in your React code' },
+  bash: { alt: 'Run commands directly (no shell wrapper needed)' },
+  sh: { alt: 'Run commands directly (no shell wrapper needed)' },
+}
+
 // ============================================================================
 // FILE VALIDATION - HARNESS ENFORCEMENT
 // ============================================================================
@@ -123,10 +152,19 @@ export class ShellExecutor {
   private commands: Map<string, ShellCommand> = new Map()
   private fs: JSRuntimeFS
   private git?: Git
+  private onGap?: (gap: GapCallback) => void
 
   constructor(fs: JSRuntimeFS, git?: Git) {
     this.fs = fs
     this.git = git
+  }
+
+  /**
+   * Set callback for gap tracking (command not found events)
+   * Used by observability system to record missing commands
+   */
+  setOnGap(callback: ((gap: GapCallback) => void) | undefined): void {
+    this.onGap = callback
   }
 
   registerCommand(cmd: ShellCommand): void {
@@ -177,7 +215,27 @@ export class ShellExecutor {
 
       const command = this.commands.get(cmd.name)
       if (!command) {
-        return { exitCode: 127, stdout: '', stderr: `${cmd.name}: command not found` }
+        let error = `${cmd.name}: command not found`
+
+        // Add helpful redirect if available
+        const redirect = COMMAND_REDIRECTS[cmd.name]
+        if (redirect) {
+          error += `\n\n💡 Wiggum alternative: Use ${redirect.alt}`
+          if (redirect.example) {
+            error += `\n   Example: ${redirect.example}`
+          }
+        }
+
+        // Detect unexpanded globs and hint to use find
+        if (normalizedArgs.some(arg => arg.includes('*'))) {
+          error += `\n\n💡 Hint: Globs like *.tsx don't expand automatically. Use: find . -name "*.tsx"`
+        }
+
+        // Notify gap tracking callback if set
+        if (this.onGap) {
+          this.onGap({ command: cmd.name, args: normalizedArgs, error })
+        }
+        return { exitCode: 127, stdout: '', stderr: error }
       }
 
       const options: ShellOptions = { cwd, stdin, fs: this.fs, git: this.git }

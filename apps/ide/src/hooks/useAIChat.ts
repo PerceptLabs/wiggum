@@ -6,6 +6,7 @@ import { registerAllCommands } from '@/lib/shell/commands'
 import { runRalphLoop, type RalphCallbacks } from '@/lib/ralph'
 import { Git } from '@/lib/git'
 import { getSearchDb } from '@/lib/search'
+import { createErrorCollector } from '@/lib/preview/error-collector'
 
 // Storage key for chat messages (scoped by project)
 const getChatStorageKey = (projectId: string | undefined) =>
@@ -259,6 +260,10 @@ export function useAIChat(options: UseChatOptions = {}) {
         },
       }
 
+      // Create error collector for quality gates
+      const errorCollector = createErrorCollector()
+      errorCollector.start()
+
       try {
         // Run the Ralph loop
         const result = await runRalphLoop(
@@ -268,7 +273,15 @@ export function useAIChat(options: UseChatOptions = {}) {
           git,
           cwd,
           content,
-          callbacks
+          callbacks,
+          {
+            observability: {
+              trackGaps: true,
+              captureReflection: true,
+              minIterationsForReflection: 1,
+            },
+            gateContext: { errorCollector }
+          }
         )
 
         // Determine final status
@@ -331,6 +344,7 @@ export function useAIChat(options: UseChatOptions = {}) {
         options.onError?.(err instanceof Error ? err : new Error(message))
         options.onStatusChange?.('error')
       } finally {
+        errorCollector.stop()
         abortRef.current = null
         isRunningRef.current = false
       }

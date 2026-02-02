@@ -8,7 +8,10 @@ import { getSearchDb, semanticSearch } from '../../search'
  */
 export class GrepCommand implements ShellCommand {
   name = 'grep'
-  description = 'Search for patterns in files'
+  description = `Search files or skills. Modes:
+  grep skill "<query>" - Semantic search of skills (typo-tolerant)
+  grep code "<query>"  - Semantic search of project (coming soon)
+  grep "<pattern>" <file> - Exact regex match in file`
 
   async execute(args: string[], options: ShellOptions): Promise<ShellResult> {
     const { fs, cwd, stdin } = options

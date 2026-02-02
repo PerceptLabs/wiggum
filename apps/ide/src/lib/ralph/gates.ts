@@ -7,6 +7,8 @@
  */
 import type { JSRuntimeFS } from '../fs/types'
 import { buildProject } from '../build'
+import type { GateContext } from '../types/observability'
+import { formatRuntimeErrors } from '../preview/error-collector'
 
 // ============================================================================
 // TYPES
@@ -20,7 +22,7 @@ export interface GateResult {
 export interface QualityGate {
   name: string
   description: string
-  check: (fs: JSRuntimeFS, cwd: string) => Promise<GateResult>
+  check: (fs: JSRuntimeFS, cwd: string, context?: GateContext) => Promise<GateResult>
 }
 
 export interface GatesResult {
@@ -152,6 +154,29 @@ export const QUALITY_GATES: QualityGate[] = [
       }
     },
   },
+
+  {
+    name: 'runtime-errors',
+    description: 'Preview must not have runtime errors',
+    check: async (_fs, _cwd, context) => {
+      // Skip if no error collector available (feature disabled)
+      if (!context?.errorCollector) {
+        return { pass: true }
+      }
+
+      // Wait for errors to stabilize (debounced)
+      const errors = await context.errorCollector.waitForStable()
+
+      if (errors.length > 0) {
+        return {
+          pass: false,
+          feedback: formatRuntimeErrors(errors),
+        }
+      }
+
+      return { pass: true }
+    },
+  },
 ]
 
 // ============================================================================
@@ -161,13 +186,21 @@ export const QUALITY_GATES: QualityGate[] = [
 /**
  * Run all quality gates and return comprehensive results
  * Runs ALL gates (doesn't fail-fast) to provide complete feedback
+ *
+ * @param fs - Filesystem interface
+ * @param cwd - Current working directory
+ * @param context - Optional context with error collector, log buffer, etc.
  */
-export async function runQualityGates(fs: JSRuntimeFS, cwd: string): Promise<GatesResult> {
+export async function runQualityGates(
+  fs: JSRuntimeFS,
+  cwd: string,
+  context?: GateContext
+): Promise<GatesResult> {
   const results: Array<{ gate: string; result: GateResult }> = []
 
   for (const gate of QUALITY_GATES) {
     try {
-      const result = await gate.check(fs, cwd)
+      const result = await gate.check(fs, cwd, context)
       results.push({ gate: gate.name, result })
     } catch (err) {
       results.push({
