@@ -15,6 +15,8 @@ interface ChatContextValue extends ChatState {
   sendMessage: (content: string) => Promise<void>
   stopGeneration: () => void
   clearMessages: () => void
+  retry: () => void
+  isRetryable: boolean
 }
 
 const ChatContext = React.createContext<ChatContextValue | null>(null)
@@ -49,6 +51,8 @@ export function ChatProvider({ children }: ChatProviderProps) {
       sendMessage: chat.sendMessage,
       stopGeneration: chat.cancel,
       clearMessages: chat.clearHistory,
+      retry: chat.retry,
+      isRetryable: chat.isRetryable,
     }),
     [
       chat.messages,
@@ -60,6 +64,8 @@ export function ChatProvider({ children }: ChatProviderProps) {
       chat.sendMessage,
       chat.cancel,
       chat.clearHistory,
+      chat.retry,
+      chat.isRetryable,
     ]
   )
 

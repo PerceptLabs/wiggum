@@ -66,8 +66,11 @@ export function Workspace() {
   // Git state
   const git = useGit(projectPath)
 
+  // Build logs
+  const { addBuildLog } = useLayout()
+
   // Preview/build state
-  const preview = usePreview(projectPath)
+  const preview = usePreview(projectPath, { onLog: addBuildLog })
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return
@@ -189,18 +192,25 @@ function WorkspaceContent({
     return hasEntry(fileTree.tree)
   }, [fileTree.tree])
 
+  // Store build function in ref to avoid dependency issues
+  // (preview.build is recreated every render due to buildOptions spread)
+  const buildRef = React.useRef(preview.build)
+  React.useEffect(() => {
+    buildRef.current = preview.build
+  })
+
   // Load HTML file content or trigger build for TSX/JSX files
   React.useEffect(() => {
     if (isHtmlFile && fileContent.content) {
       setHtmlFileContent(fileContent.content)
     } else if (isTsxFile) {
       // Trigger build when TSX/JSX file is selected
-      preview.build()
+      buildRef.current()
       setHtmlFileContent(null)
     } else {
       setHtmlFileContent(null)
     }
-  }, [isHtmlFile, isTsxFile, fileContent.content, preview])
+  }, [isHtmlFile, isTsxFile, fileContent.content])
 
   // File dialog state (new file, new folder, rename)
   const [fileDialog, setFileDialog] = React.useState<FileDialogState>({

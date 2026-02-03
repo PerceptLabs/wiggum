@@ -52,6 +52,29 @@ export interface RuntimeError {
 }
 
 /**
+ * Captured DOM structure from preview
+ */
+export interface DOMStructure {
+  tag: string
+  id?: string
+  classes?: string[]
+  text?: string
+  href?: string
+  children?: DOMStructure[]
+}
+
+/**
+ * Structure collector interface
+ */
+export interface StructureCollector {
+  start: () => void
+  stop: () => void
+  waitForStructure: () => Promise<DOMStructure | null>
+  getStructure: () => DOMStructure | null
+  clear: () => void
+}
+
+/**
  * Post-task reflection from the LLM about harness experience
  */
 export interface HarnessReflection {
@@ -131,5 +154,6 @@ export interface ErrorCollector {
  */
 export interface GateContext {
   errorCollector?: ErrorCollector
+  structureCollector?: StructureCollector
   logBuffer?: LogEntry[]
 }

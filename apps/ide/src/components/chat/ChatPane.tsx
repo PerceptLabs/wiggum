@@ -36,6 +36,8 @@ export function ChatPane({ className }: ChatPaneProps) {
     sendMessage,
     stopGeneration,
     clearMessages,
+    retry,
+    isRetryable,
   } = useChat()
 
   const {
@@ -204,8 +206,20 @@ export function ChatPane({ className }: ChatPaneProps) {
 
       {/* Error display */}
       {error && (
-        <div className="mx-4 mb-2 border-2 border-destructive bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive shadow-[2px_2px_0px_0px] shadow-destructive">
-          {error}
+        <div className="mx-4 mb-2 flex items-center justify-between gap-2 border-2 border-destructive bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive shadow-[2px_2px_0px_0px] shadow-destructive">
+          <span className="flex-1">{error}</span>
+          {isRetryable && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={retry}
+              disabled={isLoading}
+              className="shrink-0"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Retry
+            </Button>
+          )}
         </div>
       )}
 

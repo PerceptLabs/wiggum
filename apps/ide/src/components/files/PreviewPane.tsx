@@ -231,13 +231,14 @@ export function PreviewPane({
 
   // Determine iframe src
   const iframeSrc = React.useMemo(() => {
-    if (isSwMode) {
-      // Use /preview/ path - the SW is scoped to this path only
-      // and won't interfere with the main IDE
-      return '/preview/'
+    if (isSwMode && projectPath) {
+      // Extract project ID from path (e.g., "/projects/abc123" → "abc123")
+      // The SW needs this to know which project's files to serve from IndexedDB
+      const projectId = projectPath.split('/').filter(Boolean).pop()
+      return `/preview/?project=${projectId}`
     }
     return url || 'about:blank'
-  }, [isSwMode, url])
+  }, [isSwMode, projectPath, url])
 
   // Handle iframe load event (for SW mode)
   const handleIframeLoad = React.useCallback(() => {

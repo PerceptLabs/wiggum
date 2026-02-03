@@ -111,3 +111,83 @@ export function injectErrorCapture(html: string): string {
 export function hasErrorCapture(html: string): boolean {
   return html.includes('wiggum-runtime-error') || html.includes('__wiggumErrorCapture')
 }
+
+/**
+ * Generate DOM structure capture script
+ * Captures semantic structure after page loads and sends via postMessage
+ */
+export function getStructureCaptureScript(): string {
+  return `
+<script>
+// Wiggum DOM Structure Capture
+(function() {
+  'use strict';
+
+  function captureStructure(element, depth = 0) {
+    if (depth > 10) return null;
+    if (!element || element.nodeType !== 1) return null;
+
+    const tag = element.tagName.toLowerCase();
+    if (['script', 'style', 'noscript'].includes(tag)) return null;
+
+    const result = { tag };
+
+    if (element.id) result.id = element.id;
+    if (element.className && typeof element.className === 'string') {
+      const classes = element.className.split(' ').filter(c => c && !c.startsWith('_'));
+      if (classes.length > 0) result.classes = classes.slice(0, 5);
+    }
+
+    if (['h1','h2','h3','h4','h5','h6','button','a','label','p'].includes(tag)) {
+      const text = element.textContent?.trim().slice(0, 50);
+      if (text) result.text = text;
+    }
+
+    if (tag === 'a' && element.href) {
+      result.href = element.href.slice(0, 100);
+    }
+
+    const children = [];
+    for (const child of element.children) {
+      const childResult = captureStructure(child, depth + 1);
+      if (childResult) children.push(childResult);
+    }
+    if (children.length > 0) result.children = children;
+
+    return result;
+  }
+
+  function sendStructure() {
+    const root = document.getElementById('root') || document.body;
+    const structure = captureStructure(root);
+    window.parent.postMessage({
+      type: 'wiggum-dom-structure',
+      structure: structure,
+      timestamp: Date.now()
+    }, '*');
+  }
+
+  if (document.readyState === 'complete') {
+    setTimeout(sendStructure, 500);
+  } else {
+    window.addEventListener('load', () => setTimeout(sendStructure, 500));
+  }
+
+  window.__wiggumCaptureStructure = sendStructure;
+})();
+</script>
+`;
+}
+
+/**
+ * Inject both error capture and structure capture into HTML
+ */
+export function injectAllCapture(html: string): string {
+  const scripts = getChobitsuInjectionScript() + getStructureCaptureScript();
+  const bodyMatch = html.match(/<body[^>]*>/i);
+  if (bodyMatch) {
+    const insertPosition = bodyMatch.index! + bodyMatch[0].length;
+    return html.slice(0, insertPosition) + '\n' + scripts + html.slice(insertPosition);
+  }
+  return scripts + html;
+}

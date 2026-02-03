@@ -7,6 +7,7 @@ import {
   createModuleCache,
 } from '@/lib/build'
 import { writePreviewFile, clearPreviewCache } from '@/lib/preview-cache'
+import { injectAllCapture } from '@/lib/preview/chobitsu-bridge'
 import type { BuildResult, BuildProjectOptions, BuildError } from '@/lib/build'
 
 const BUILD_TIMEOUT_MS = 30000
@@ -16,6 +17,8 @@ export interface UsePreviewOptions extends Omit<BuildProjectOptions, 'moduleCach
   autoBuild?: boolean
   /** Debounce time for auto-build (ms) */
   debounceMs?: number
+  /** Callback for build log messages */
+  onLog?: (message: string) => void
 }
 
 export interface UsePreviewResult {
@@ -45,7 +48,7 @@ export function usePreview(
   options: UsePreviewOptions = {}
 ): UsePreviewResult {
   const { fs, isReady: fsReady } = useFS()
-  const { autoBuild = true, debounceMs = 500, ...buildOptions } = options
+  const { autoBuild = true, debounceMs = 500, onLog, ...buildOptions } = options
 
   const [buildVersion, setBuildVersion] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
@@ -81,6 +84,7 @@ export function usePreview(
     setIsBuilding(true)
     setError(null)
     setErrors(null)
+    onLog?.(`Building ${projectPath}...`)
 
     try {
       console.time('[Preview] Build total')
@@ -101,14 +105,19 @@ export function usePreview(
           // Found standalone HTML - serve the first one directly (no esbuild needed)
           const htmlFile = standaloneHtmlFiles[0]
           console.log(`[Preview] Found standalone HTML: ${htmlFile}, serving directly`)
+          onLog?.(`Found standalone HTML: ${htmlFile}`)
 
           const htmlContent = await fs.readFile(`${projectPath}/${htmlFile}`, 'utf8') as string
 
+          // Inject runtime error capture script
+          const htmlWithErrorCapture = injectAllCapture(htmlContent)
+
           // Write to preview cache
           await clearPreviewCache(projectId)
-          await writePreviewFile(projectId, '/index.html', htmlContent, 'text/html')
+          await writePreviewFile(projectId, '/index.html', htmlWithErrorCapture, 'text/html')
 
           console.timeEnd('[Preview] Build total')
+          onLog?.('✓ Standalone HTML served')
           setBuildVersion((v) => v + 1)
           setError(null)
           setErrors(null)
@@ -248,10 +257,13 @@ export function usePreview(
 
             await fs.writeFile(`${distPath}/index.html`, distHtml)
 
+            // Inject runtime error capture script for preview
+            const distHtmlWithErrorCapture = injectAllCapture(distHtml)
+
             // Write to preview cache for direct SW access
             // This enables "Open in new tab" without postMessage!
             await clearPreviewCache(projectId)
-            await writePreviewFile(projectId, '/index.html', distHtml, 'text/html')
+            await writePreviewFile(projectId, '/index.html', distHtmlWithErrorCapture, 'text/html')
             await writePreviewFile(
               projectId,
               '/bundle.js',
@@ -265,6 +277,9 @@ export function usePreview(
             }
 
             // Increment build version to trigger preview reload
+            const bundleSize = (mainOutput.contents.length / 1024).toFixed(1)
+            onLog?.(`✓ Build succeeded in ${result.duration ?? 0}ms`)
+            onLog?.(`  bundle.js: ${bundleSize}KB`)
             setBuildVersion((v) => v + 1)
             setError(null)
             setErrors(null)
@@ -275,17 +290,19 @@ export function usePreview(
           setError('No JavaScript output generated')
         }
       } else if (result.errors && result.errors.length > 0) {
+        onLog?.(`✘ Build failed: ${result.errors[0].message}`)
         setErrors(result.errors)
         setError(result.errors[0].message)
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Build failed'
+      onLog?.(`✘ Build failed: ${message}`)
       setError(message)
       setErrors([{ message }])
     } finally {
       setIsBuilding(false)
     }
-  }, [fs, fsReady, projectPath, isReady, buildOptions])
+  }, [fs, fsReady, projectPath, isReady, buildOptions, onLog])
 
   // Auto-build on mount and when project changes
   React.useEffect(() => {

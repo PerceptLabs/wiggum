@@ -1,12 +1,14 @@
 import * as React from 'react'
 import { useFS, useProject, useAISettings } from '@/contexts'
 import type { AIMessage } from '@/lib/llm'
+import { LLMError } from '@/lib/llm'
 import { ShellExecutor } from '@/lib/shell'
 import { registerAllCommands } from '@/lib/shell/commands'
 import { runRalphLoop, type RalphCallbacks } from '@/lib/ralph'
 import { Git } from '@/lib/git'
 import { getSearchDb } from '@/lib/search'
 import { createErrorCollector } from '@/lib/preview/error-collector'
+import { createStructureCollector } from '@/lib/preview/structure-collector'
 
 // Storage key for chat messages (scoped by project)
 const getChatStorageKey = (projectId: string | undefined) =>
@@ -60,6 +62,8 @@ export interface ChatState {
   ralphStatus: 'idle' | 'running' | 'waiting' | 'complete' | 'error'
   ralphIteration: number
   streamingContent: string
+  lastMessageContent: string | null
+  isRetryable: boolean
 }
 
 /**
@@ -82,6 +86,8 @@ export function useAIChat(options: UseChatOptions = {}) {
     ralphStatus: 'idle',
     ralphIteration: 0,
     streamingContent: '',
+    lastMessageContent: null,
+    isRetryable: false,
   })
 
   const abortRef = React.useRef<AbortController | null>(null)
@@ -163,13 +169,15 @@ export function useAIChat(options: UseChatOptions = {}) {
       }
       isRunningRef.current = true
 
-      // Reset state
+      // Reset state and store message for potential retry
       setState((s) => ({
         ...s,
         isLoading: true,
         error: null,
         ralphStatus: 'running',
         ralphIteration: 0,
+        lastMessageContent: content,
+        isRetryable: false,
       }))
       options.onStatusChange?.('running')
 
@@ -260,9 +268,11 @@ export function useAIChat(options: UseChatOptions = {}) {
         },
       }
 
-      // Create error collector for quality gates
+      // Create error collector and structure collector for quality gates
       const errorCollector = createErrorCollector()
+      const structureCollector = createStructureCollector()
       errorCollector.start()
+      structureCollector.start()
 
       try {
         // Run the Ralph loop
@@ -280,7 +290,7 @@ export function useAIChat(options: UseChatOptions = {}) {
               captureReflection: true,
               minIterationsForReflection: 1,
             },
-            gateContext: { errorCollector }
+            gateContext: { errorCollector, structureCollector }
           }
         )
 
@@ -321,6 +331,7 @@ export function useAIChat(options: UseChatOptions = {}) {
           isLoading: false,
           ralphStatus: finalStatus,
           error: result.success ? null : (result.error ?? null),
+          isRetryable: false,
         }))
         options.onStatusChange?.(finalStatus)
       } catch (err) {
@@ -335,16 +346,24 @@ export function useAIChat(options: UseChatOptions = {}) {
         }
 
         const message = err instanceof Error ? err.message : 'Failed to send message'
+        // Determine if error is retryable (server errors, network errors)
+        const isRetryable =
+          (err instanceof LLMError && [0, 429, 500, 502, 503, 504].includes(err.status ?? -1)) ||
+          message.includes('Network error') ||
+          (message.includes('after') && message.includes('retries'))
+
         setState((s) => ({
           ...s,
           isLoading: false,
           error: message,
           ralphStatus: 'error',
+          isRetryable,
         }))
         options.onError?.(err instanceof Error ? err : new Error(message))
         options.onStatusChange?.('error')
       } finally {
         errorCollector.stop()
+        structureCollector.stop()
         abortRef.current = null
         isRunningRef.current = false
       }
@@ -381,6 +400,8 @@ export function useAIChat(options: UseChatOptions = {}) {
       ralphStatus: 'idle',
       ralphIteration: 0,
       streamingContent: '',
+      lastMessageContent: null,
+      isRetryable: false,
     })
     // Also clear from storage
     const key = getChatStorageKey(currentProject?.id)
@@ -393,6 +414,15 @@ export function useAIChat(options: UseChatOptions = {}) {
     }
   }, [currentProject?.id])
 
+  /**
+   * Retry the last message (for recoverable errors)
+   */
+  const retry = React.useCallback(() => {
+    if (state.lastMessageContent) {
+      sendMessage(state.lastMessageContent)
+    }
+  }, [state.lastMessageContent, sendMessage])
+
   return {
     messages: state.messages,
     isLoading: state.isLoading,
@@ -403,6 +433,8 @@ export function useAIChat(options: UseChatOptions = {}) {
     sendMessage,
     cancel,
     clearHistory,
+    retry,
+    isRetryable: state.isRetryable,
     isReady: !!fs && isConfigured && !!shell && !!git,
   }
 }

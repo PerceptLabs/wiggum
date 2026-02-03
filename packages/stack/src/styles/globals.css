@@ -5,6 +5,7 @@
 
 @layer base {
   :root {
+    /* === COLORS === */
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -24,12 +25,78 @@
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 0 0% 3.9%;
-    --radius: 0.5rem;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* === SHAPE (structural - themes add roundness) === */
+    --radius: 0;
+    --radius-full: 9999px;
+    --border-width: 1px;
+
+    /* === SHADOWS (none by default - themes add) === */
+    --shadow: none;
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    --shadow-xl: none;
+    --shadow-hover: none;
+    --shadow-active: none;
+
+    /* === MOTION === */
+    --transition-fast: 150ms;
+    --transition-normal: 150ms;
+    --transition-slow: 200ms;
+
+    /* === INTERACTION (no movement - themes add) === */
+    --hover-translate-x: 0;
+    --hover-translate-y: 0;
+    --active-translate-x: 0;
+    --active-translate-y: 0;
+    --focus-translate-x: 0;
+    --focus-translate-y: 0;
+
+    /* === TYPOGRAPHY === */
+    --btn-weight: 500;
+    --btn-transform: none;
+    --btn-tracking: normal;
+
+    --badge-weight: 500;
+    --badge-transform: none;
+    --badge-tracking: normal;
+
+    --card-title-weight: 600;
+    --card-title-transform: none;
+    --card-title-tracking: normal;
+
+    --dialog-title-weight: 600;
+    --dialog-title-transform: none;
+    --dialog-title-tracking: normal;
+
+    --tabs-weight: 500;
+    --tabs-transform: none;
+    --tabs-tracking: normal;
+
+    --menu-label-weight: 600;
+    --shortcut-tracking: normal;
+    --input-file-weight: 500;
+
+    /* === HEADINGS (for IDE) === */
+    --heading-weight: 700;
+    --heading-weight-heavy: 900;
+    --heading-transform: none;
+    --heading-tracking: normal;
+
+    /* === LABELS === */
+    --label-weight: 500;
+    --label-transform: none;
+    --label-tracking: normal;
+
+    /* === KBD === */
+    --kbd-weight: 500;
+    --kbd-shadow: none;
   }
 
   .dark {

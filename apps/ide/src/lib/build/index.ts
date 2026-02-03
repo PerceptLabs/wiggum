@@ -20,6 +20,10 @@ export type {
 
 export { CDN_CONFIGS } from './types'
 
+// Export utilities
+export { exportSingleHTML, downloadFile } from './export'
+export type { ExportResult, ExportFormat } from './export'
+
 // Re-export esbuild functions
 export { initialize, transform, stop, isInitialized }
 

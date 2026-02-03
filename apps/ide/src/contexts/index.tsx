@@ -4,6 +4,7 @@ import { FSProvider } from './FSContext'
 import { AIProvider } from './AIContext'
 import { SessionProvider } from './SessionContext'
 import { ProjectProvider } from './ProjectContext'
+import { LayoutProvider } from '@/components/layout'
 
 // Re-export hooks and types
 export { useFS } from './FSContext'
@@ -22,7 +23,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       <FSProvider>
         <AIProvider>
           <ProjectProvider>
-            <SessionProvider>{children}</SessionProvider>
+            <SessionProvider>
+              <LayoutProvider>{children}</LayoutProvider>
+            </SessionProvider>
           </ProjectProvider>
         </AIProvider>
       </FSProvider>

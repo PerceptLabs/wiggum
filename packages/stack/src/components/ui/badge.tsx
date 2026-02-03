@@ -4,20 +4,20 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center border-[length:var(--border-width)] border-border px-2.5 py-0.5 text-xs [font-weight:var(--badge-weight,500)] [text-transform:var(--badge-transform,none)] [letter-spacing:var(--badge-tracking,normal)] transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [box-shadow:var(--shadow-sm)]",
+  "inline-flex items-center rounded-[var(--radius)] border-[length:var(--border-width)] border-border px-2.5 py-0.5 text-xs [font-weight:var(--badge-weight,500)] [text-transform:var(--badge-transform,none)] [letter-spacing:var(--badge-tracking,normal)] transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [box-shadow:var(--shadow-sm)]",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:translate-x-[-1px] hover:translate-y-[-1px] hover:[box-shadow:var(--shadow-md)]",
+          "bg-primary text-primary-foreground hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:translate-x-[-1px] hover:translate-y-[-1px] hover:[box-shadow:var(--shadow-md)]",
+          "bg-secondary text-secondary-foreground hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
         destructive:
-          "bg-destructive text-destructive-foreground hover:translate-x-[-1px] hover:translate-y-[-1px] hover:[box-shadow:var(--shadow-md)]",
+          "bg-destructive text-destructive-foreground hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
         success:
-          "bg-emerald-500 text-white hover:translate-x-[-1px] hover:translate-y-[-1px] hover:[box-shadow:var(--shadow-md)]",
+          "bg-emerald-500 text-white hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
         warning:
-          "bg-amber-500 text-black hover:translate-x-[-1px] hover:translate-y-[-1px] hover:[box-shadow:var(--shadow-md)]",
+          "bg-amber-500 text-black hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
         outline: "bg-background text-foreground",
       },
     },

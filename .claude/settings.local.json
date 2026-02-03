@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"cd ''c:\\\\Users\\\\v1sua\\\\Documents\\\\wiggum\\\\wiggum''; pnpm dev\")",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm --filter @wiggum/ide exec tsc:*)"
+    ]
+  }
+}

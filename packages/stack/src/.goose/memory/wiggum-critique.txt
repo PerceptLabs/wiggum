@@ -1,0 +1,24 @@
+# wiggum critique improvements ralph-loop
+# Wiggum Critique and Improvement Ideas
+
+## Key Features Identified
+- Ralph Loop with fresh context each iteration
+- Browser-based with LightningFS
+- Git integration
+- Live preview
+- Provider-agnostic
+- .ralph/ directory state
+
+## Competitive Analysis
+- v0: Multi-modal, React/Tailwind focused, UI-first
+- Cursor/Windsurf: Multi-file editing, inline diffs, terminal integration
+- Replit: Full-stack with DB, auth, hosting, deployment
+- Bolt.new: Browser-based full-stack apps
+- Lovable: GitHub two-way sync
+
+## Wiggum's Unique Position
+- Pure browser-based (no server)- Ralph Loop pattern (unique)- File-based state (not conversation-based)
+- Theme system (neobrutalist)
+
+## Areas for Improvement (see detailed critique)
+

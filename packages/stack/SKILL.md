@@ -215,3 +215,51 @@ export function LoginForm() {
 // ✅ GOOD: Split into sections
 // App.tsx imports HeroSection, FeaturesSection, etc.
 ```
+
+## Lucide React Icons
+
+Icons come from `lucide-react`. Common valid icons:
+
+| Category | Valid Icons |
+|----------|-------------|
+| Terminal | `Terminal`, `TerminalSquare` |
+| Files | `File`, `FileText`, `FileCode`, `FileCode2`, `Folder`, `FolderOpen` |
+| Arrows | `ArrowRight`, `ArrowLeft`, `ArrowUp`, `ArrowDown`, `ChevronRight`, `ChevronLeft`, `ChevronUp`, `ChevronDown` |
+| Status | `Check`, `CheckCircle`, `CheckCircle2`, `X`, `XCircle`, `AlertCircle`, `AlertTriangle`, `Info` |
+| UI | `Sun`, `Moon`, `Menu`, `Search`, `Settings`, `Plus`, `Minus`, `MoreHorizontal`, `MoreVertical` |
+| Social | `Github`, `Twitter`, `Linkedin`, `Mail`, `ExternalLink`, `Link` |
+| Media | `Play`, `Pause`, `Volume2`, `VolumeX`, `Image`, `Camera` |
+| Actions | `Edit`, `Trash2`, `Copy`, `Download`, `Upload`, `Save`, `RefreshCw` |
+
+### Common Mistakes
+
+| Wrong | Correct |
+|-------|---------|
+| `Terminal2` | `Terminal` or `TerminalSquare` |
+| `Close` | `X` |
+| `Checkmark` | `Check` |
+| `Error` | `AlertCircle` or `XCircle` |
+| `Warning` | `AlertTriangle` |
+
+If unsure, check https://lucide.dev/icons for the exact name.
+
+## External Resources
+
+### Fonts
+Do NOT use `@import url()` in CSS - esbuild cannot process external URLs.
+
+**Wrong:**
+```css
+@import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
+```
+
+**Correct:** Add to index.html `<head>`:
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+```
+
+Or use Tailwind's default font stack (no external fonts needed).
+
+### CDN Assets
+Don't import external CSS/JS via `@import`. If needed, add `<link>` or `<script>` tags to index.html.

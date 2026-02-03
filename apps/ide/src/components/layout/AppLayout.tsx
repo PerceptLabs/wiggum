@@ -1,13 +1,12 @@
 import * as React from 'react'
 import {
-  TooltipProvider,
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from '@wiggum/stack'
 import { Header } from './Header'
 import { LogsPanel } from './LogsPanel'
-import { LayoutProvider, useLayout } from './LayoutContext'
+import { useLayout } from './LayoutContext'
 
 interface Project {
   id: string
@@ -104,13 +103,7 @@ function AppLayoutInner({
 }
 
 export function AppLayout(props: AppLayoutProps) {
-  return (
-    <TooltipProvider>
-      <LayoutProvider>
-        <AppLayoutInner {...props} />
-      </LayoutProvider>
-    </TooltipProvider>
-  )
+  return <AppLayoutInner {...props} />
 }
 
 export { useLayout } from './LayoutContext'
