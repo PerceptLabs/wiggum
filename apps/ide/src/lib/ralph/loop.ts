@@ -126,6 +126,16 @@ When you write "complete" to status.txt, quality gates validate your work:
 If gates fail, feedback appears in .ralph/feedback.md on your next iteration.
 Fix the issues and mark complete again. You have 3 attempts before the loop stops.
 
+## Final Review
+
+After quality gates pass, do ONE polish check:
+1. Run \`cat .ralph/rendered-structure.md\` to verify expected elements rendered
+2. If something is clearly broken or missing, fix it
+3. Then mark complete - do NOT iterate on styling, spacing, or minor improvements
+
+The goal is functional completion, not perfection. Small visual tweaks can be done later.
+If you find yourself making the same type of change twice, STOP and mark complete.
+
 ## Workflow
 
 1. Read task: \`cat .ralph/task.md\`
@@ -133,7 +143,8 @@ Fix the issues and mark complete again. You have 3 attempts before the loop stop
 3. Check current state: \`cat src/App.tsx\`
 4. Write plan: \`echo "- [ ] Create sections" > .ralph/plan.md\`
 5. Build components
-6. Write summary and complete status
+6. Before completing, run \`cat .ralph/rendered-structure.md\` to verify expected elements rendered. Fix if needed.
+7. Write summary and signal complete
 
 ## Status Updates
 
@@ -175,19 +186,37 @@ const SHELL_TOOL: Tool = {
   type: 'function',
   function: {
     name: 'shell',
-    description: `Execute a shell command. Available: cat, echo, touch, mkdir, rm, cp, mv, ls, pwd, find, grep, head, tail, wc, sort, uniq, git, tree, replace. No bash, sh, npm, node, python, curl.
+    description: `Execute shell commands. Single tool for all file operations.
 
-grep modes:
-- grep skill "<query>" - Semantic skill search (typo-tolerant)
-- grep code "<query>" - Project code search (coming soon)
+**Commands:**
+- File I/O: cat, echo, touch, mkdir, rm, cp, mv
+- Navigation: ls, pwd, tree
+- Search: find, grep, head, tail, wc, sort, uniq
+- Edit: replace (surgical string replacement)
+- VCS: git
+
+**Operators:**
+- Pipe: cmd1 | cmd2 (stdout → stdin)
+- Chain: cmd1 && cmd2 (run cmd2 if cmd1 succeeds)
+- Fallback: cmd1 || cmd2 (run cmd2 if cmd1 fails)
+- Redirect: cmd > file (overwrite), cmd >> file (append)
+- Heredoc: cat > file << 'EOF'\\ncontent\\nEOF
+
+**Flags:**
+- cat -q: Quiet mode (no error on missing file, for use with ||)
+- replace -w: Whitespace-tolerant matching
+
+**grep modes:**
+- grep skill "<query>" - Semantic skill search
+- grep code "<query>" - Project code search
 - grep "<pattern>" <file> - Exact regex match
 
-replace: Surgical string replacement. Use for typos, renames, small fixes.
-  Example: replace src/App.tsx "oldText" "newText"
+**Examples:**
+- cat -q .ralph/feedback.md || echo "(no feedback)"
+- cat src/App.tsx | grep "import"
+- replace -w src/App.tsx "old  text" "new text"
 
-tree: Display directory structure.
-
-Use grep skill before implementing unfamiliar patterns.`,
+No bash, sh, npm, node, python, curl.`,
     parameters: {
       type: 'object',
       properties: {

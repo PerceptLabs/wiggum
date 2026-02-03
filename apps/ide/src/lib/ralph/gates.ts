@@ -7,8 +7,9 @@
  */
 import type { JSRuntimeFS } from '../fs/types'
 import { buildProject } from '../build'
-import type { GateContext } from '../types/observability'
+import type { GateContext, DOMStructure } from '../types/observability'
 import { formatRuntimeErrors } from '../preview/error-collector'
+import { formatStructure } from '../preview/structure-collector'
 
 // ============================================================================
 // TYPES
@@ -50,6 +51,84 @@ async function readFile(fs: JSRuntimeFS, filePath: string): Promise<string | nul
   } catch {
     return null
   }
+}
+
+/**
+ * Enhance build errors with actionable suggestions
+ */
+function enhanceBuildError(errorMessage: string): string {
+  // Lucide icon fixes
+  const lucideMatch = errorMessage.match(/No matching export in ".*lucide-react" for import "(\w+)"/)
+  if (lucideMatch) {
+    const badIcon = lucideMatch[1]
+    const fixes: Record<string, string> = {
+      Terminal2: 'Terminal or TerminalSquare',
+      Close: 'X',
+      Checkmark: 'Check',
+      Error: 'AlertCircle',
+      Warning: 'AlertTriangle',
+    }
+    const suggestion = fixes[badIcon] || 'a valid icon from lucide.dev/icons'
+    return `${errorMessage}\n\nFix: "${badIcon}" doesn't exist in lucide-react. Use ${suggestion} instead.`
+  }
+
+  // Stack component fixes
+  const stackMatch = errorMessage.match(/No matching export in ".*@wiggum\/stack" for import "(\w+)"/)
+  if (stackMatch) {
+    const badComponent = stackMatch[1]
+    return `${errorMessage}\n\nFix: "${badComponent}" is not exported from @wiggum/stack. Check the stack skill for available components.`
+  }
+
+  // CSS @import url() errors - breaks esbuild
+  if (errorMessage.includes('Expected ";"') && errorMessage.includes('http-url:')) {
+    return `${errorMessage}\n\nFix: Don't use @import url() for external fonts/CSS. esbuild cannot process external URLs.\nInstead, add a <link> tag to index.html:\n  <link href="https://fonts.googleapis.com/..." rel="stylesheet">`
+  }
+
+  // Generic missing export
+  if (errorMessage.includes('No matching export')) {
+    return `${errorMessage}\n\nFix: Check import names against the actual exports of the module.`
+  }
+
+  return errorMessage
+}
+
+/**
+ * Summarize DOM structure for gate feedback
+ * Returns a compact summary like "3 sections, 5 buttons, 2 forms"
+ */
+function summarizeStructure(node: DOMStructure | null): string {
+  if (!node) return 'Nothing rendered'
+
+  const counts: Record<string, number> = {}
+
+  function count(n: DOMStructure) {
+    // Count semantic elements
+    const tag = n.tag
+    if (['section', 'header', 'footer', 'nav', 'main', 'article', 'aside'].includes(tag)) {
+      counts['sections'] = (counts['sections'] || 0) + 1
+    } else if (tag === 'button') {
+      counts['buttons'] = (counts['buttons'] || 0) + 1
+    } else if (tag === 'form') {
+      counts['forms'] = (counts['forms'] || 0) + 1
+    } else if (tag === 'input') {
+      counts['inputs'] = (counts['inputs'] || 0) + 1
+    } else if (['h1', 'h2', 'h3'].includes(tag)) {
+      counts['headings'] = (counts['headings'] || 0) + 1
+    } else if (tag === 'img') {
+      counts['images'] = (counts['images'] || 0) + 1
+    }
+    n.children?.forEach(count)
+  }
+
+  count(node)
+
+  if (Object.keys(counts).length === 0) {
+    return 'Basic structure (no semantic sections detected)'
+  }
+
+  return Object.entries(counts)
+    .map(([k, v]) => `${v} ${k}`)
+    .join(', ')
 }
 
 // ============================================================================
@@ -110,8 +189,21 @@ export const QUALITY_GATES: QualityGate[] = [
         if (result.success) {
           return { pass: true }
         }
-        const errorMessages = result.errors?.map((e) => e.message).join('\n') || 'Unknown build error'
-        return { pass: false, feedback: `Build failed:\n${errorMessages}` }
+        const rawErrors = result.errors?.map((e) => e.message).join('\n') || 'Unknown build error'
+        const enhancedErrors = enhanceBuildError(rawErrors)
+        const feedback = `Build failed:\n${enhancedErrors}`
+
+        // Write to file for Ralph to reference
+        try {
+          const timestamp = new Date().toISOString()
+          const content = `# Build Errors\n\nTimestamp: ${timestamp}\n\n${enhancedErrors}\n\n## Raw esbuild output\n\`\`\`\n${rawErrors}\n\`\`\``
+          await fs.mkdir(`${cwd}/.ralph`, { recursive: true })
+          await fs.writeFile(`${cwd}/.ralph/build-errors.md`, content, { encoding: 'utf8' })
+        } catch {
+          // Ignore write failures
+        }
+
+        return { pass: false, feedback }
       } catch (err) {
         return {
           pass: false,
@@ -177,6 +269,37 @@ export const QUALITY_GATES: QualityGate[] = [
       return { pass: true }
     },
   },
+
+  {
+    name: 'rendered-structure',
+    description: 'Capture what actually rendered',
+    check: async (fs, cwd, context) => {
+      if (!context?.structureCollector) {
+        return { pass: true }
+      }
+
+      const structure = await context.structureCollector.waitForStructure()
+
+      // Always write structure file for reference
+      if (structure) {
+        try {
+          const timestamp = new Date().toISOString()
+          const content = `# Rendered Structure\n\nTimestamp: ${timestamp}\n\n${formatStructure(structure)}`
+          await fs.mkdir(`${cwd}/.ralph`, { recursive: true })
+          await fs.writeFile(`${cwd}/.ralph/rendered-structure.md`, content, { encoding: 'utf8' })
+        } catch {
+          // Ignore write failures
+        }
+      }
+
+      // Return summary as feedback (still passes - informational only)
+      const summary = summarizeStructure(structure)
+      return {
+        pass: true,
+        feedback: `Rendered: ${summary}. See .ralph/rendered-structure.md for full tree.`,
+      }
+    },
+  },
 ]
 
 // ============================================================================
@@ -223,14 +346,27 @@ export async function runQualityGates(
  */
 export function generateGateFeedback(results: GatesResult['results']): string {
   const failures = results.filter((r) => !r.result.pass)
-  if (failures.length === 0) return ''
+  const infoGates = results.filter((r) => r.result.pass && r.result.feedback)
 
-  const lines = ['# Quality Gate Failures\n']
-  for (const { gate, result } of failures) {
-    lines.push(`## ${gate}`)
-    lines.push(result.feedback || 'Failed without specific feedback')
-    lines.push('')
+  const lines: string[] = []
+
+  if (failures.length > 0) {
+    lines.push('# Quality Gate Failures\n')
+    for (const { gate, result } of failures) {
+      lines.push(`## ${gate}`)
+      lines.push(result.feedback || 'Failed without specific feedback')
+      lines.push('')
+    }
+    lines.push('Fix these issues and mark status as complete again.')
   }
-  lines.push('Fix these issues and mark status as complete again.')
+
+  if (infoGates.length > 0) {
+    if (lines.length > 0) lines.push('\n---\n')
+    lines.push('# Info\n')
+    for (const { gate, result } of infoGates) {
+      lines.push(`**${gate}:** ${result.feedback}`)
+    }
+  }
+
   return lines.join('\n')
 }

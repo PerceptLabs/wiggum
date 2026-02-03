@@ -1,7 +1,8 @@
 import * as path from 'path-browserify'
 import type { JSRuntimeFS } from '../fs/types'
 import type { Git } from '../git'
-import { parseCommandLine, normalizePath } from './parser'
+import { parseCommandLineWithChaining, normalizePath } from './parser'
+import type { ParsedChain } from './parser'
 import type { ParsedCommand, ShellCommand, ShellOptions, ShellResult } from './types'
 import { resolvePath, dirname } from './commands/utils'
 
@@ -183,87 +184,132 @@ export class ShellExecutor {
     return Array.from(this.commands.values())
   }
 
-  /** Execute a command line string. Supports piping, redirects, heredocs, and command chaining */
+  /** Execute a command line string. Supports piping, redirects, heredocs, &&, and || */
   async execute(commandLine: string, cwd: string): Promise<ShellResult> {
-    const parsed = parseCommandLine(commandLine)
-    if (parsed.length === 0) {
+    const chains = parseCommandLineWithChaining(commandLine)
+    if (chains.length === 0) {
       return { exitCode: 0, stdout: '', stderr: '' }
     }
 
+    let lastResult: ShellResult = { exitCode: 0, stdout: '', stderr: '' }
+
+    for (let i = 0; i < chains.length; i++) {
+      const chain = chains[i]
+
+      // Check if we should skip based on previous chain's operator
+      if (i > 0) {
+        const prevOp = chains[i - 1].nextOp
+        if (prevOp === '&&' && lastResult.exitCode !== 0) continue // skip on prior failure
+        if (prevOp === '||' && lastResult.exitCode === 0) continue // skip on prior success
+      }
+
+      // Execute this chain's pipeline (handles pipes internally)
+      lastResult = await this.executePipeline(chain.commands, cwd)
+    }
+
+    return lastResult
+  }
+
+  /**
+   * Execute a pipeline of piped commands
+   * stdin flows between commands: cmd1.stdout → cmd2.stdin → cmd3.stdin
+   */
+  private async executePipeline(commands: ParsedCommand[], cwd: string): Promise<ShellResult> {
     let stdin: string | undefined
     let lastResult: ShellResult = { exitCode: 0, stdout: '', stderr: '' }
 
-    for (let i = 0; i < parsed.length; i++) {
-      const cmd = parsed[i]
-
-      // Handle internal __write__ command (from heredoc parsing)
-      if (cmd.name === '__write__') {
-        const writeResult = await this.handleInternalWrite(cmd.args, cwd)
-        if (writeResult.exitCode !== 0) return writeResult
-        lastResult = writeResult
-        continue
-      }
-
-      // Normalize paths in arguments
-      const normalizedArgs = cmd.args.map(arg => {
-        // Only normalize if it looks like a path
-        if (arg.startsWith('/') || arg.includes('/')) {
-          return normalizePath(arg, cwd)
-        }
-        return arg
-      })
-
-      const command = this.commands.get(cmd.name)
-      if (!command) {
-        let error = `${cmd.name}: command not found`
-
-        // Add helpful redirect if available
-        const redirect = COMMAND_REDIRECTS[cmd.name]
-        if (redirect) {
-          error += `\n\n💡 Wiggum alternative: Use ${redirect.alt}`
-          if (redirect.example) {
-            error += `\n   Example: ${redirect.example}`
-          }
-        }
-
-        // Detect unexpanded globs and hint to use find
-        if (normalizedArgs.some(arg => arg.includes('*'))) {
-          error += `\n\n💡 Hint: Globs like *.tsx don't expand automatically. Use: find . -name "*.tsx"`
-        }
-
-        // Notify gap tracking callback if set
-        if (this.onGap) {
-          this.onGap({ command: cmd.name, args: normalizedArgs, error })
-        }
-        return { exitCode: 127, stdout: '', stderr: error }
-      }
-
-      const options: ShellOptions = { cwd, stdin, fs: this.fs, git: this.git }
-
-      try {
-        lastResult = await command.execute(normalizedArgs, options)
-      } catch (error) {
-        return {
-          exitCode: 1,
-          stdout: '',
-          stderr: error instanceof Error ? error.message : String(error),
-        }
-      }
-
-      if (lastResult.exitCode !== 0) return lastResult
-
-      // Handle redirect on the command
-      if (cmd.redirect && lastResult.stdout) {
-        const redirectResult = await this.handleRedirect(cmd, lastResult.stdout, cwd)
-        if (redirectResult.exitCode !== 0) return redirectResult
-        // After redirect, output goes to file, so clear stdout
-        lastResult = { ...lastResult, stdout: '' }
-      }
-
+    for (const cmd of commands) {
+      lastResult = await this.executeCommand(cmd, cwd, stdin)
+      if (lastResult.exitCode !== 0) return lastResult // Stop pipeline on failure
       stdin = lastResult.stdout
     }
 
     return lastResult
+  }
+
+  /**
+   * Execute a single command (handles heredoc, normalize, lookup, redirect)
+   */
+  private async executeCommand(
+    cmd: ParsedCommand,
+    cwd: string,
+    stdin?: string
+  ): Promise<ShellResult> {
+    // Handle internal __write__ command (from heredoc parsing)
+    if (cmd.name === '__write__') {
+      return this.handleInternalWrite(cmd.args, cwd)
+    }
+
+    // Normalize paths in arguments
+    const normalizedArgs = cmd.args.map((arg) => {
+      // Only normalize if it looks like a path
+      if (arg.startsWith('/') || arg.includes('/')) {
+        return normalizePath(arg, cwd)
+      }
+      return arg
+    })
+
+    const command = this.commands.get(cmd.name)
+    if (!command) {
+      // Fallback: bare file path → cat
+      // Matches: starts with . or /, contains path separators, or ends with common extensions
+      const isLikelyPath = /^[.\/]|[/\\]|\.(tsx?|css|json|md|html)$/i.test(cmd.name)
+      if (isLikelyPath) {
+        const catCmd = this.commands.get('cat')
+        if (catCmd) {
+          const pathArgs = [cmd.name, ...normalizedArgs]
+          try {
+            return await catCmd.execute(pathArgs, { cwd, stdin, fs: this.fs, git: this.git })
+          } catch {
+            // Fall through to "command not found"
+          }
+        }
+      }
+
+      let error = `${cmd.name}: command not found`
+
+      // Add helpful redirect if available
+      const redirect = COMMAND_REDIRECTS[cmd.name]
+      if (redirect) {
+        error += `\n\n💡 Wiggum alternative: Use ${redirect.alt}`
+        if (redirect.example) {
+          error += `\n   Example: ${redirect.example}`
+        }
+      }
+
+      // Detect unexpanded globs and hint to use find
+      if (normalizedArgs.some((arg) => arg.includes('*'))) {
+        error += `\n\n💡 Hint: Globs like *.tsx don't expand automatically. Use: find . -name "*.tsx"`
+      }
+
+      // Notify gap tracking callback if set
+      if (this.onGap) {
+        this.onGap({ command: cmd.name, args: normalizedArgs, error })
+      }
+      return { exitCode: 127, stdout: '', stderr: error }
+    }
+
+    const options: ShellOptions = { cwd, stdin, fs: this.fs, git: this.git }
+
+    try {
+      let result = await command.execute(normalizedArgs, options)
+
+      // Handle redirect on the command
+      if (cmd.redirect && result.stdout) {
+        const redirectResult = await this.handleRedirect(cmd, result.stdout, cwd)
+        if (redirectResult.exitCode !== 0) return redirectResult
+        // After redirect, output goes to file, so clear stdout
+        result = { ...result, stdout: '' }
+      }
+
+      return result
+    } catch (error) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: error instanceof Error ? error.message : String(error),
+      }
+    }
   }
 
   /** Handle internal __write__ command (generated from heredoc parsing) */

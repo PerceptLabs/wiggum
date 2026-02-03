@@ -42,10 +42,19 @@ export function normalizePath(path: string, projectRoot: string): string {
 }
 
 /**
- * Split command line by && operator (respecting quotes)
+ * Parsed command chain with operator connecting to next segment
  */
-function splitByAndAnd(input: string): string[] {
-  const parts: string[] = []
+export interface ParsedChain {
+  commands: ParsedCommand[]
+  nextOp?: '&&' | '||'
+}
+
+/**
+ * Split command line by && and || operators (respecting quotes)
+ * Returns segments with their connecting operators
+ */
+function splitByChainOperators(input: string): Array<{ segment: string; nextOp?: '&&' | '||' }> {
+  const results: Array<{ segment: string; nextOp?: '&&' | '||' }> = []
   let current = ''
   let inSingleQuote = false
   let inDoubleQuote = false
@@ -60,11 +69,21 @@ function splitByAndAnd(input: string): string[] {
     } else if (char === '"' && !inSingleQuote) {
       inDoubleQuote = !inDoubleQuote
       current += char
-    } else if (char === '&' && input[i + 1] === '&' && !inSingleQuote && !inDoubleQuote) {
-      parts.push(current.trim())
-      current = ''
-      i += 2 // Skip both &
-      continue
+    } else if (!inSingleQuote && !inDoubleQuote) {
+      // Check for && or ||
+      if (char === '&' && input[i + 1] === '&') {
+        results.push({ segment: current.trim(), nextOp: '&&' })
+        current = ''
+        i += 2
+        continue
+      }
+      if (char === '|' && input[i + 1] === '|') {
+        results.push({ segment: current.trim(), nextOp: '||' })
+        current = ''
+        i += 2
+        continue
+      }
+      current += char
     } else {
       current += char
     }
@@ -72,10 +91,10 @@ function splitByAndAnd(input: string): string[] {
   }
 
   if (current.trim()) {
-    parts.push(current.trim())
+    results.push({ segment: current.trim() })
   }
 
-  return parts
+  return results
 }
 
 /**
@@ -152,46 +171,40 @@ function parseSingleCommand(input: string): ParsedCommand[] {
 }
 
 /**
- * Parse a shell command string into an array of commands
- * Handles: pipes (|), redirects (>, >>), command chaining (&&), and heredocs
- *
- * Returns array of command sequences. Each sequence is an array of piped commands.
+ * Parse command line with && and || chaining support
+ * Returns array of command chains - each chain has commands and an operator to the next
  */
-export function parseCommandLine(input: string): ParsedCommand[] {
+export function parseCommandLineWithChaining(input: string): ParsedChain[] {
   // First, check for heredoc syntax
   const heredocResult = parseHeredoc(input)
   if (heredocResult) {
-    return heredocResult
+    return [{ commands: heredocResult }]
   }
 
-  // Split by && and process each part
-  const chainedCommands = splitByAndAnd(input)
-
-  // For now, return all commands flattened (executor handles them sequentially)
-  const allCommands: ParsedCommand[] = []
-
-  for (const cmd of chainedCommands) {
-    const parsed = parseSingleCommand(cmd)
-    allCommands.push(...parsed)
-  }
-
-  return allCommands
+  const segments = splitByChainOperators(input)
+  return segments.map(({ segment, nextOp }) => ({
+    commands: parseSingleCommand(segment),
+    nextOp,
+  }))
 }
 
 /**
- * Parse command line with && chaining support
+ * Parse a shell command string into an array of commands
+ * Handles: pipes (|), redirects (>, >>), command chaining (&&, ||), and heredocs
+ *
+ * Returns flat array of commands (for backwards compatibility)
+ */
+export function parseCommandLine(input: string): ParsedCommand[] {
+  const chains = parseCommandLineWithChaining(input)
+  return chains.flatMap((c) => c.commands)
+}
+
+/**
+ * Parse command line with && chaining support (legacy, use parseCommandLineWithChaining)
  * Returns array of command chains - each chain should be executed sequentially,
  * stopping if any command fails
  */
 export function parseCommandLineChained(input: string): ParsedCommand[][] {
-  // First, check for heredoc syntax
-  const heredocResult = parseHeredoc(input)
-  if (heredocResult) {
-    return [heredocResult]
-  }
-
-  // Split by && and process each part
-  const chainedCommands = splitByAndAnd(input)
-
-  return chainedCommands.map(cmd => parseSingleCommand(cmd))
+  const chains = parseCommandLineWithChaining(input)
+  return chains.map((c) => c.commands)
 }
