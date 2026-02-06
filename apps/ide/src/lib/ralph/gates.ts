@@ -93,6 +93,117 @@ function enhanceBuildError(errorMessage: string): string {
 }
 
 /**
+ * Get explicit fix instructions for a specific gate failure
+ * Provides copy-pasteable solutions when possible
+ */
+function getExplicitFix(gateName: string): string {
+  switch (gateName) {
+    case 'css-has-variables':
+      return `
+FIX: Add these CSS variables to src/index.css inside :root { }:
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --primary: 221 83% 53%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+  --radius: 0.5rem;
+}
+
+Then mark status as complete again.`
+
+    case 'app-has-content':
+      return `
+FIX: The App.tsx is still the default scaffold or lacks structure.
+
+Replace it with actual content using this pattern:
+
+import { Button, Card, Text, Heading, Stack } from '@wiggum/stack'
+
+function App() {
+  return (
+    <main className="min-h-screen">
+      <header className="p-6">
+        <Heading size="xl">Your App Title</Heading>
+      </header>
+      <section className="p-6">
+        {/* Your content here */}
+      </section>
+    </main>
+  )
+}
+
+export default App
+
+Or create separate section components:
+  - src/sections/Hero.tsx
+  - src/sections/Features.tsx
+
+Then import and use them in App.tsx.`
+
+    case 'app-exists':
+      return `
+FIX: Create src/App.tsx with a basic component:
+
+function App() {
+  return (
+    <div>
+      <h1>Hello World</h1>
+    </div>
+  )
+}
+
+export default App`
+
+    case 'css-no-tailwind-directives':
+      return `
+FIX: Remove @tailwind directives from src/index.css.
+
+Instead of:
+  @tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+
+Use CSS variables and regular CSS. Wiggum doesn't process Tailwind directives.
+Keep your utility classes but remove the @tailwind lines.`
+
+    case 'runtime-errors':
+      return `
+FIX: Check the error messages above for:
+1. Missing imports - add the import statement
+2. Undefined variables - declare before use
+3. Type errors - check prop types match
+4. Hook errors - ensure hooks are at component top level
+5. null/undefined access - add optional chaining (?.)
+
+Use 'ralph console error' to see recent errors.`
+
+    case 'build-succeeds':
+      return `
+FIX: Check .ralph/build-errors.md for specific errors.
+Common fixes:
+1. Missing imports → add import statement
+2. Wrong icon name → check lucide.dev/icons for valid names
+3. Wrong @wiggum/stack export → check stack skill for available components
+4. CSS @import url() → move to <link> in index.html instead`
+
+    default:
+      return ''
+  }
+}
+
+/**
  * Summarize DOM structure for gate feedback
  * Returns a compact summary like "3 sections, 5 buttons, 2 forms"
  */
@@ -355,9 +466,16 @@ export function generateGateFeedback(results: GatesResult['results']): string {
     for (const { gate, result } of failures) {
       lines.push(`## ${gate}`)
       lines.push(result.feedback || 'Failed without specific feedback')
+
+      // Add explicit fix instructions
+      const explicitFix = getExplicitFix(gate)
+      if (explicitFix) {
+        lines.push(explicitFix)
+      }
+
       lines.push('')
     }
-    lines.push('Fix these issues and mark status as complete again.')
+    lines.push('\n---\nFix these issues and mark status as complete again.')
   }
 
   if (infoGates.length > 0) {

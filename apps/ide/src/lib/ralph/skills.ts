@@ -11,21 +11,29 @@
 // Stack's authoritative skill (source of truth)
 import stackSkill from '../../../../../packages/stack/SKILL.md?raw'
 
+// Master design skill (read first)
+import frontendDesignSkill from '../../skills/frontend-design/SKILL.md?raw'
+
 // Consolidated skills
 import codeQualitySkill from '../../skills/code-quality/SKILL.md?raw'
 import creativitySkill from '../../skills/creativity/SKILL.md?raw'
 import themingSkill from '../../skills/theming/SKILL.md?raw'
 
+// Heartbeat skill (injected periodically)
+import heartbeatSkill from '../../skills/ralph/HEARTBEAT.md?raw'
+
 import { parseSkillFile } from '../skills/parser'
 
 /**
  * Skills in priority order:
+ * 0. Frontend design - Design thinking, aesthetic direction, anti-slop philosophy
  * 1. Stack skill - authoritative rules and component documentation
  * 2. Code quality - React patterns, accessibility, dark mode, overlays
  * 3. Theming skill - CSS variables, animations, design philosophy
  * 4. Creativity - Layout patterns, design variety, motion
  */
 const SKILLS = [
+  { id: 'frontend-design', content: frontendDesignSkill, priority: 0 },
   { id: 'stack', content: stackSkill, priority: 1 },
   { id: 'code-quality', content: codeQualitySkill, priority: 2 },
   { id: 'theming', content: themingSkill, priority: 3 },
@@ -54,6 +62,7 @@ Available knowledge bases you can search:
 
 | Skill | Topics |
 |-------|--------|
+| frontend-design | Design thinking, aesthetic direction, anti-slop philosophy |
 | stack | Components, imports, project structure |
 | code-quality | React patterns, accessibility, form contrast, overlays |
 | theming | CSS variables, colors, animations, dark mode |
@@ -71,6 +80,24 @@ grep skill "staggered animation" # → CSS keyframe examples
 \`\`\`
 
 **Always grep when unsure.** Skills contain critical rules that prevent bugs.
+`
+}
+
+/**
+ * Get heartbeat skill content for periodic injection
+ * Injected every 5 iterations to trigger quality/creativity reflection
+ */
+export function getHeartbeatContent(): string {
+  return `
+
+---
+
+# HEARTBEAT CHECK (Iteration %ITERATION%)
+
+${heartbeatSkill}
+
+---
+
 `
 }
 

@@ -1,6 +1,7 @@
 import type { Plugin } from 'esbuild-wasm'
 import type { CDNConfig } from '../types'
 import { CDN_CONFIGS } from '../types'
+import type { LockfileResolver } from '../lockfile'
 
 /**
  * Options for the ESM plugin
@@ -16,6 +17,10 @@ export interface ESMPluginOptions {
   external?: string[]
   /** Package version overrides */
   versions?: Record<string, string>
+  /** Lockfile resolver for pinned versions */
+  resolver?: LockfileResolver
+  /** Use esm.sh unbundled mode (recommended with lockfile) */
+  unbundled?: boolean
 }
 
 /**
@@ -24,29 +29,55 @@ export interface ESMPluginOptions {
 const HTTP_NAMESPACE = 'http-url'
 
 /**
- * Fetch content from URL with caching
+ * Cache for esm.sh redirect URLs (e.g., /*react@^18 → /*react@18.2.0)
+ */
+const redirectCache = new Map<string, string>()
+
+/**
+ * Extract lockfile context from esm.sh URL
+ * URLs may contain ?_ctx=node_modules/react-dom for nested resolution
+ */
+function extractContext(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    return parsed.searchParams.get('_ctx')
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Fetch content from URL with caching and redirect tracking
  */
 async function fetchWithCache(
   url: string,
   cache: Map<string, string>
 ): Promise<string> {
-  // Check cache first
-  const cached = cache.get(url)
+  // Check if we have a cached redirect for this URL
+  const finalUrl = redirectCache.get(url) || url
+
+  // Check content cache first
+  const cached = cache.get(finalUrl)
   if (cached !== undefined) {
     return cached
   }
 
-  // Fetch from network
-  const response = await fetch(url)
+  // Fetch from network (follow redirects)
+  const response = await fetch(finalUrl, { redirect: 'follow' })
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`)
+    throw new Error(`Failed to fetch ${finalUrl}: ${response.status} ${response.statusText}`)
+  }
+
+  // Cache redirect if URL changed (esm.sh resolves version ranges)
+  if (response.url !== url && response.url !== finalUrl) {
+    redirectCache.set(url, response.url)
   }
 
   const content = await response.text()
 
-  // Cache the result
-  cache.set(url, content)
+  // Cache the result using final URL
+  cache.set(response.url, content)
 
   return content
 }
@@ -104,6 +135,10 @@ function resolveUrl(relative: string, base: string): string {
 
 /**
  * Create an esbuild plugin for ESM imports with CDN fallback
+ *
+ * When a lockfile resolver is provided, uses esm.sh unbundled mode with
+ * pinned versions for reproducible builds. Without a resolver, falls back
+ * to standard CDN resolution.
  */
 export function createESMPlugin(options: ESMPluginOptions = {}): Plugin {
   const {
@@ -112,6 +147,8 @@ export function createESMPlugin(options: ESMPluginOptions = {}): Plugin {
     cache = new Map(),
     external = [],
     versions = {},
+    resolver,
+    unbundled = !!resolver, // Enable unbundled mode when resolver is present
   } = options
 
   return {
@@ -154,6 +191,38 @@ export function createESMPlugin(options: ESMPluginOptions = {}): Plugin {
 
         // Build CDN URL
         const { name: pkgName, subpath } = parsePackageSpecifier(args.path)
+
+        // Try lockfile resolver first for pinned versions
+        if (resolver) {
+          // Extract context from esm.sh importer URL for nested resolution
+          // This enables proper resolution of nested dependencies
+          const ctx = args.importer.startsWith('https://esm.sh')
+            ? extractContext(args.importer)
+            : null
+
+          // Use context-aware resolution for proper nested dep handling
+          const result = resolver.resolveWithContext(pkgName, ctx)
+          let url = result.url
+
+          // Append subpath if present (before query params)
+          if (subpath) {
+            url = url.replace(/(\?|$)/, `/${subpath}$1`)
+          }
+
+          // Embed lockfile path as _ctx for downstream resolution
+          // This allows imports from this module to resolve correctly
+          if (result.lockfilePath) {
+            const separator = url.includes('?') ? '&' : '?'
+            url += `${separator}_ctx=${encodeURIComponent(result.lockfilePath)}`
+          }
+
+          return {
+            path: url,
+            namespace: HTTP_NAMESPACE,
+          }
+        }
+
+        // Fallback to standard CDN resolution
         const version = versions[pkgName]
         const url = buildCDNUrl(cdnConfig, pkgName, subpath, version)
 

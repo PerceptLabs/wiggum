@@ -4,6 +4,7 @@ import { initialize, build, transform, stop, isInitialized } from './esbuild'
 import { createFSPlugin } from './plugins/fsPlugin'
 import { createESMPlugin, createModuleCache } from './plugins/esmPlugin'
 import { createWiggumStackPlugin } from './plugins/wiggumStackPlugin'
+import { loadLockfile, createResolver } from './lockfile'
 import * as path from 'path-browserify'
 
 // Re-export types
@@ -150,6 +151,13 @@ export async function buildProject(
   // Create plugins
   const moduleCache = options.moduleCache ?? createModuleCache()
 
+  // Load lockfile for pinned dependency versions
+  const lockfile = await loadLockfile(fs, projectPath)
+  const resolver = lockfile ? createResolver({ unbundled: true, target: 'es2022' }) : undefined
+  if (resolver && lockfile) {
+    resolver.setLockfile(lockfile)
+  }
+
   const plugins = [
     // Handle @wiggum/stack imports with pre-bundled code
     createWiggumStackPlugin(),
@@ -159,11 +167,13 @@ export async function buildProject(
       projectRoot: projectPath,
     }),
     // Handle external npm packages via CDN
+    // When resolver is present, uses lockfile for pinned versions with context tracking
     createESMPlugin({
       cdn: options.cdn ?? 'esm.sh',
       cache: moduleCache,
       external: options.external,
       versions: options.versions,
+      resolver,
     }),
   ]
 

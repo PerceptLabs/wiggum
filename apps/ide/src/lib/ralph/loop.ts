@@ -12,8 +12,8 @@ import type { Git } from '../git'
 import type { LLMProvider, Message, Tool } from '../llm/client'
 import { chat } from '../llm/client'
 import type { ShellExecutor } from '../shell/executor'
-import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration } from './state'
-import { getSkillsContent } from './skills'
+import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration, setLastHeartbeat } from './state'
+import { getSkillsContent, getHeartbeatContent } from './skills'
 import { runQualityGates, generateGateFeedback } from './gates'
 import type { ObservabilityConfig, GateContext, CommandAttempt, HarnessReflection } from '../types/observability'
 import { recordGap, isCommandNotFoundError, parseCommandString } from './gaps'
@@ -366,6 +366,16 @@ export async function runRalphLoop(
       const state = await getRalphState(fs, cwd)
       await setIteration(fs, cwd, iteration)
 
+      // Check if heartbeat should be injected (every 5 iterations starting at 1)
+      const HEARTBEAT_INTERVAL = 5
+      const shouldInjectHeartbeat = (iteration - 1) % HEARTBEAT_INTERVAL === 0
+      let heartbeatSection = ''
+      if (shouldInjectHeartbeat) {
+        heartbeatSection = getHeartbeatContent().replace('%ITERATION%', String(iteration))
+        await setLastHeartbeat(fs, cwd, iteration)
+        console.log('[Ralph] Injecting heartbeat at iteration', iteration)
+      }
+
       // Build prompt with current state
       const userPrompt = `# Iteration ${iteration}
 
@@ -382,7 +392,7 @@ ${state.intent || '(not yet written)'}
 ${state.plan || '(not yet written)'}
 
 ## Feedback
-${state.feedback || '(none)'}`
+${state.feedback || '(none)'}${heartbeatSection}`
       const messages: Message[] = [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

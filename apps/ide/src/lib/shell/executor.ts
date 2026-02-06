@@ -1,4 +1,5 @@
 import * as path from 'path-browserify'
+import picomatch from 'picomatch'
 import type { JSRuntimeFS } from '../fs/types'
 import type { Git } from '../git'
 import { parseCommandLineWithChaining, normalizePath } from './parser'
@@ -13,6 +14,115 @@ export interface GapCallback {
   command: string
   args: string[]
   error: string
+}
+
+// ============================================================================
+// GLOB EXPANSION
+// ============================================================================
+
+/**
+ * Recursively walk a directory and return all file paths (relative to startDir)
+ */
+async function walkDir(
+  fs: JSRuntimeFS,
+  dir: string,
+  startDir: string,
+  maxDepth = 10
+): Promise<string[]> {
+  if (maxDepth <= 0) return []
+
+  const results: string[] = []
+  try {
+    const entries = await fs.readdir(dir)
+    for (const entry of entries) {
+      // Skip hidden files and common non-source directories
+      if (entry.startsWith('.') || entry === 'node_modules' || entry === 'dist') {
+        continue
+      }
+
+      const fullPath = `${dir}/${entry}`
+      try {
+        const stat = await fs.stat(fullPath)
+        // Get path relative to startDir
+        const relativePath = fullPath.startsWith(startDir + '/')
+          ? fullPath.slice(startDir.length + 1)
+          : fullPath.startsWith(startDir)
+            ? fullPath.slice(startDir.length)
+            : fullPath
+
+        if (stat.isDirectory()) {
+          const subResults = await walkDir(fs, fullPath, startDir, maxDepth - 1)
+          results.push(...subResults)
+        } else {
+          results.push(relativePath)
+        }
+      } catch {
+        // Skip entries we can't stat
+      }
+    }
+  } catch {
+    // Can't read directory
+  }
+  return results
+}
+
+/**
+ * Expand glob patterns in arguments
+ * Returns expanded args array with globs replaced by matching files
+ */
+async function expandGlobs(
+  args: string[],
+  cwd: string,
+  fs: JSRuntimeFS
+): Promise<string[]> {
+  const expanded: string[] = []
+
+  for (const arg of args) {
+    // Check if this looks like a glob pattern
+    const scanResult = picomatch.scan(arg)
+    if (!scanResult.isGlob) {
+      expanded.push(arg)
+      continue
+    }
+
+    // Get the base directory for the glob
+    // For "src/*.tsx", base would be "src"
+    // For "*.tsx", base would be "."
+    const baseDir = scanResult.base || '.'
+    const searchDir = resolvePath(cwd, baseDir)
+
+    try {
+      // Get all files in the search directory
+      const allFiles = await walkDir(fs, searchDir, searchDir)
+
+      // Create a matcher for the glob pattern
+      // Adjust pattern to be relative to the base
+      const pattern = scanResult.glob || arg
+      const matcher = picomatch(pattern, { dot: false })
+
+      // Filter files that match the pattern
+      const matches = allFiles.filter((file) => matcher(file))
+
+      if (matches.length > 0) {
+        // Add matched files with their base directory prefix
+        for (const match of matches) {
+          if (baseDir && baseDir !== '.') {
+            expanded.push(`${baseDir}/${match}`)
+          } else {
+            expanded.push(match)
+          }
+        }
+      } else {
+        // No matches - keep original pattern (will fail with file not found)
+        expanded.push(arg)
+      }
+    } catch {
+      // On error, keep the original argument
+      expanded.push(arg)
+    }
+  }
+
+  return expanded
 }
 
 /**
@@ -240,8 +350,11 @@ export class ShellExecutor {
       return this.handleInternalWrite(cmd.args, cwd)
     }
 
+    // Expand glob patterns in arguments (e.g., *.tsx, src/**/*.ts)
+    const expandedArgs = await expandGlobs(cmd.args, cwd, this.fs)
+
     // Normalize paths in arguments
-    const normalizedArgs = cmd.args.map((arg) => {
+    const normalizedArgs = expandedArgs.map((arg) => {
       // Only normalize if it looks like a path
       if (arg.startsWith('/') || arg.includes('/')) {
         return normalizePath(arg, cwd)
@@ -275,11 +388,14 @@ export class ShellExecutor {
         if (redirect.example) {
           error += `\n   Example: ${redirect.example}`
         }
-      }
-
-      // Detect unexpanded globs and hint to use find
-      if (normalizedArgs.some((arg) => arg.includes('*'))) {
-        error += `\n\n💡 Hint: Globs like *.tsx don't expand automatically. Use: find . -name "*.tsx"`
+      } else {
+        // Show available commands for unknown commands without redirects
+        const availableCommands = Array.from(this.commands.keys()).sort().join(', ')
+        error += `\n\nAvailable commands: ${availableCommands}`
+        error += `\n\nTips:`
+        error += `\n  • Create files: cat > src/file.tsx << 'EOF'`
+        error += `\n  • Edit files: replace src/file.tsx "old" "new"`
+        error += `\n  • Search: grep "pattern" src/file.tsx`
       }
 
       // Notify gap tracking callback if set
@@ -318,7 +434,8 @@ export class ShellExecutor {
       return { exitCode: 1, stdout: '', stderr: '__write__: missing filename or content' }
     }
 
-    const [rawFilename, content] = args
+    const [rawFilename, content, mode] = args
+    const isAppend = mode === '>>'
     const normalizedFilename = normalizePath(rawFilename, cwd)
     const filePath = resolvePath(cwd, normalizedFilename)
 
@@ -351,10 +468,19 @@ export class ShellExecutor {
         })
       }
 
-      await this.fs.writeFile(filePath, content, { encoding: 'utf8' })
+      if (isAppend) {
+        let existing = ''
+        try {
+          const data = await this.fs.readFile(filePath, { encoding: 'utf8' })
+          existing = typeof data === 'string' ? data : new TextDecoder().decode(data as Uint8Array)
+        } catch { /* file may not exist yet */ }
+        await this.fs.writeFile(filePath, existing + content, { encoding: 'utf8' })
+      } else {
+        await this.fs.writeFile(filePath, content, { encoding: 'utf8' })
+      }
       return {
         exitCode: 0,
-        stdout: `Wrote ${content.length} bytes to ${normalizedFilename}\n`,
+        stdout: `${isAppend ? 'Appended' : 'Wrote'} ${content.length} bytes to ${normalizedFilename}\n`,
         stderr: '',
       }
     } catch (err) {

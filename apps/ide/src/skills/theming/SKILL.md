@@ -120,6 +120,36 @@ Components use CSS variables like `var(--primary)`. You define these in `src/ind
 }
 ```
 
+### Dark Mode
+
+Always include a `.dark` class alongside `:root`. Components switch automatically when `<html class="dark">` is set:
+
+```css
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 240 5.9% 10%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 240 4.9% 83.9%;
+}
+```
+
+Adapt dark values to match your theme's personality — a warm theme should have warm dark mode colors too.
+
 ## Tips
 
 1. **Pick 1-2 accent colors max** - too many colors looks chaotic

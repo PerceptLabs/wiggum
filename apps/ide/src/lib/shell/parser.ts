@@ -3,20 +3,22 @@ import type { ParsedCommand } from './types'
 
 /**
  * Parse heredoc syntax and convert to a write command
- * Matches: cat > filename << 'EOF' ... EOF
+ * Matches: cat > filename << 'EOF' ... EOF  (overwrite)
+ * Matches: cat >> filename << 'EOF' ... EOF (append)
  */
 function parseHeredoc(input: string): ParsedCommand[] | null {
-  // Match heredoc pattern: cat > filename << 'DELIMITER' or cat > filename << DELIMITER
-  const heredocMatch = input.match(/cat\s*>\s*([^\s<]+)\s*<<\s*'?(\w+)'?\s*\n([\s\S]*?)\n\2\s*$/m)
+  // Match heredoc pattern: cat >/>> filename << 'DELIMITER' or cat >/>> filename << DELIMITER
+  const heredocMatch = input.match(/cat\s*(>>?)\s*([^\s<]+)\s*<<\s*'?(\w+)'?\s*\n([\s\S]*?)\n\3\s*$/m)
 
   if (heredocMatch) {
-    const filename = heredocMatch[1]
-    const content = heredocMatch[3]
+    const mode = heredocMatch[1]     // '>' or '>>'
+    const filename = heredocMatch[2]
+    const content = heredocMatch[4]
 
-    // Return as internal write command
+    // Return as internal write command (mode passed as 3rd arg)
     return [{
       name: '__write__',
-      args: [filename, content],
+      args: [filename, content, mode],
     }]
   }
 

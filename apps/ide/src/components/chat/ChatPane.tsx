@@ -96,12 +96,12 @@ export function ChatPane({ className }: ChatPaneProps) {
           {ralphStatus === 'running' && (
             <Badge variant="default" className="gap-1">
               <Play className="h-3 w-3 animate-pulse" />
-              {ralphIteration > 1 ? `Iteration ${ralphIteration}` : 'Working...'}
+              {ralphIteration > 0 ? `[${ralphIteration}/20]` : 'Starting...'}
             </Badge>
           )}
-          {ralphStatus === 'complete' && ralphIteration > 1 && (
+          {ralphStatus === 'complete' && ralphIteration > 0 && (
             <Badge variant="success">
-              Done ({ralphIteration} iterations)
+              Done [{ralphIteration}/20]
             </Badge>
           )}
           {ralphStatus === 'waiting' && (

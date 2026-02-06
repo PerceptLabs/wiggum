@@ -1,6 +1,64 @@
 // preview/client.js - Bridge between Service Worker and Parent Window
 // Uses DOM manipulation instead of document.write() to preserve execution context
 
+// ============================================================================
+// CONSOLE CAPTURE - Intercept and forward console output to parent window
+// ============================================================================
+;(function setupConsoleCapture() {
+  const originalConsole = {
+    log: console.log.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+    info: console.info.bind(console),
+    debug: console.debug.bind(console),
+  }
+
+  function formatArgs(args) {
+    return args
+      .map((arg) => {
+        if (arg === null) return 'null'
+        if (arg === undefined) return 'undefined'
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2)
+          } catch {
+            return String(arg)
+          }
+        }
+        return String(arg)
+      })
+      .join(' ')
+  }
+
+  function createCapture(level) {
+    return function (...args) {
+      // Call original console method
+      originalConsole[level](...args)
+
+      // Send to parent window
+      try {
+        window.parent.postMessage(
+          {
+            type: 'wiggum-console-message',
+            level,
+            message: formatArgs(args),
+            timestamp: Date.now(),
+          },
+          '*'
+        )
+      } catch {
+        // Ignore postMessage errors
+      }
+    }
+  }
+
+  console.log = createCapture('log')
+  console.warn = createCapture('warn')
+  console.error = createCapture('error')
+  console.info = createCapture('info')
+  console.debug = createCapture('debug')
+})()
+
 ;(async function () {
   // Extract project ID from URL
   const urlParams = new URLSearchParams(window.location.search)
@@ -73,19 +131,37 @@
     // Replace body content
     document.body.innerHTML = doc.body.innerHTML
 
-    // Re-inject scripts (they don't execute when inserted via innerHTML)
+    // Re-inject scripts with proper load order
+    // External scripts must finish loading before inline scripts execute
     const scripts = doc.querySelectorAll('script')
+    const externalScripts = []
+    const inlineScripts = []
+
     for (const oldScript of scripts) {
       const newScript = document.createElement('script')
-      // Copy attributes
       for (const attr of oldScript.attributes) {
         newScript.setAttribute(attr.name, attr.value)
       }
-      // Copy inline content
-      if (!oldScript.src && oldScript.textContent) {
+      if (oldScript.src) {
+        externalScripts.push(newScript)
+      } else if (oldScript.textContent) {
         newScript.textContent = oldScript.textContent
+        inlineScripts.push(newScript)
       }
-      document.body.appendChild(newScript)
+    }
+
+    // Load external scripts first, wait for each to complete
+    for (const script of externalScripts) {
+      await new Promise((resolve) => {
+        script.onload = resolve
+        script.onerror = () => resolve() // Don't block on CDN failure
+        document.body.appendChild(script)
+      })
+    }
+
+    // Then run inline scripts (now safe to reference globals like `tailwind`)
+    for (const script of inlineScripts) {
+      document.body.appendChild(script)
     }
   } catch (err) {
     document.getElementById('app').textContent = 'Load error: ' + err.message

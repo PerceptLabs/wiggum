@@ -23,6 +23,9 @@ import { UniqCommand } from './uniq'
 import { GitCommand } from './git'
 import { TreeCommand } from './tree'
 import { ReplaceCommand } from './replace'
+import { RmdirCommand } from './rmdir'
+import { DiffCommand } from './diff'
+import { ConsoleCommand } from './console'
 
 /**
  * Register all built-in shell commands with the executor
@@ -47,6 +50,9 @@ export function registerAllCommands(executor: ShellExecutor): void {
   executor.registerCommand(new GitCommand())
   executor.registerCommand(new TreeCommand())
   executor.registerCommand(new ReplaceCommand())
+  executor.registerCommand(new RmdirCommand())
+  executor.registerCommand(new DiffCommand())
+  executor.registerCommand(new ConsoleCommand())
 }
 
 // Export all command classes for individual use
@@ -69,6 +75,9 @@ export { UniqCommand } from './uniq'
 export { GitCommand } from './git'
 export { TreeCommand } from './tree'
 export { ReplaceCommand } from './replace'
+export { RmdirCommand } from './rmdir'
+export { DiffCommand } from './diff'
+export { ConsoleCommand } from './console'
 
 // Export utilities
 export { resolvePath, normalizePath, basename, dirname } from './utils'

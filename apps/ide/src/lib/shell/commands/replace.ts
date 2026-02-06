@@ -58,7 +58,7 @@ export class ReplaceCommand implements ShellCommand {
           return {
             exitCode: 1,
             stdout: '',
-            stderr: `replace: "${oldStr}" not found in ${file} (even with whitespace tolerance)`,
+            stderr: `replace: "${oldStr}" not found in ${file} (even with whitespace tolerance)\nTip: For multi-line replacements, rewrite the file with: cat > ${file} << 'EOF'`,
           }
         }
 
@@ -76,7 +76,7 @@ export class ReplaceCommand implements ShellCommand {
         count = matchArr ? matchArr.length : 0
 
         if (count === 0) {
-          return { exitCode: 1, stdout: '', stderr: `replace: "${oldStr}" not found in ${file}` }
+          return { exitCode: 1, stdout: '', stderr: `replace: "${oldStr}" not found in ${file}\nTip: For multi-line replacements, rewrite the file with: cat > ${file} << 'EOF'` }
         }
 
         newContent = text.split(oldStr).join(newStr)
