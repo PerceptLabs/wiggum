@@ -76,6 +76,53 @@ Images or cards that break container boundaries.
 </div>
 ```
 
+## Composition Principles
+
+Patterns show WHAT to build. Principles tell you HOW to combine them into something unique.
+
+### Visual Weight & Balance
+- Heavy elements (large images, dark backgrounds, bold text) anchor the eye
+- Asymmetric balance is more dynamic than centered symmetry
+- Place the most important element where visual weight naturally pulls attention
+
+### Hierarchy
+Every page has ONE primary message. Signal it with:
+- **Size:** Primary heading 3-5x larger than body text
+- **Contrast:** Key elements pop against muted surroundings
+- **Position:** Top-left gets read first (F-pattern), center gets attention (Z-pattern)
+- **Whitespace:** Important elements get more breathing room
+
+### Rhythm
+Alternate between dense and sparse sections:
+- Tight nav (`py-4`) → Airy hero (`py-24-32`) → Dense features (`py-12-16`) → Breathing CTA (`py-20`)
+- NEVER use the same padding on every section — rhythm creates movement
+
+### Eye Movement
+Guide where people look:
+- **F-pattern:** Text-heavy pages — headlines and first sentences along left edge
+- **Z-pattern:** Landing pages — logo (top-left) → CTA (top-right) → content (bottom-left) → action (bottom-right)
+- **Diagonal flow:** Use angled elements, overlaps, or asymmetric layouts to break grid expectations
+
+### Tension and Release
+- Dense sections create tension (packed grids, card clusters, data)
+- Sparse sections release it (hero with single headline, full-bleed image, generous whitespace)
+- Alternate for engagement — all dense is overwhelming, all sparse is boring
+
+### Progressive Disclosure
+- Show the headline first, details on interaction (accordion, tabs, hover)
+- Don't dump everything on screen at once
+- Use Tabs, Accordion, Dialog, Sheet from @wiggum/stack for layered content
+
+## Anti-Slop Composition Rules
+
+- **NEVER** repeat the same layout pattern in consecutive sections (two card grids back-to-back = slop)
+- **NEVER** center-align everything — mix left-aligned, split, and centered sections
+- **NEVER** make every section the same density — vary padding and content amount
+- **NEVER** use the same component pattern for different purposes (cards for features AND for testimonials AND for pricing = lazy)
+- If the last section was a card grid, the next **CANNOT** be a card grid
+- At least **one section per page** should break expected patterns (overlapping, diagonal, floating, asymmetric)
+- Vary spacing rhythm — some sections tight, some airy, never uniform
+
 ## Match Layout to Project
 
 | Project Type | Layout Direction |

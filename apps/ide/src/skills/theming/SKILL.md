@@ -410,3 +410,402 @@ input:-webkit-autofill {
 ```
 
 **Test before marking complete**: Switch to dark mode and verify ALL inputs are readable.
+
+---
+
+## Theme Preset Picker
+
+9 curated presets (3 above + 6 below). Pick based on project feel:
+
+| If the task feels like... | Try these presets |
+|---------------------------|-------------------|
+| Professional / corporate | slate-modern, clean-minimal |
+| Warm / friendly / food | amber-glow, bold-confident |
+| Nature / organic / health | forest-green, ocean-blue |
+| Bold / startup / tech | bold-cyan, ocean-blue |
+| Luxury / editorial / fashion | rose-gold, clean-minimal |
+| Dark-first / dev tools / gaming | cosmic-dark, slate-modern |
+
+**NEVER default to violet purple.** If none of these fit, use the Color Derivation Logic below to create a custom theme.
+
+---
+
+## Slate Modern (217°)
+
+Clean corporate with cool neutrals. Good for dashboards, B2B, admin panels.
+
+```css
+:root {
+  --background: 210 20% 98%;
+  --foreground: 217 33% 17%;
+  --card: 210 20% 99%;
+  --card-foreground: 217 33% 17%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 217 33% 17%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 214 32% 91%;
+  --secondary-foreground: 217 33% 17%;
+  --muted: 214 32% 91%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 214 32% 91%;
+  --accent-foreground: 217 33% 17%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 217 91% 60%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 217 33% 8%;
+  --foreground: 210 40% 98%;
+  --card: 217 33% 10%;
+  --card-foreground: 210 40% 98%;
+  --popover: 217 33% 10%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 217 91% 65%;
+  --primary-foreground: 217 33% 8%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 16% 57%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 217 91% 65%;
+}
+```
+
+---
+
+## Amber Glow (38°)
+
+Warm, inviting, golden. Good for food, hospitality, warm brands.
+
+```css
+:root {
+  --background: 36 33% 97%;
+  --foreground: 28 25% 14%;
+  --card: 36 33% 99%;
+  --card-foreground: 28 25% 14%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 28 25% 14%;
+  --primary: 38 92% 50%;
+  --primary-foreground: 38 92% 10%;
+  --secondary: 36 33% 90%;
+  --secondary-foreground: 28 25% 14%;
+  --muted: 36 33% 90%;
+  --muted-foreground: 28 10% 45%;
+  --accent: 36 33% 90%;
+  --accent-foreground: 28 25% 14%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 36 25% 85%;
+  --input: 36 25% 85%;
+  --ring: 38 92% 50%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 28 25% 6%;
+  --foreground: 36 33% 96%;
+  --card: 28 25% 9%;
+  --card-foreground: 36 33% 96%;
+  --popover: 28 25% 9%;
+  --popover-foreground: 36 33% 96%;
+  --primary: 38 92% 55%;
+  --primary-foreground: 28 25% 6%;
+  --secondary: 28 25% 15%;
+  --secondary-foreground: 36 33% 96%;
+  --muted: 28 25% 15%;
+  --muted-foreground: 28 10% 55%;
+  --accent: 28 25% 15%;
+  --accent-foreground: 36 33% 96%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 28 25% 15%;
+  --input: 28 25% 15%;
+  --ring: 38 92% 55%;
+}
+```
+
+---
+
+## Forest Green (152°)
+
+Natural, trustworthy, grounded. Good for health, nature, sustainability.
+
+```css
+:root {
+  --background: 140 20% 97%;
+  --foreground: 152 28% 12%;
+  --card: 140 20% 99%;
+  --card-foreground: 152 28% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 152 28% 12%;
+  --primary: 152 60% 36%;
+  --primary-foreground: 140 20% 98%;
+  --secondary: 140 20% 90%;
+  --secondary-foreground: 152 28% 12%;
+  --muted: 140 20% 90%;
+  --muted-foreground: 152 10% 44%;
+  --accent: 140 20% 90%;
+  --accent-foreground: 152 28% 12%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 140 15% 85%;
+  --input: 140 15% 85%;
+  --ring: 152 60% 36%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 152 28% 5%;
+  --foreground: 140 20% 96%;
+  --card: 152 28% 8%;
+  --card-foreground: 140 20% 96%;
+  --popover: 152 28% 8%;
+  --popover-foreground: 140 20% 96%;
+  --primary: 152 60% 42%;
+  --primary-foreground: 152 28% 5%;
+  --secondary: 152 28% 14%;
+  --secondary-foreground: 140 20% 96%;
+  --muted: 152 28% 14%;
+  --muted-foreground: 152 10% 55%;
+  --accent: 152 28% 14%;
+  --accent-foreground: 140 20% 96%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 152 28% 14%;
+  --input: 152 28% 14%;
+  --ring: 152 60% 42%;
+}
+```
+
+---
+
+## Bold Cyan (174°)
+
+Confident, modern, energetic. Good for fintech, dev tools, startups.
+
+```css
+:root {
+  --background: 180 15% 97%;
+  --foreground: 174 30% 10%;
+  --card: 180 15% 99%;
+  --card-foreground: 174 30% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 174 30% 10%;
+  --primary: 174 72% 40%;
+  --primary-foreground: 180 15% 98%;
+  --secondary: 180 15% 90%;
+  --secondary-foreground: 174 30% 10%;
+  --muted: 180 15% 90%;
+  --muted-foreground: 174 10% 44%;
+  --accent: 180 15% 90%;
+  --accent-foreground: 174 30% 10%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 180 12% 85%;
+  --input: 180 12% 85%;
+  --ring: 174 72% 40%;
+  --radius: 0.375rem;
+}
+
+.dark {
+  --background: 174 30% 5%;
+  --foreground: 180 15% 96%;
+  --card: 174 30% 8%;
+  --card-foreground: 180 15% 96%;
+  --popover: 174 30% 8%;
+  --popover-foreground: 180 15% 96%;
+  --primary: 174 72% 48%;
+  --primary-foreground: 174 30% 5%;
+  --secondary: 174 30% 14%;
+  --secondary-foreground: 180 15% 96%;
+  --muted: 174 30% 14%;
+  --muted-foreground: 174 10% 55%;
+  --accent: 174 30% 14%;
+  --accent-foreground: 180 15% 96%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 174 30% 14%;
+  --input: 174 30% 14%;
+  --ring: 174 72% 48%;
+}
+```
+
+---
+
+## Rose Gold (346°)
+
+Elegant, editorial, premium. Good for fashion, lifestyle, luxury brands.
+
+```css
+:root {
+  --background: 340 20% 98%;
+  --foreground: 346 25% 13%;
+  --card: 340 20% 99%;
+  --card-foreground: 346 25% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 346 25% 13%;
+  --primary: 346 77% 50%;
+  --primary-foreground: 340 20% 98%;
+  --secondary: 340 20% 92%;
+  --secondary-foreground: 346 25% 13%;
+  --muted: 340 20% 92%;
+  --muted-foreground: 346 10% 45%;
+  --accent: 340 20% 92%;
+  --accent-foreground: 346 25% 13%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 340 15% 87%;
+  --input: 340 15% 87%;
+  --ring: 346 77% 50%;
+  --radius: 0rem;
+}
+
+.dark {
+  --background: 346 25% 5%;
+  --foreground: 340 20% 96%;
+  --card: 346 25% 8%;
+  --card-foreground: 340 20% 96%;
+  --popover: 346 25% 8%;
+  --popover-foreground: 340 20% 96%;
+  --primary: 346 77% 58%;
+  --primary-foreground: 346 25% 5%;
+  --secondary: 346 25% 15%;
+  --secondary-foreground: 340 20% 96%;
+  --muted: 346 25% 15%;
+  --muted-foreground: 346 10% 55%;
+  --accent: 346 25% 15%;
+  --accent-foreground: 340 20% 96%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 346 25% 15%;
+  --input: 346 25% 15%;
+  --ring: 346 77% 58%;
+}
+```
+
+---
+
+## Cosmic Dark (265°)
+
+Immersive, deep, atmospheric. Good for gaming, creative tools, dark-first apps. **This is a dark-first theme** — dark mode is the primary experience.
+
+```css
+:root {
+  --background: 260 15% 95%;
+  --foreground: 265 20% 15%;
+  --card: 260 15% 97%;
+  --card-foreground: 265 20% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 265 20% 15%;
+  --primary: 265 85% 55%;
+  --primary-foreground: 260 15% 98%;
+  --secondary: 260 15% 88%;
+  --secondary-foreground: 265 20% 15%;
+  --muted: 260 15% 88%;
+  --muted-foreground: 265 8% 45%;
+  --accent: 265 40% 85%;
+  --accent-foreground: 265 20% 15%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 260 12% 85%;
+  --input: 260 12% 85%;
+  --ring: 265 85% 55%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 265 30% 4%;
+  --foreground: 260 15% 95%;
+  --card: 265 25% 7%;
+  --card-foreground: 260 15% 95%;
+  --popover: 265 25% 7%;
+  --popover-foreground: 260 15% 95%;
+  --primary: 265 85% 65%;
+  --primary-foreground: 265 30% 4%;
+  --secondary: 265 20% 14%;
+  --secondary-foreground: 260 15% 95%;
+  --muted: 265 20% 14%;
+  --muted-foreground: 265 8% 55%;
+  --accent: 280 40% 20%;
+  --accent-foreground: 260 15% 95%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 265 20% 14%;
+  --input: 265 20% 14%;
+  --ring: 265 85% 65%;
+}
+```
+
+**Note:** Cosmic Dark uses purple intentionally (it's a deliberate immersive choice, not a lazy default). Use ONLY for dark-first creative/gaming apps. For general projects, pick a different preset.
+
+---
+
+## Color Derivation Logic
+
+When customizing presets or building themes from scratch, follow these rules.
+
+### Dark Mode Derivation (Inverted Lightness)
+
+| Light mode L% | Dark mode L% | Role |
+|---------------|-------------|------|
+| 95-100% | 4-10% | Backgrounds (background, card, popover) |
+| 85-92% | 13-18% | Muted surfaces (muted, secondary, accent) |
+| 40-55% | 55-65% | Muted foreground text |
+| 8-15% | 93-98% | Primary text (foreground) |
+| Primary hue L% | Same hue, boost L% by 5-8% | Primary button/accent |
+
+### Paired Tokens (ALWAYS update both sides)
+
+These pairs must maintain readable contrast. Never change one without the other:
+- `background` ↔ `foreground`
+- `card` ↔ `card-foreground`
+- `primary` ↔ `primary-foreground`
+- `secondary` ↔ `secondary-foreground`
+- `accent` ↔ `accent-foreground`
+- `destructive` ↔ `destructive-foreground`
+- `muted` ↔ `muted-foreground`
+- `popover` ↔ `popover-foreground`
+
+### Token Change Logic
+
+| User Says | Variables to Change |
+|-----------|-------------------|
+| "Make it [color]" | primary, secondary, accent, ring |
+| "Darker/lighter background" | background, card, popover, muted (surfaces only) |
+| "More contrast" | Widen foreground/background L% gap by 10+ |
+| "Warmer" | Shift all hues toward 20-40° range |
+| "Cooler" | Shift all hues toward 200-230° range |
+| "More saturated" | Increase S% on primary/accent by 10-20% |
+| "Softer" | Decrease S%, increase background L% |
+
+### Variable Groupings (move together)
+
+- **Surface group:** background, card, popover, muted — share similar L% and low S%
+- **Brand group:** primary, secondary, accent, ring — carry the personality
+- **Utility group:** border, input — neutral, 6-12% darker than background
+- **Destructive:** Always red-based (H: 0-10°). Don't change unless explicitly asked.
+
+### Contrast Rules (WCAG AA — Non-Negotiable)
+
+- Normal text on background: minimum **4.5:1** contrast ratio
+- Large text (18px+) and UI elements: minimum **3:1**
+- **Quick L% check:** foreground and background lightness must differ by **≥50 points**
+- Destructive: Always `0 84% 60%` light / `0 63% 31%` dark (proven readable)
+
+### Anti-Slop Color Rules
+
+- **NEVER** use generic purple (~270° 80% 60%) as primary unless the project is explicitly about gaming/immersive (use cosmic-dark preset)
+- **NEVER** use the same palette for consecutive projects
+- **ALWAYS** define both `:root` AND `.dark` — no exceptions
+- **NEVER** set border and background to the same lightness (borders should be 6-12% darker)
+- **ALWAYS** test destructive buttons are visible on both light and dark backgrounds

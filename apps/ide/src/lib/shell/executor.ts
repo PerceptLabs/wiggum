@@ -242,8 +242,8 @@ function validateFileContent(filePath: string, content: string): WriteValidation
   if (ext === '.css' && content.includes('@tailwind')) {
     return {
       allowed: false,
-      reason: 'Cannot use @tailwind directives - browsers cannot process them.',
-      suggestion: `Define CSS variables instead:\n\n:root {\n  --background: 0 0% 100%;\n  --primary: 210 100% 50%;\n  /* See theming skill for all variables */\n}`,
+      reason: 'Cannot use @tailwind directives in CSS files — the browser can\'t process them.\nTailwind utility classes (bg-primary, text-center, flex, grid, etc.) work normally in JSX via the CDN loaded in index.html.\nDefine theme colors as CSS variables in src/index.css. See: grep skill "CSS variables"',
+      suggestion: `Utility classes work in JSX — only @tailwind directives are blocked.\n\nDefine your theme in src/index.css:\n\n:root {\n  --background: 0 0% 100%;\n  --primary: 210 100% 50%;\n  /* Run: grep skill "preset" for full theme presets */\n}`,
     }
   }
 

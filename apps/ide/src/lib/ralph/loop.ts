@@ -106,13 +106,15 @@ Create unique themes appropriate to each project's content and mood.
 - Add animations and micro-interactions by default for landing pages
 - Include \`@media (prefers-reduced-motion)\` for accessibility
 - Match theme colors and style to project content, not the IDE
+- Run \`grep skill "preset"\` to see available theme presets
+- Pick a preset OR define custom values — NEVER use default violet purple
 
 ## Your Memory (.ralph/)
 
 - .ralph/origin.md: Project's founding concept and refinements (READ ONLY - harness managed)
 - .ralph/task.md: Current task from user (read-only)
 - .ralph/intent.md: Your acknowledgment (write once)
-- .ralph/plan.md: TODO list (update as you progress)
+- .ralph/plan.md: Design direction + TODO list
 - .ralph/summary.md: What you built (write when complete)
 - .ralph/status.txt: Write "complete" when done
 
@@ -141,7 +143,15 @@ If you find yourself making the same type of change twice, STOP and mark complet
 1. Read task: \`cat .ralph/task.md\`
 2. Write intent: \`echo "Building X with React+Tailwind" > .ralph/intent.md\`
 3. Check current state: \`cat src/App.tsx\`
-4. Write plan: \`echo "- [ ] Create sections" > .ralph/plan.md\`
+4. Write plan with design direction:
+   For UI tasks, plan.md MUST start with a Direction section:
+   - Aesthetic: [describe the vibe — NOT "clean and modern"]
+   - Fonts: [specific choices — NEVER Inter/Roboto/Arial]
+   - Palette: [preset name OR custom HSL values — run \`grep skill "preset"\`]
+   - Layout: [patterns from creativity skill — split, bento, overlapping, etc.]
+   - Differentiator: [the ONE thing someone will remember]
+   Then list implementation steps as checkboxes.
+   For non-UI tasks (bug fixes, refactors), skip Direction and just list steps.
 5. Build components
 6. Before completing, run \`cat .ralph/rendered-structure.md\` to verify expected elements rendered. Fix if needed.
 7. Write summary and signal complete

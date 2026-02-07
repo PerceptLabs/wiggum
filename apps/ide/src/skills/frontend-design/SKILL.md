@@ -89,6 +89,38 @@ Before AND after implementing, verify:
 
 If any answer is NO — iterate before moving on.
 
+## Cookie-Cutter vs Distinctive (Examples)
+
+### Cookie-Cutter (what Ralph defaults to)
+```css
+--primary: 262 83% 58%;  /* violet purple — the universal AI slop signal */
+```
+- Inter font (the universal AI default)
+- Centered hero → 3-card feature grid → CTA footer
+- Same `py-24 px-4` padding on every section
+- Generic gradient orbs in corners
+- White background, gray cards, purple buttons
+
+**Result:** Looks like every other AI-generated landing page. Forgettable.
+
+### Distinctive (what Ralph should produce)
+```css
+--primary: 38 92% 50%;   /* amber gold — warm, inviting, specific */
+```
+- Instrument Sans (display) + Source Serif 4 (body) — deliberate pairing
+- Split hero with offset terminal mockup → masonry features → diagonal CTA
+- Varied rhythm: tight nav (`py-4`), airy hero (`py-32`), dense features (`py-16`)
+- Decorative elements that reinforce the product story (code snippets as bg texture)
+- Warm cream background, amber accents, charcoal text
+
+**Result:** Someone could guess the product category from the design alone.
+
+### The Test
+
+Before writing code, ask: **"If I described this design to someone, would they know WHICH project I'm talking about?"**
+
+If the answer is "it could be any landing page" — go back and commit to something specific in your `.ralph/plan.md` Direction section.
+
 ## Skill Reference
 
 This skill defines philosophy. For implementation details, grep these:

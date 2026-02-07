@@ -61,10 +61,10 @@ import { useDebounce, useDisclosure } from '@wiggum/stack'
 src/
 ├── main.tsx              # Entry point - DO NOT MODIFY
 ├── App.tsx               # Root composition only (no business logic)
-├── sections/             # Page sections (Hero, Features, etc.)
-│   ├── HeroSection.tsx
-│   ├── FeaturesSection.tsx
-│   └── CTASection.tsx
+├── sections/             # Page sections (named by purpose, not pattern)
+│   ├── IntroSection.tsx
+│   ├── ShowcaseSection.tsx
+│   └── ClosingSection.tsx
 ├── components/           # Project-specific components
 └── pages/               # Route pages (if multi-page)
 ```
@@ -139,25 +139,50 @@ Define your visual style in `src/index.css`. See the `theming` skill for:
 - Ready-to-use theme examples
 - Tips for choosing colors
 
-## Example: Landing Page Section
+## Purpose-Driven Component Selection
+
+Don't just use Card and Button for everything. Match component to purpose:
+
+| Building This | Reach For | NOT This |
+|---------------|-----------|----------|
+| Main navigation | `NavigationMenu` | Hand-rolled `<nav>` with `<a>` tags |
+| Feature showcase | `Tabs`, `Accordion`, `Carousel` | Yet another card grid |
+| User actions | `DropdownMenu`, `ContextMenu` | Inline button rows |
+| Layered content | `Dialog`, `Sheet`, `Popover` | New pages or scroll-to sections |
+| Social proof | `Avatar`, `Badge`, `HoverCard` | Plain text quotes |
+| Data browsing | `Table` + `Pagination`, `ScrollArea` | Manual div tables |
+| Form layout | `Label` + `Input` + `Card` + validation | Unstyled `<form>` elements |
+| Visual polish | `Separator`, `AspectRatio`, `Skeleton` | Empty divs and hard-coded ratios |
+
+**Rule:** If you're writing raw `<div>`s for something @wiggum/stack already provides, you're doing it wrong. Every raw element is a missed opportunity for consistency and theming.
+
+**Component variety target:** Aim for 15+ different components per project. If you're only using Button, Card, and Input — expand your palette.
+
+## Example: Section with Component Variety
 
 ```tsx
-// src/sections/HeroSection.tsx
-import { Button } from '@wiggum/stack'
+// src/sections/FeaturesSection.tsx — uses Tabs, Card, Badge, Avatar (not just a card grid)
+import { Tabs, TabsList, TabsTrigger, TabsContent, Card, CardContent, Badge, Avatar, AvatarFallback } from '@wiggum/stack'
+import { Zap, Shield, Rocket } from 'lucide-react'
 
-export function HeroSection() {
+export function FeaturesSection() {
   return (
-    <section className="py-20 px-4 text-center">
-      <h1 className="text-4xl font-bold mb-4">
-        Build Faster with Wiggum
-      </h1>
-      <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-        A browser IDE designed for AI agents, not retrofitted for them.
-      </p>
-      <div className="flex gap-4 justify-center">
-        <Button>Get Started</Button>
-        <Button variant="outline">Learn More</Button>
-      </div>
+    <section className="py-16 px-4">
+      <Tabs defaultValue="speed" className="max-w-4xl mx-auto">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="speed"><Zap className="w-4 h-4 mr-2" /> Speed</TabsTrigger>
+          <TabsTrigger value="security"><Shield className="w-4 h-4 mr-2" /> Security</TabsTrigger>
+          <TabsTrigger value="scale"><Rocket className="w-4 h-4 mr-2" /> Scale</TabsTrigger>
+        </TabsList>
+        <TabsContent value="speed">
+          <Card><CardContent className="pt-6">
+            <Badge variant="secondary">Performance</Badge>
+            <h3 className="text-2xl font-bold mt-2">Sub-second builds</h3>
+            <p className="text-muted-foreground mt-2">Description here...</p>
+          </CardContent></Card>
+        </TabsContent>
+        {/* Other tabs... */}
+      </Tabs>
     </section>
   )
 }
@@ -213,7 +238,7 @@ export function LoginForm() {
 // App.tsx with 500+ lines
 
 // ✅ GOOD: Split into sections
-// App.tsx imports HeroSection, FeaturesSection, etc.
+// App.tsx imports IntroSection, ShowcaseSection, etc.
 ```
 
 ## Lucide React Icons

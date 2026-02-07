@@ -89,7 +89,25 @@ Do the colors FEEL like the project?
 
 ---
 
-## 6. Log This Heartbeat
+## 6. Design Follow-Through (iteration 5+)
+
+If you wrote a Direction section in `.ralph/plan.md`, verify you followed through:
+
+```bash
+cat .ralph/plan.md | grep -A5 "Direction"
+```
+
+Check each commitment:
+1. **Palette match:** Does `src/index.css` use the colors you committed to?
+2. **Font match:** Are the fonts you specified loaded in `index.html` `<link>` tags?
+3. **Layout match:** Did you use the layout pattern you chose (split/bento/overlapping)?
+4. **Differentiator present:** Is the "one thing someone will remember" actually visible?
+
+If any answer is NO — fix it before marking complete. The Direction section is a commitment, not a suggestion.
+
+---
+
+## 7. Log This Heartbeat
 
 After reflection, note what you improved (or that all's clear):
 
