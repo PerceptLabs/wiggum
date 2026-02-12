@@ -26,11 +26,28 @@ import { ReplaceCommand } from './replace'
 import { RmdirCommand } from './rmdir'
 import { DiffCommand } from './diff'
 import { ConsoleCommand } from './console'
+import { TrueCommand } from './true'
+import { FalseCommand } from './false'
+import { BasenameCommand } from './basename'
+import { DirnameCommand } from './dirname'
+import { TacCommand } from './tac'
+import { StatCommand } from './stat'
+import { SedCommand } from './sed'
+import { CutCommand } from './cut'
+import { TrCommand } from './tr'
+import { WhichCommand } from './which'
+import { DateCommand } from './date'
+import { EnvCommand } from './env'
+import { WhoamiCommand } from './whoami'
+import { ClearCommand } from './clear'
+import { PathsCommand } from './paths'
+import { PreviewCommand } from './preview'
 
 /**
  * Register all built-in shell commands with the executor
  */
 export function registerAllCommands(executor: ShellExecutor): void {
+  // Original commands (22)
   executor.registerCommand(new CatCommand())
   executor.registerCommand(new LsCommand())
   executor.registerCommand(new EchoCommand())
@@ -53,6 +70,32 @@ export function registerAllCommands(executor: ShellExecutor): void {
   executor.registerCommand(new RmdirCommand())
   executor.registerCommand(new DiffCommand())
   executor.registerCommand(new ConsoleCommand())
+
+  // New commands (14)
+  executor.registerCommand(new TrueCommand())
+  executor.registerCommand(new FalseCommand())
+  executor.registerCommand(new BasenameCommand())
+  executor.registerCommand(new DirnameCommand())
+  executor.registerCommand(new TacCommand())
+  executor.registerCommand(new StatCommand())
+  executor.registerCommand(new SedCommand())
+  executor.registerCommand(new CutCommand())
+  executor.registerCommand(new TrCommand())
+  executor.registerCommand(new DateCommand())
+  executor.registerCommand(new EnvCommand())
+  executor.registerCommand(new WhoamiCommand())
+  executor.registerCommand(new ClearCommand())
+  executor.registerCommand(new PathsCommand())
+  executor.registerCommand(new PreviewCommand())
+
+  // which must be registered last — needs the full command list
+  const allCommandNames = [
+    'cat', 'ls', 'echo', 'grep', 'head', 'tail', 'wc', 'mkdir', 'rm', 'cp', 'mv',
+    'pwd', 'find', 'touch', 'sort', 'uniq', 'git', 'tree', 'replace', 'rmdir', 'diff',
+    'console', 'true', 'false', 'basename', 'dirname', 'tac', 'stat', 'sed', 'cut',
+    'tr', 'date', 'env', 'whoami', 'clear', 'paths', 'preview', 'which',
+  ]
+  executor.registerCommand(new WhichCommand(allCommandNames))
 }
 
 // Export all command classes for individual use
@@ -78,6 +121,20 @@ export { ReplaceCommand } from './replace'
 export { RmdirCommand } from './rmdir'
 export { DiffCommand } from './diff'
 export { ConsoleCommand } from './console'
+export { TrueCommand } from './true'
+export { FalseCommand } from './false'
+export { BasenameCommand } from './basename'
+export { DirnameCommand } from './dirname'
+export { TacCommand } from './tac'
+export { StatCommand } from './stat'
+export { SedCommand } from './sed'
+export { CutCommand } from './cut'
+export { TrCommand } from './tr'
+export { WhichCommand } from './which'
+export { DateCommand } from './date'
+export { EnvCommand } from './env'
+export { WhoamiCommand } from './whoami'
+export { ClearCommand } from './clear'
 
 // Export utilities
 export { resolvePath, normalizePath, basename, dirname } from './utils'

@@ -21,8 +21,6 @@ export {
   type LocalProviderStatus,
 } from './providers';
 
-export { shellTool, executeShellTool } from './shell-tool';
-
 // Type aliases for backwards compatibility with old @/lib/ai types
 import type { Message, ToolCall } from './client';
 

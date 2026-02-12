@@ -7,6 +7,8 @@ import type { ParsedCommand } from './types'
  * Matches: cat >> filename << 'EOF' ... EOF (append)
  */
 function parseHeredoc(input: string): ParsedCommand[] | null {
+  if (!input || typeof input !== 'string') return null
+
   // Match heredoc pattern: cat >/>> filename << 'DELIMITER' or cat >/>> filename << DELIMITER
   const heredocMatch = input.match(/cat\s*(>>?)\s*([^\s<]+)\s*<<\s*'?(\w+)'?\s*\n([\s\S]*?)\n\3\s*$/m)
 
@@ -102,8 +104,39 @@ function splitByChainOperators(input: string): Array<{ segment: string; nextOp?:
 /**
  * Parse a single command (no && chaining) into ParsedCommand array (for pipes)
  */
+/**
+ * Strip file descriptor redirects that the virtual shell doesn't support.
+ * LLMs frequently write `2>/dev/null`, `2>&1`, etc. Silently strip rather than
+ * passing them as arguments (which corrupts commands like `ls`).
+ */
+function stripFdRedirects(tokens: ReturnType<typeof parse>): ReturnType<typeof parse> {
+  const result: ReturnType<typeof parse>[number][] = []
+  let skipNext = false
+
+  for (let i = 0; i < tokens.length; i++) {
+    if (skipNext) {
+      skipNext = false
+      continue
+    }
+    const token = tokens[i]
+    if (typeof token === 'string') {
+      // Single-token: 2>/dev/null, 2>&1, &>/dev/null, >/dev/null, 1>/dev/null
+      if (/^[0-2]?>{1,2}(&[0-2]|\/dev\/null)$/.test(token)) continue
+      if (/^&>\/dev\/null$/.test(token)) continue
+      // Two-token: bare "2>" or "2>>" followed by a path
+      if (/^[0-2]>{1,2}$/.test(token) && i + 1 < tokens.length) {
+        skipNext = true
+        continue
+      }
+    }
+    result.push(token)
+  }
+
+  return result
+}
+
 function parseSingleCommand(input: string): ParsedCommand[] {
-  const tokens = parse(input)
+  const tokens = stripFdRedirects(parse(input))
 
   if (tokens.length === 0) {
     return []
@@ -134,6 +167,32 @@ function parseSingleCommand(input: string): ParsedCommand[] {
         // Subsequent tokens are arguments
         currentCmd.args.push(token)
       }
+      continue
+    }
+
+    // Handle shell-quote glob tokens: { op: 'glob', pattern: 'src/*.tsx' }
+    // Convert to plain string argument — expandGlobs() in executor.ts does actual expansion
+    if (typeof token === 'object' && 'op' in token && token.op === 'glob') {
+      const pattern = (token as { op: string; pattern: string }).pattern
+      if (pattern) {
+        if (expectingRedirectTarget) {
+          if (currentCmd && redirectType) {
+            currentCmd.redirect = { type: redirectType, target: pattern }
+          }
+          expectingRedirectTarget = false
+          redirectType = null
+        } else if (!currentCmd) {
+          currentCmd = { name: pattern, args: [] }
+        } else {
+          currentCmd.args.push(pattern)
+        }
+      }
+      continue
+    }
+
+    // Handle shell-quote comment tokens: { comment: '...' }
+    // Silently skip — comments are not commands
+    if (typeof token === 'object' && 'comment' in token) {
       continue
     }
 
@@ -177,6 +236,8 @@ function parseSingleCommand(input: string): ParsedCommand[] {
  * Returns array of command chains - each chain has commands and an operator to the next
  */
 export function parseCommandLineWithChaining(input: string): ParsedChain[] {
+  if (!input || typeof input !== 'string') return []
+
   // First, check for heredoc syntax
   const heredocResult = parseHeredoc(input)
   if (heredocResult) {

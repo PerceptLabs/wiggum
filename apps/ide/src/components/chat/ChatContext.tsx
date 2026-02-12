@@ -31,14 +31,16 @@ export function useChat() {
 
 interface ChatProviderProps {
   children: React.ReactNode
+  /** Full preview build pipeline (esbuild → inject → cache → reload) */
+  fullBuild?: () => Promise<void>
 }
 
 /**
  * ChatProvider - Provides chat functionality to child components
  * Uses useAIChat internally to connect to the AI system
  */
-export function ChatProvider({ children }: ChatProviderProps) {
-  const chat = useAIChat()
+export function ChatProvider({ children, fullBuild }: ChatProviderProps) {
+  const chat = useAIChat({ fullBuild })
 
   const value = React.useMemo(
     () => ({

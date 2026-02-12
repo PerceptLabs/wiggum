@@ -7,10 +7,36 @@ import {
   createModuleCache,
 } from '@/lib/build'
 import { writePreviewFile, clearPreviewCache } from '@/lib/preview-cache'
-import { injectAllCapture } from '@/lib/preview/chobitsu-bridge'
+import { injectErrorCapture } from '@/lib/preview/chobitsu-bridge'
+import { fsEvents } from '@/lib/fs/fs-events'
 import type { BuildResult, BuildProjectOptions, BuildError } from '@/lib/build'
 
 const BUILD_TIMEOUT_MS = 30000
+
+/**
+ * Extract @fonts declaration from CSS and return Google Fonts <link> tags.
+ * Parses: /* @fonts: Inter:wght@400;500;600;700, JetBrains+Mono:wght@400;500 *​/
+ */
+function extractFontLinks(cssContent: string): string {
+  const match = cssContent.match(/\/\*\s*@fonts:\s*(.+?)\s*\*\//)
+  if (!match) return ''
+
+  const fontSpecs = match[1]
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
+  if (fontSpecs.length === 0) return ''
+
+  const families = fontSpecs.map((spec) => `family=${spec.replace(/ /g, '+')}`).join('&')
+  const url = `https://fonts.googleapis.com/css2?${families}&display=swap`
+
+  return [
+    '<link rel="preconnect" href="https://fonts.googleapis.com">',
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
+    `<link href="${url}" rel="stylesheet">`,
+  ].join('\n  ')
+}
 
 export interface UsePreviewOptions extends Omit<BuildProjectOptions, 'moduleCache'> {
   /** Auto-build on file changes */
@@ -110,7 +136,7 @@ export function usePreview(
           const htmlContent = await fs.readFile(`${projectPath}/${htmlFile}`, 'utf8') as string
 
           // Inject runtime error capture script
-          const htmlWithErrorCapture = injectAllCapture(htmlContent)
+          const htmlWithErrorCapture = injectErrorCapture(htmlContent)
 
           // Write to preview cache
           await clearPreviewCache(projectId)
@@ -236,6 +262,23 @@ export function usePreview(
 </body>
 </html>`
             }
+            // Inject Google Fonts <link> tags from @fonts declaration in index.css
+            let fontLinks = ''
+            try {
+              const cssData = await fs.readFile(`${projectPath}/src/index.css`, { encoding: 'utf8' })
+              const cssText = typeof cssData === 'string' ? cssData : new TextDecoder().decode(cssData as Uint8Array)
+              fontLinks = extractFontLinks(cssText)
+            } catch {
+              // No index.css or no @fonts — that's fine
+            }
+
+            if (fontLinks) {
+              indexHtml = indexHtml.replace(
+                '<script src="https://cdn.tailwindcss.com"></script>',
+                `${fontLinks}\n  <script src="https://cdn.tailwindcss.com"></script>`
+              )
+            }
+
             // Write CSS bundle if present
             if (cssOutput) {
               await fs.writeFile(`${distPath}/bundle.css`, cssOutput.contents)
@@ -258,7 +301,7 @@ export function usePreview(
             await fs.writeFile(`${distPath}/index.html`, distHtml)
 
             // Inject runtime error capture script for preview
-            const distHtmlWithErrorCapture = injectAllCapture(distHtml)
+            const distHtmlWithErrorCapture = injectErrorCapture(distHtml)
 
             // Write to preview cache for direct SW access
             // This enables "Open in new tab" without postMessage!
@@ -324,7 +367,8 @@ export function usePreview(
 }
 
 /**
- * Hook for watching files and auto-rebuilding
+ * Hook for watching files and auto-rebuilding.
+ * Subscribes to fsEvents and triggers debounced rebuild on source file changes.
  */
 export function usePreviewWithWatch(
   projectPath: string | null,
@@ -345,6 +389,19 @@ export function usePreviewWithWatch(
       preview.build()
     }, debounceMs)
   }, [preview, debounceMs])
+
+  // Subscribe to FS events for auto-rebuild on source file changes
+  React.useEffect(() => {
+    if (!projectPath) return
+    const unsub = fsEvents.subscribe((path) => {
+      // Skip non-source paths
+      if (path.includes('/.ralph/') || path.includes('/dist/') || path.includes('/node_modules/')) return
+      if (/\.(tsx?|css|json)$/.test(path)) {
+        triggerRebuild()
+      }
+    })
+    return unsub
+  }, [projectPath, triggerRebuild])
 
   // Initial build
   React.useEffect(() => {

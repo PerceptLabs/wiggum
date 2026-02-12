@@ -7,9 +7,9 @@
  */
 import type { JSRuntimeFS } from '../fs/types'
 import { buildProject } from '../build'
-import type { GateContext, DOMStructure } from '../types/observability'
+import type { GateContext } from '../types/observability'
 import { formatRuntimeErrors } from '../preview/error-collector'
-import { formatStructure } from '../preview/structure-collector'
+import { countHtmlElements } from '../preview/static-render'
 
 // ============================================================================
 // TYPES
@@ -18,6 +18,8 @@ import { formatStructure } from '../preview/structure-collector'
 export interface GateResult {
   pass: boolean
   feedback?: string
+  /** Auto-fix: if provided and gate has failed multiple times, harness can apply this fix directly */
+  fix?: { file: string; content: string; description: string }
 }
 
 export interface QualityGate {
@@ -34,6 +36,30 @@ export interface GatesResult {
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+const CSS_VARIABLES_BASELINE = `:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 221 83% 53%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+  --radius: 0.5rem;
+}
+`
 
 async function fileExists(fs: JSRuntimeFS, filePath: string): Promise<boolean> {
   try {
@@ -57,6 +83,9 @@ async function readFile(fs: JSRuntimeFS, filePath: string): Promise<string | nul
  * Enhance build errors with actionable suggestions
  */
 function enhanceBuildError(errorMessage: string): string {
+  // Strip angle brackets that models interpret as JSX (defense-in-depth)
+  errorMessage = errorMessage.replace(/<(\w+)>\s+is used in JSX/g, '$1 is used in JSX')
+
   // Lucide icon fixes
   const lucideMatch = errorMessage.match(/No matching export in ".*lucide-react" for import "(\w+)"/)
   if (lucideMatch) {
@@ -198,48 +227,17 @@ Common fixes:
 3. Wrong @wiggum/stack export → check stack skill for available components
 4. CSS @import url() → move to <link> in index.html instead`
 
+    case 'has-summary':
+      return `
+FIX: Write a summary of what you built:
+
+echo "Built a [description] with [key features]." > .ralph/summary.md
+
+Then mark status as complete again.`
+
     default:
       return ''
   }
-}
-
-/**
- * Summarize DOM structure for gate feedback
- * Returns a compact summary like "3 sections, 5 buttons, 2 forms"
- */
-function summarizeStructure(node: DOMStructure | null): string {
-  if (!node) return 'Nothing rendered'
-
-  const counts: Record<string, number> = {}
-
-  function count(n: DOMStructure) {
-    // Count semantic elements
-    const tag = n.tag
-    if (['section', 'header', 'footer', 'nav', 'main', 'article', 'aside'].includes(tag)) {
-      counts['sections'] = (counts['sections'] || 0) + 1
-    } else if (tag === 'button') {
-      counts['buttons'] = (counts['buttons'] || 0) + 1
-    } else if (tag === 'form') {
-      counts['forms'] = (counts['forms'] || 0) + 1
-    } else if (tag === 'input') {
-      counts['inputs'] = (counts['inputs'] || 0) + 1
-    } else if (['h1', 'h2', 'h3'].includes(tag)) {
-      counts['headings'] = (counts['headings'] || 0) + 1
-    } else if (tag === 'img') {
-      counts['images'] = (counts['images'] || 0) + 1
-    }
-    n.children?.forEach(count)
-  }
-
-  count(node)
-
-  if (Object.keys(counts).length === 0) {
-    return 'Basic structure (no semantic sections detected)'
-  }
-
-  return Object.entries(counts)
-    .map(([k, v]) => `${v} ${k}`)
-    .join(', ')
 }
 
 // ============================================================================
@@ -287,6 +285,11 @@ export const QUALITY_GATES: QualityGate[] = [
         feedback: hasVars
           ? undefined
           : 'src/index.css should define CSS variables in :root (--primary, --background, etc.)',
+        fix: hasVars ? undefined : {
+          file: 'src/index.css',
+          content: CSS_VARIABLES_BASELINE,
+          description: 'Add baseline CSS theme variables to src/index.css',
+        },
       }
     },
   },
@@ -297,11 +300,34 @@ export const QUALITY_GATES: QualityGate[] = [
     check: async (fs, cwd) => {
       try {
         const result = await buildProject(fs, cwd)
+
+        // Capture build warnings (Step 0G)
+        if (result.warnings && result.warnings.length > 0) {
+          try {
+            const warningText = [
+              '# Build Warnings (auto-captured)',
+              `> ${result.warnings.length} warning(s) at ${new Date().toISOString()}`,
+              '',
+              ...result.warnings.map((w) => {
+                const loc = w.file ? `\n  at ${w.file}${w.line ? ':' + w.line : ''}` : ''
+                return `⚠️ ${w.message}${loc}`
+              }),
+            ].join('\n')
+            await fs.mkdir(`${cwd}/.ralph`, { recursive: true })
+            await fs.writeFile(`${cwd}/.ralph/build-warnings.md`, warningText, { encoding: 'utf8' })
+          } catch {
+            // Ignore write failures
+          }
+        } else {
+          try { await fs.unlink(`${cwd}/.ralph/build-warnings.md`) } catch { /* may not exist */ }
+        }
+
         if (result.success) {
           return { pass: true }
         }
-        const rawErrors = result.errors?.map((e) => e.message).join('\n') || 'Unknown build error'
-        const enhancedErrors = enhanceBuildError(rawErrors)
+        const rawMessages = result.errors?.map((e) => e.message) || ['Unknown build error']
+        const enhancedErrors = rawMessages.map((msg) => enhanceBuildError(msg)).join('\n\n')
+        const rawErrors = rawMessages.join('\n')
         const feedback = `Build failed:\n${enhancedErrors}`
 
         // Write to file for Ralph to reference
@@ -359,9 +385,24 @@ export const QUALITY_GATES: QualityGate[] = [
   },
 
   {
+    name: 'has-summary',
+    description: 'Ralph must write a summary of what was built',
+    check: async (fs, cwd) => {
+      const summary = await readFile(fs, `${cwd}/.ralph/summary.md`)
+      if (!summary || summary.trim().length < 20) {
+        return {
+          pass: false,
+          feedback: 'Missing or empty .ralph/summary.md — write a brief summary of what you built before marking complete.',
+        }
+      }
+      return { pass: true }
+    },
+  },
+
+  {
     name: 'runtime-errors',
     description: 'Preview must not have runtime errors',
-    check: async (_fs, _cwd, context) => {
+    check: async (fs, cwd, context) => {
       // Skip if no error collector available (feature disabled)
       if (!context?.errorCollector) {
         return { pass: true }
@@ -371,10 +412,81 @@ export const QUALITY_GATES: QualityGate[] = [
       const errors = await context.errorCollector.waitForStable()
 
       if (errors.length > 0) {
+        // Write .ralph/errors.md so Ralph can read raw error details
+        try {
+          const timestamp = new Date().toISOString()
+          const errorLines = errors.map((e) => {
+            const loc = e.filename ? `\n  at ${e.filename}${e.line ? ':' + e.line : ''}${e.column ? ':' + e.column : ''}` : ''
+            const stack = e.stack ? '\n  ' + e.stack.split('\n').slice(0, 3).join('\n  ') : ''
+            return `❌ ${e.message}${loc}${stack}`
+          })
+          const content = `# Runtime Errors (auto-captured)\n> Timestamp: ${timestamp}\n\n${errorLines.join('\n\n')}\n`
+          await fs.mkdir(`${cwd}/.ralph`, { recursive: true })
+          await fs.writeFile(`${cwd}/.ralph/errors.md`, content, { encoding: 'utf8' })
+        } catch {
+          // Write failures are non-fatal
+        }
+
         return {
           pass: false,
           feedback: formatRuntimeErrors(errors),
         }
+      }
+
+      // Clean: remove stale errors file
+      try { await fs.unlink(`${cwd}/.ralph/errors.md`) } catch { /* may not exist */ }
+
+      return { pass: true }
+    },
+  },
+
+  {
+    name: 'console-capture',
+    description: 'Capture console output for Ralph visibility',
+    check: async (fs, cwd, context) => {
+      // Informational gate — always passes
+      if (!context?.consoleCollector) {
+        return { pass: true }
+      }
+
+      const output = context.consoleCollector.getFormattedOutput()
+
+      if (output.hasContent) {
+        try {
+          const lines: string[] = ['# Console Output (auto-captured)', `> ${new Date().toISOString()}`, '']
+
+          if (output.errors.length > 0) {
+            lines.push('## Errors', '')
+            for (const e of output.errors) {
+              lines.push(`❌ ${e.message}`)
+            }
+            lines.push('')
+          }
+
+          if (output.warnings.length > 0) {
+            lines.push('## Warnings', '')
+            for (const w of output.warnings) {
+              const countSuffix = w.count > 1 ? ` (×${w.count})` : ''
+              lines.push(`⚠️ ${w.message}${countSuffix}`)
+            }
+            lines.push('')
+          }
+
+          if (output.context.length > 0) {
+            lines.push('## Context (breadcrumbs before error)', '')
+            for (const c of output.context) {
+              lines.push(`  [${c.level}] ${c.message}`)
+            }
+            lines.push('')
+          }
+
+          await fs.mkdir(`${cwd}/.ralph`, { recursive: true })
+          await fs.writeFile(`${cwd}/.ralph/console.md`, lines.join('\n'), { encoding: 'utf8' })
+        } catch {
+          // Write failures are non-fatal
+        }
+      } else {
+        try { await fs.unlink(`${cwd}/.ralph/console.md`) } catch { /* may not exist */ }
       }
 
       return { pass: true }
@@ -385,29 +497,32 @@ export const QUALITY_GATES: QualityGate[] = [
     name: 'rendered-structure',
     description: 'Capture what actually rendered',
     check: async (fs, cwd, context) => {
-      if (!context?.structureCollector) {
+      if (!context?.renderStatic) {
         return { pass: true }
       }
 
-      const structure = await context.structureCollector.waitForStructure()
+      const result = await context.renderStatic()
 
-      // Always write structure file for reference
-      if (structure) {
+      if (result.html) {
         try {
-          const timestamp = new Date().toISOString()
-          const content = `# Rendered Structure\n\nTimestamp: ${timestamp}\n\n${formatStructure(structure)}`
-          await fs.mkdir(`${cwd}/.ralph`, { recursive: true })
-          await fs.writeFile(`${cwd}/.ralph/rendered-structure.md`, content, { encoding: 'utf8' })
+          await fs.mkdir(`${cwd}/.ralph/output`, { recursive: true })
+          await fs.writeFile(`${cwd}/.ralph/output/index.html`, result.html, { encoding: 'utf8' })
         } catch {
           // Ignore write failures
         }
       }
 
-      // Return summary as feedback (still passes - informational only)
-      const summary = summarizeStructure(structure)
+      if (result.errors.length > 0) {
+        return {
+          pass: true, // informational only
+          feedback: `Static render had errors: ${result.errors.join('; ')}. See build output.`,
+        }
+      }
+
+      const summary = countHtmlElements(result.html)
       return {
         pass: true,
-        feedback: `Rendered: ${summary}. See .ralph/rendered-structure.md for full tree.`,
+        feedback: `Rendered: ${summary}. See .ralph/output/index.html for full HTML.`,
       }
     },
   },

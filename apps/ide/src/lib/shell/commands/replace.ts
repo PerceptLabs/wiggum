@@ -1,10 +1,16 @@
+import { createPatch } from 'diff'
+import { distance } from 'fastest-levenshtein'
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import { resolvePath } from './utils'
+import { validateFileWrite } from '../write-guard'
 
 /**
  * replace - Replace all occurrences of a string in a file
  * Usage: replace [-w] <file> "<old>" "<new>"
  * -w: Whitespace-tolerant matching (collapses whitespace)
+ *
+ * On success: shows unified diff of changes
+ * On no match: shows fuzzy suggestions from file content
  */
 export class ReplaceCommand implements ShellCommand {
   name = 'replace'
@@ -42,6 +48,16 @@ export class ReplaceCommand implements ShellCommand {
       return { exitCode: 1, stdout: '', stderr: 'replace: cannot access paths outside project' }
     }
 
+    // Write guard — block protected files (index.html, etc.)
+    const validation = validateFileWrite(filePath, cwd)
+    if (!validation.allowed) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `replace: ${validation.reason}${validation.suggestion ? '\n' + validation.suggestion : ''}`,
+      }
+    }
+
     try {
       const content = await fs.readFile(filePath, { encoding: 'utf8' })
       const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
@@ -50,7 +66,6 @@ export class ReplaceCommand implements ShellCommand {
       let count: number
 
       if (whitespaceTolerant) {
-        // Find all positions where whitespace-tolerant match occurs
         const matches = findWhitespaceTolerantMatches(text, oldStr)
         count = matches.length
 
@@ -58,7 +73,7 @@ export class ReplaceCommand implements ShellCommand {
           return {
             exitCode: 1,
             stdout: '',
-            stderr: `replace: "${oldStr}" not found in ${file} (even with whitespace tolerance)\nTip: For multi-line replacements, rewrite the file with: cat > ${file} << 'EOF'`,
+            stderr: formatNoMatchError(text, oldStr, file, true),
           }
         }
 
@@ -69,14 +84,18 @@ export class ReplaceCommand implements ShellCommand {
           newContent = newContent.slice(0, start) + newStr + newContent.slice(end)
         }
       } else {
-        // Exact matching (original behavior)
+        // Exact matching
         const escapedOld = escapeRegex(oldStr)
         const regex = new RegExp(escapedOld, 'g')
         const matchArr = text.match(regex)
         count = matchArr ? matchArr.length : 0
 
         if (count === 0) {
-          return { exitCode: 1, stdout: '', stderr: `replace: "${oldStr}" not found in ${file}\nTip: For multi-line replacements, rewrite the file with: cat > ${file} << 'EOF'` }
+          return {
+            exitCode: 1,
+            stdout: '',
+            stderr: formatNoMatchError(text, oldStr, file, false),
+          }
         }
 
         newContent = text.split(oldStr).join(newStr)
@@ -84,10 +103,19 @@ export class ReplaceCommand implements ShellCommand {
 
       await fs.writeFile(filePath, newContent)
 
+      // Generate unified diff for output
+      const diffOutput = createPatch(file, text, newContent, '', '', { context: 3 })
+      // Strip the first two header lines (diff --git, index) leaving --- and +++ onward
+      const diffLines = diffOutput.split('\n')
+      const patchStart = diffLines.findIndex((l) => l.startsWith('---'))
+      const cleanDiff = patchStart >= 0 ? diffLines.slice(patchStart).join('\n') : diffOutput
+
+      const wsNote = whitespaceTolerant ? ' (whitespace-tolerant)' : ''
       return {
         exitCode: 0,
-        stdout: `Replaced ${count} occurrence${count > 1 ? 's' : ''} in ${file}${whitespaceTolerant ? ' (whitespace-tolerant)' : ''}`,
+        stdout: `✓ Replaced ${count} occurrence${count > 1 ? 's' : ''} in ${file}${wsNote}\n\n${cleanDiff}`,
         stderr: '',
+        filesChanged: [filePath],
       }
     } catch {
       return { exitCode: 1, stdout: '', stderr: `replace: ${file}: No such file` }
@@ -97,6 +125,74 @@ export class ReplaceCommand implements ShellCommand {
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Format a helpful no-match error with fuzzy suggestions
+ */
+function formatNoMatchError(
+  fileContent: string,
+  searchStr: string,
+  fileName: string,
+  wasWhitespace: boolean
+): string {
+  const wsNote = wasWhitespace ? ' (even with whitespace tolerance)' : ''
+  const lines: string[] = [`⚠ No match found for "${searchStr}" in ${fileName}${wsNote}`]
+
+  // Find fuzzy suggestions
+  const suggestions = findFuzzySuggestions(fileContent, searchStr)
+  if (suggestions.length > 0) {
+    lines.push('')
+    lines.push('Did you mean one of these?')
+    for (const s of suggestions) {
+      lines.push(`  Line ${s.line}: ${s.text}`)
+    }
+  }
+
+  lines.push('')
+  lines.push(`Tip: For multi-line replacements, rewrite the file with: cat > ${fileName} << 'EOF'`)
+
+  return lines.join('\n')
+}
+
+/**
+ * Find lines in the file that are close to the search string
+ * Uses Levenshtein distance and substring matching
+ */
+function findFuzzySuggestions(
+  fileContent: string,
+  searchStr: string,
+  maxSuggestions = 3
+): Array<{ line: number; text: string }> {
+  const fileLines = fileContent.split('\n')
+  const searchLower = searchStr.toLowerCase()
+  const candidates: Array<{ line: number; text: string; score: number }> = []
+
+  for (let i = 0; i < fileLines.length; i++) {
+    const lineText = fileLines[i].trim()
+    if (!lineText) continue
+
+    // Check substring match first (cheapest)
+    if (lineText.toLowerCase().includes(searchLower.slice(0, Math.max(5, searchLower.length / 2)))) {
+      candidates.push({ line: i + 1, text: lineText, score: 0 })
+      continue
+    }
+
+    // Levenshtein on short strings only (expensive for long strings)
+    if (searchStr.length <= 60 && lineText.length <= 200) {
+      const d = distance(searchStr, lineText)
+      if (d <= Math.max(5, searchStr.length * 0.4)) {
+        candidates.push({ line: i + 1, text: lineText, score: d })
+      }
+    }
+  }
+
+  // Sort by score (lower is better), take top N
+  candidates.sort((a, b) => a.score - b.score)
+  return candidates.slice(0, maxSuggestions).map((c) => ({
+    line: c.line,
+    text: c.text.length > 80 ? c.text.slice(0, 77) + '...' : c.text,
+  }))
 }
 
 /**
@@ -110,7 +206,6 @@ function findWhitespaceTolerantMatches(
   const matches: Array<{ start: number; end: number }> = []
 
   // Split pattern by whitespace, escape each part, join with \s+
-  // "foo  bar" becomes /foo\s+bar/g
   const parts = pattern.split(/\s+/).filter(Boolean)
   if (parts.length === 0) return matches
 

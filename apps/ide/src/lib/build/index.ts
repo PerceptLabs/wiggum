@@ -6,6 +6,7 @@ import { createESMPlugin, createModuleCache } from './plugins/esmPlugin'
 import { createWiggumStackPlugin } from './plugins/wiggumStackPlugin'
 import { loadLockfile, createResolver } from './lockfile'
 import * as path from 'path-browserify'
+import { validateImports, collectSourceFiles } from './import-validator'
 
 // Re-export types
 export type {
@@ -177,7 +178,25 @@ export async function buildProject(
     }),
   ]
 
-  // Build
+  // Layer 1: Static import validation — advisory, does not block build
+  let validatorWarnings: Array<{ message: string; file: string; line: number }> = []
+  try {
+    const sourceFiles = await collectSourceFiles(fs, projectPath)
+    if (sourceFiles.size > 0) {
+      const importErrors = validateImports(sourceFiles)
+      if (importErrors.length > 0) {
+        validatorWarnings = importErrors.map((e) => ({
+          message: `${e.component} is used in JSX but not imported. ${e.suggestion}`,
+          file: e.file,
+          line: e.line,
+        }))
+      }
+    }
+  } catch {
+    // Validation failure is non-fatal
+  }
+
+  // Build — always runs regardless of validator
   const result = await build(
     {
       entryPoint,
@@ -198,6 +217,15 @@ export async function buildProject(
     },
     plugins
   )
+
+  // If esbuild failed, prepend validator context (deduped by file)
+  if (!result.success && validatorWarnings.length > 0) {
+    const esbuildFiles = new Set((result.errors || []).map((e) => e.file || ''))
+    const extraWarnings = validatorWarnings.filter((w) => !esbuildFiles.has(w.file))
+    if (extraWarnings.length > 0) {
+      return { ...result, errors: [...extraWarnings, ...(result.errors || [])] }
+    }
+  }
 
   return result
 }

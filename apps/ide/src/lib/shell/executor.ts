@@ -6,6 +6,8 @@ import { parseCommandLineWithChaining, normalizePath } from './parser'
 import type { ParsedChain } from './parser'
 import type { ParsedCommand, ShellCommand, ShellOptions, ShellResult } from './types'
 import { resolvePath, dirname } from './commands/utils'
+import { validateFileWrite, validateFileContent, formatValidationError } from './write-guard'
+import { fsEvents } from '../fs/fs-events'
 
 /**
  * Callback for gap tracking - called when a command is not found
@@ -130,7 +132,6 @@ async function expandGlobs(
  * Provides helpful alternatives when users try unavailable commands
  */
 const COMMAND_REDIRECTS: Record<string, { alt: string; example?: string }> = {
-  sed: { alt: '`replace` for surgical string replacement', example: 'replace src/App.tsx "old" "new"' },
   awk: { alt: '`grep` + `replace`' },
   npm: { alt: 'esm.sh imports in your code', example: 'import x from "https://esm.sh/pkg"' },
   yarn: { alt: 'esm.sh imports in your code', example: 'import x from "https://esm.sh/pkg"' },
@@ -143,120 +144,14 @@ const COMMAND_REDIRECTS: Record<string, { alt: string; example?: string }> = {
   wget: { alt: 'Static data or fetch in your React code' },
   bash: { alt: 'Run commands directly (no shell wrapper needed)' },
   sh: { alt: 'Run commands directly (no shell wrapper needed)' },
+  cd: { alt: 'Not needed — all paths are relative to project root', example: 'cat src/App.tsx' },
+  sudo: { alt: 'Not needed — you have full access to the project filesystem' },
+  vim: { alt: '`replace` for surgical edits', example: 'replace src/file.tsx "old" "new"' },
+  nano: { alt: '`replace` for surgical edits', example: 'replace src/file.tsx "old" "new"' },
+  apt: { alt: 'Not available — browser-based virtual shell' },
 }
 
-// ============================================================================
-// FILE VALIDATION - HARNESS ENFORCEMENT
-// ============================================================================
-
-interface WriteValidation {
-  allowed: boolean
-  reason?: string
-  suggestion?: string
-}
-
-/**
- * Validate file writes - HARNESS ENFORCEMENT
- * This is not a suggestion to the LLM, it's a hard block.
- */
-function validateFileWrite(filePath: string, cwd: string): WriteValidation {
-  const ext = path.extname(filePath).toLowerCase()
-  const relativePath = filePath.startsWith(cwd)
-    ? filePath.slice(cwd.length).replace(/^[/\\]/, '')
-    : filePath
-
-  // Allow .ralph/ directory (state files)
-  if (relativePath.startsWith('.ralph/') || relativePath.startsWith('.ralph\\')) {
-    return { allowed: true }
-  }
-
-  // Allow package.json at root
-  if (relativePath === 'package.json') {
-    return { allowed: true }
-  }
-
-  // Block modifications to index.html (contains required Tailwind config)
-  if (relativePath === 'index.html') {
-    return {
-      allowed: false,
-      reason: 'Cannot modify index.html - it contains required Tailwind configuration.',
-      suggestion: 'Customize theme colors in src/index.css instead. See theming skill.',
-    }
-  }
-
-  // Block HTML files - key enforcement
-  if (ext === '.html' || ext === '.htm') {
-    const suggestedPath = relativePath
-      .replace(/\.html?$/, '.tsx')
-      .replace(/^(?!src[/\\])/, 'src/sections/')
-    return {
-      allowed: false,
-      reason: 'HTML files not supported. This is a React project.',
-      suggestion: `Write a React component instead: ${suggestedPath}\n\nNote: Use the Export button to download as a single HTML file when done.`,
-    }
-  }
-
-  // Block CSS files outside src/
-  if (ext === '.css' && !relativePath.startsWith('src/') && !relativePath.startsWith('src\\')) {
-    return {
-      allowed: false,
-      reason: 'CSS files must be in src/',
-      suggestion: 'Use: src/index.css or Tailwind classes directly',
-    }
-  }
-
-  // Block writes outside src/ (except .ralph/ and package.json handled above)
-  const isInSrc = relativePath.startsWith('src/') || relativePath.startsWith('src\\')
-  if (!isInSrc) {
-    return {
-      allowed: false,
-      reason: 'Files must be in src/ directory',
-      suggestion: `Try: src/${path.basename(relativePath)}`,
-    }
-  }
-
-  // Only allow specific extensions in src/
-  const allowedExtensions = ['.tsx', '.ts', '.css', '.json']
-  if (!allowedExtensions.includes(ext)) {
-    return {
-      allowed: false,
-      reason: `Only ${allowedExtensions.join(', ')} files allowed in src/`,
-      suggestion:
-        ext === '.js' || ext === '.jsx'
-          ? `Use TypeScript: ${relativePath.replace(/\.jsx?$/, '.tsx')}`
-          : undefined,
-    }
-  }
-
-  return { allowed: true }
-}
-
-/**
- * Validate file content before write - HARNESS ENFORCEMENT
- * Blocks patterns that will fail at runtime (e.g., @tailwind directives)
- */
-function validateFileContent(filePath: string, content: string): WriteValidation {
-  const ext = path.extname(filePath).toLowerCase()
-
-  // Block @tailwind directives in CSS files - browsers cannot process them
-  if (ext === '.css' && content.includes('@tailwind')) {
-    return {
-      allowed: false,
-      reason: 'Cannot use @tailwind directives in CSS files — the browser can\'t process them.\nTailwind utility classes (bg-primary, text-center, flex, grid, etc.) work normally in JSX via the CDN loaded in index.html.\nDefine theme colors as CSS variables in src/index.css. See: grep skill "CSS variables"',
-      suggestion: `Utility classes work in JSX — only @tailwind directives are blocked.\n\nDefine your theme in src/index.css:\n\n:root {\n  --background: 0 0% 100%;\n  --primary: 210 100% 50%;\n  /* Run: grep skill "preset" for full theme presets */\n}`,
-    }
-  }
-
-  return { allowed: true }
-}
-
-function formatValidationError(validation: WriteValidation, filePath: string): string {
-  let msg = `❌ Cannot write to ${filePath}\n   ${validation.reason}`
-  if (validation.suggestion) {
-    msg += `\n\n   ${validation.suggestion}`
-  }
-  return msg
-}
+// File validation functions imported from ./write-guard
 
 /** Shell executor that manages command registration and execution with piping support */
 export class ShellExecutor {
@@ -264,6 +159,7 @@ export class ShellExecutor {
   private fs: JSRuntimeFS
   private git?: Git
   private onGap?: (gap: GapCallback) => void
+  previewContext?: ShellOptions['preview']
 
   constructor(fs: JSRuntimeFS, git?: Git) {
     this.fs = fs
@@ -276,6 +172,14 @@ export class ShellExecutor {
    */
   setOnGap(callback: ((gap: GapCallback) => void) | undefined): void {
     this.onGap = callback
+  }
+
+  /**
+   * Set preview context for on-demand build + DOM capture
+   * Wired from GateContext in runRalphLoop
+   */
+  setPreviewContext(ctx: ShellOptions['preview']): void {
+    this.previewContext = ctx
   }
 
   registerCommand(cmd: ShellCommand): void {
@@ -296,12 +200,18 @@ export class ShellExecutor {
 
   /** Execute a command line string. Supports piping, redirects, heredocs, &&, and || */
   async execute(commandLine: string, cwd: string): Promise<ShellResult> {
+    if (!commandLine || typeof commandLine !== 'string' || commandLine.trim() === '') {
+      return { exitCode: 1, stdout: '', stderr: 'Error: empty or invalid command' }
+    }
+
     const chains = parseCommandLineWithChaining(commandLine)
     if (chains.length === 0) {
       return { exitCode: 0, stdout: '', stderr: '' }
     }
 
     let lastResult: ShellResult = { exitCode: 0, stdout: '', stderr: '' }
+    const allStdout: string[] = []
+    const allStderr: string[] = []
 
     for (let i = 0; i < chains.length; i++) {
       const chain = chains[i]
@@ -315,9 +225,17 @@ export class ShellExecutor {
 
       // Execute this chain's pipeline (handles pipes internally)
       lastResult = await this.executePipeline(chain.commands, cwd)
+
+      // Accumulate output from each chain segment
+      if (lastResult.stdout) allStdout.push(lastResult.stdout)
+      if (lastResult.stderr) allStderr.push(lastResult.stderr)
     }
 
-    return lastResult
+    return {
+      exitCode: lastResult.exitCode,
+      stdout: allStdout.join(''),
+      stderr: allStderr.join(''),
+    }
   }
 
   /**
@@ -355,8 +273,13 @@ export class ShellExecutor {
 
     // Normalize paths in arguments
     const normalizedArgs = expandedArgs.map((arg) => {
-      // Only normalize if it looks like a path
+      // Only normalize if it looks like a path (not a regex pattern like /foo/d or s|old|new|)
       if (arg.startsWith('/') || arg.includes('/')) {
+        // Skip regex-like patterns: /pattern/flags, /start/,/end/p, /pat/s/old/new/
+        const slashCount = (arg.match(/\//g) || []).length
+        if (arg.startsWith('/') && slashCount >= 2) return arg
+        // Skip sed-style expressions with alternate delimiters: s|old|new|
+        if (arg.length > 1 && arg[0] === 's' && !/[a-zA-Z0-9]/.test(arg[1])) return arg
         return normalizePath(arg, cwd)
       }
       return arg
@@ -405,10 +328,21 @@ export class ShellExecutor {
       return { exitCode: 127, stdout: '', stderr: error }
     }
 
-    const options: ShellOptions = { cwd, stdin, fs: this.fs, git: this.git }
+    const options: ShellOptions = {
+      cwd, stdin, fs: this.fs, git: this.git,
+      exec: (cmdLine, execCwd) => this.execute(cmdLine, execCwd),
+      preview: this.previewContext,
+    }
 
     try {
       let result = await command.execute(normalizedArgs, options)
+
+      // Emit FS events for commands that report changed files
+      if (result.filesChanged) {
+        for (const changedPath of result.filesChanged) {
+          fsEvents.fileChanged(changedPath)
+        }
+      }
 
       // Handle redirect on the command
       if (cmd.redirect && result.stdout) {
@@ -475,8 +409,10 @@ export class ShellExecutor {
           existing = typeof data === 'string' ? data : new TextDecoder().decode(data as Uint8Array)
         } catch { /* file may not exist yet */ }
         await this.fs.writeFile(filePath, existing + content, { encoding: 'utf8' })
+        fsEvents.fileChanged(filePath, 'modify')
       } else {
         await this.fs.writeFile(filePath, content, { encoding: 'utf8' })
+        fsEvents.fileChanged(filePath, 'create')
       }
       return {
         exitCode: 0,
@@ -544,9 +480,11 @@ export class ShellExecutor {
           // File doesn't exist, start fresh
         }
         await this.fs.writeFile(filePath, existing + content, { encoding: 'utf8' })
+        fsEvents.fileChanged(filePath, 'modify')
       } else {
         // Write mode (overwrite)
         await this.fs.writeFile(filePath, content, { encoding: 'utf8' })
+        fsEvents.fileChanged(filePath, 'create')
       }
       return { exitCode: 0, stdout: '', stderr: '' }
     } catch (err) {

@@ -8,7 +8,6 @@ import { runRalphLoop, type RalphCallbacks } from '@/lib/ralph'
 import { Git } from '@/lib/git'
 import { getSearchDb } from '@/lib/search'
 import { createErrorCollector } from '@/lib/preview/error-collector'
-import { createStructureCollector } from '@/lib/preview/structure-collector'
 
 // Storage key for chat messages (scoped by project)
 const getChatStorageKey = (projectId: string | undefined) =>
@@ -34,10 +33,11 @@ function saveMessagesToStorage(projectId: string | undefined, messages: AIMessag
   const key = getChatStorageKey(projectId)
   if (!key) return
   try {
-    // Only save user and assistant messages (not status/action ephemeral messages)
-    const persistableMessages = messages.filter(
-      (m) => !('_displayType' in m) || m._displayType === undefined
-    )
+    // Persist all message types by default; exclusion list ready for future use
+    const EXCLUDED_DISPLAY_TYPES: string[] = []
+    const persistableMessages = EXCLUDED_DISPLAY_TYPES.length > 0
+      ? messages.filter((m) => !m._displayType || !EXCLUDED_DISPLAY_TYPES.includes(m._displayType))
+      : messages
     localStorage.setItem(key, JSON.stringify(persistableMessages))
   } catch {
     // Ignore storage errors
@@ -53,6 +53,8 @@ export interface UseChatOptions {
   onIteration?: (iteration: number) => void
   /** Callback on status change */
   onStatusChange?: (status: 'idle' | 'running' | 'waiting' | 'complete' | 'error') => void
+  /** Full preview build pipeline (esbuild → inject → cache → reload) */
+  fullBuild?: () => Promise<void>
 }
 
 export interface ChatState {
@@ -268,11 +270,9 @@ export function useAIChat(options: UseChatOptions = {}) {
         },
       }
 
-      // Create error collector and structure collector for quality gates
+      // Create error collector for quality gates
       const errorCollector = createErrorCollector()
-      const structureCollector = createStructureCollector()
       errorCollector.start()
-      structureCollector.start()
 
       try {
         // Run the Ralph loop
@@ -290,7 +290,7 @@ export function useAIChat(options: UseChatOptions = {}) {
               captureReflection: true,
               minIterationsForReflection: 1,
             },
-            gateContext: { errorCollector, structureCollector }
+            gateContext: { errorCollector, fullBuild: options.fullBuild }
           }
         )
 
@@ -363,7 +363,6 @@ export function useAIChat(options: UseChatOptions = {}) {
         options.onStatusChange?.('error')
       } finally {
         errorCollector.stop()
-        structureCollector.stop()
         abortRef.current = null
         isRunningRef.current = false
       }

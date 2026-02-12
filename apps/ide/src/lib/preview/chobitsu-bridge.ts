@@ -12,75 +12,171 @@
 export function getChobitsuInjectionScript(): string {
   return `
 <script>
-// Wiggum Runtime Error Capture
+// Wiggum Runtime Error Capture — Tiered Console System
 (function() {
   'use strict';
 
-  // Track errors to avoid duplicates
-  const seenErrors = new Set();
+  // ---- Noise blocklist (filtered from all tiers) ----
+  const NOISE_PATTERNS = [
+    'cdn.tailwindcss.com should not be used in production',
+    'Download the React DevTools',
+    '[vite] connecting',
+    '[vite] connected',
+    'LogTape loggers are configured',
+    'Note that LogTape itself uses the meta logger',
+    'react-devtools',
+  ];
+
+  function isNoise(message) {
+    for (let i = 0; i < NOISE_PATTERNS.length; i++) {
+      if (message.indexOf(NOISE_PATTERNS[i]) !== -1) return true;
+    }
+    return false;
+  }
+
+  function argsToMessage(args) {
+    return args.map(function(arg) {
+      if (arg instanceof Error) return arg.message;
+      if (typeof arg === 'object') {
+        try { return JSON.stringify(arg); }
+        catch(e) { return String(arg); }
+      }
+      return String(arg);
+    }).join(' ');
+  }
+
+  // ---- Tier 1: Errors (always capture, post immediately) ----
+  var seenErrors = new Set();
 
   function sendError(error) {
-    // Deduplicate based on message + location
-    const key = error.message + ':' + (error.filename || '') + ':' + (error.line || '');
+    var key = error.message + ':' + (error.filename || '') + ':' + (error.line || '');
     if (seenErrors.has(key)) return;
     seenErrors.add(key);
 
-    // Post to parent window
+    // Deduplicate with client.js early error capture to avoid double-posting
+    if (window.__wiggum_errors__ && window.__wiggum_errors__.some(function(e) {
+      return (e.message + ':' + (e.source || '') + ':' + (e.lineno || '')) === key;
+    })) return;
+
+    window.parent.postMessage({ type: 'wiggum-runtime-error', error: error }, '*');
+
+    // Also send as console message so collector has full picture
     window.parent.postMessage({
-      type: 'wiggum-runtime-error',
-      error: error
+      type: 'wiggum-console-message',
+      level: 'error',
+      message: error.message,
+      timestamp: error.timestamp || Date.now()
     }, '*');
+
+    // Flush Tier 3 ringbuffer as breadcrumb context
+    if (logRingBuffer.length > 0) {
+      window.parent.postMessage({
+        type: 'wiggum-console-context',
+        entries: logRingBuffer.slice(),
+        timestamp: Date.now()
+      }, '*');
+      logRingBuffer.length = 0;
+    }
   }
 
-  // Global error handler for uncaught errors
   window.addEventListener('error', function(event) {
     sendError({
       message: event.message || 'Unknown error',
       filename: event.filename,
       line: event.lineno,
       column: event.colno,
-      stack: event.error?.stack,
+      stack: event.error ? event.error.stack : undefined,
       timestamp: Date.now()
     });
   });
 
-  // Unhandled promise rejection handler
   window.addEventListener('unhandledrejection', function(event) {
-    const reason = event.reason;
+    var reason = event.reason;
     sendError({
-      message: reason?.message || String(reason) || 'Unhandled Promise rejection',
-      stack: reason?.stack,
+      message: (reason && reason.message) ? reason.message : (String(reason) || 'Unhandled Promise rejection'),
+      stack: reason ? reason.stack : undefined,
       timestamp: Date.now()
     });
   });
 
-  // Intercept console.error
-  const originalConsoleError = console.error;
-  console.error = function(...args) {
-    originalConsoleError.apply(console, args);
+  var originalConsoleError = console.error;
+  console.error = function() {
+    originalConsoleError.apply(console, arguments);
+    var msg = argsToMessage(Array.from(arguments));
+    if (isNoise(msg)) return;
+    sendError({ message: 'Console error: ' + msg, timestamp: Date.now() });
+  };
 
-    // Convert arguments to a message
-    const message = args
-      .map(arg => {
-        if (arg instanceof Error) return arg.message;
-        if (typeof arg === 'object') {
-          try { return JSON.stringify(arg); }
-          catch { return String(arg); }
-        }
-        return String(arg);
-      })
-      .join(' ');
+  // ---- Tier 2: Warnings (dedup by first 100 chars, noise-filtered) ----
+  var warnSeen = {};
 
-    sendError({
-      message: 'Console error: ' + message,
+  var originalConsoleWarn = console.warn;
+  console.warn = function() {
+    originalConsoleWarn.apply(console, arguments);
+    var msg = argsToMessage(Array.from(arguments));
+    if (isNoise(msg)) return;
+
+    var dedupKey = msg.slice(0, 100);
+    warnSeen[dedupKey] = (warnSeen[dedupKey] || 0) + 1;
+
+    // Only send first occurrence immediately
+    if (warnSeen[dedupKey] === 1) {
+      window.parent.postMessage({
+        type: 'wiggum-console-message',
+        level: 'warn',
+        message: msg,
+        timestamp: Date.now()
+      }, '*');
+    }
+  };
+
+  // Post aggregated warn counts every 5 seconds
+  setInterval(function() {
+    var hasCounts = false;
+    for (var k in warnSeen) { if (warnSeen[k] > 1) { hasCounts = true; break; } }
+    if (!hasCounts) return;
+    window.parent.postMessage({
+      type: 'wiggum-console-warn-counts',
+      counts: Object.assign({}, warnSeen),
       timestamp: Date.now()
-    });
+    }, '*');
+  }, 5000);
+
+  // ---- Tier 3: Logs/Info/Debug (ringbuffer, flushed on error) ----
+  var logRingBuffer = [];
+  var RING_SIZE = 20;
+
+  function captureToRing(level, args) {
+    var msg = argsToMessage(Array.from(args));
+    if (isNoise(msg)) return;
+    logRingBuffer.push({ level: level, message: msg, timestamp: Date.now() });
+    while (logRingBuffer.length > RING_SIZE) logRingBuffer.shift();
+  }
+
+  var originalConsoleLog = console.log;
+  console.log = function() {
+    originalConsoleLog.apply(console, arguments);
+    captureToRing('log', arguments);
+  };
+
+  var originalConsoleInfo = console.info;
+  console.info = function() {
+    originalConsoleInfo.apply(console, arguments);
+    captureToRing('info', arguments);
+  };
+
+  var originalConsoleDebug = console.debug;
+  console.debug = function() {
+    originalConsoleDebug.apply(console, arguments);
+    captureToRing('debug', arguments);
   };
 
   // Expose for debugging
   window.__wiggumErrorCapture = {
     seenErrors: seenErrors,
-    sendError: sendError
+    sendError: sendError,
+    warnSeen: warnSeen,
+    logRingBuffer: logRingBuffer
   };
 })();
 </script>
@@ -112,82 +208,3 @@ export function hasErrorCapture(html: string): boolean {
   return html.includes('wiggum-runtime-error') || html.includes('__wiggumErrorCapture')
 }
 
-/**
- * Generate DOM structure capture script
- * Captures semantic structure after page loads and sends via postMessage
- */
-export function getStructureCaptureScript(): string {
-  return `
-<script>
-// Wiggum DOM Structure Capture
-(function() {
-  'use strict';
-
-  function captureStructure(element, depth = 0) {
-    if (depth > 10) return null;
-    if (!element || element.nodeType !== 1) return null;
-
-    const tag = element.tagName.toLowerCase();
-    if (['script', 'style', 'noscript'].includes(tag)) return null;
-
-    const result = { tag };
-
-    if (element.id) result.id = element.id;
-    if (element.className && typeof element.className === 'string') {
-      const classes = element.className.split(' ').filter(c => c && !c.startsWith('_'));
-      if (classes.length > 0) result.classes = classes.slice(0, 5);
-    }
-
-    if (['h1','h2','h3','h4','h5','h6','button','a','label','p'].includes(tag)) {
-      const text = element.textContent?.trim().slice(0, 50);
-      if (text) result.text = text;
-    }
-
-    if (tag === 'a' && element.href) {
-      result.href = element.href.slice(0, 100);
-    }
-
-    const children = [];
-    for (const child of element.children) {
-      const childResult = captureStructure(child, depth + 1);
-      if (childResult) children.push(childResult);
-    }
-    if (children.length > 0) result.children = children;
-
-    return result;
-  }
-
-  function sendStructure() {
-    const root = document.getElementById('root') || document.body;
-    const structure = captureStructure(root);
-    window.parent.postMessage({
-      type: 'wiggum-dom-structure',
-      structure: structure,
-      timestamp: Date.now()
-    }, '*');
-  }
-
-  if (document.readyState === 'complete') {
-    setTimeout(sendStructure, 500);
-  } else {
-    window.addEventListener('load', () => setTimeout(sendStructure, 500));
-  }
-
-  window.__wiggumCaptureStructure = sendStructure;
-})();
-</script>
-`;
-}
-
-/**
- * Inject both error capture and structure capture into HTML
- */
-export function injectAllCapture(html: string): string {
-  const scripts = getChobitsuInjectionScript() + getStructureCaptureScript();
-  const bodyMatch = html.match(/<body[^>]*>/i);
-  if (bodyMatch) {
-    const insertPosition = bodyMatch.index! + bodyMatch[0].length;
-    return html.slice(0, insertPosition) + '\n' + scripts + html.slice(insertPosition);
-  }
-  return scripts + html;
-}

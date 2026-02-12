@@ -19,6 +19,7 @@ export class RmdirCommand implements ShellCommand {
     }
 
     const errors: string[] = []
+    const changedPaths: string[] = []
 
     for (const dir of dirs) {
       const dirPath = resolvePath(cwd, dir)
@@ -40,6 +41,7 @@ export class RmdirCommand implements ShellCommand {
 
         // Remove the empty directory
         await fs.rmdir(dirPath)
+        changedPaths.push(dirPath)
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         if (message.includes('ENOENT') || message.includes('no such')) {
@@ -54,6 +56,7 @@ export class RmdirCommand implements ShellCommand {
       exitCode: errors.length > 0 ? 1 : 0,
       stdout: '',
       stderr: errors.join('\n'),
+      filesChanged: changedPaths.length > 0 ? changedPaths : undefined,
     }
   }
 }

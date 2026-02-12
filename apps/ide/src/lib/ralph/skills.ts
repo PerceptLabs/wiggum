@@ -19,9 +19,6 @@ import codeQualitySkill from '../../skills/code-quality/SKILL.md?raw'
 import creativitySkill from '../../skills/creativity/SKILL.md?raw'
 import themingSkill from '../../skills/theming/SKILL.md?raw'
 
-// Heartbeat skill (injected periodically)
-import heartbeatSkill from '../../skills/ralph/HEARTBEAT.md?raw'
-
 import { parseSkillFile } from '../skills/parser'
 
 /**
@@ -80,24 +77,6 @@ grep skill "staggered animation" # → CSS keyframe examples
 \`\`\`
 
 **Always grep when unsure.** Skills contain critical rules that prevent bugs.
-`
-}
-
-/**
- * Get heartbeat skill content for periodic injection
- * Injected every 5 iterations to trigger quality/creativity reflection
- */
-export function getHeartbeatContent(): string {
-  return `
-
----
-
-# HEARTBEAT CHECK (Iteration %ITERATION%)
-
-${heartbeatSkill}
-
----
-
 `
 }
 

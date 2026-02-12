@@ -35,6 +35,7 @@ export class RmCommand implements ShellCommand {
     }
 
     const errors: string[] = []
+    const changedPaths: string[] = []
 
     for (const target of targets) {
       const targetPath = resolvePath(cwd, target)
@@ -47,9 +48,11 @@ export class RmCommand implements ShellCommand {
             errors.push(`rm: cannot remove '${target}': Is a directory`)
           } else {
             await removeRecursive(fs, targetPath)
+            changedPaths.push(targetPath)
           }
         } else {
           await fs.unlink(targetPath)
+          changedPaths.push(targetPath)
         }
       } catch (err) {
         if (!force) {
@@ -62,6 +65,7 @@ export class RmCommand implements ShellCommand {
       exitCode: errors.length > 0 ? 1 : 0,
       stdout: '',
       stderr: errors.join('\n'),
+      filesChanged: changedPaths.length > 0 ? changedPaths : undefined,
     }
   }
 }

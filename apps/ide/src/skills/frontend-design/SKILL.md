@@ -29,7 +29,7 @@ Choose fonts that match the aesthetic, not defaults.
 
 **NEVER use:** Inter, Roboto, Arial, system-ui, sans-serif as a design choice. These are fallbacks, not decisions.
 
-**DO:** Pick a distinctive display font paired with a refined body font. Add via `<link>` in index.html (never `@import url()` in CSS — esbuild can't process it).
+**DO:** Pick a distinctive display font paired with a refined body font. Declare fonts in `src/index.css` using `/* @fonts: FontName:wght@400;500;600 */` comment — the preview system auto-injects `<link>` tags. Never use `@import url()` in CSS — esbuild can't process it. Never modify `index.html` — it is locked.
 
 ```bash
 grep skill "fonts external resources"

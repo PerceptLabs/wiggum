@@ -114,6 +114,70 @@ describe('ShellExecutor', () => {
     })
   })
 
+  describe('grep context flags', () => {
+    beforeEach(async () => {
+      await fs.writeFile('/project/src/App.tsx', [
+        'import React from "react"',
+        'import { Card } from "@wiggum/stack"',
+        '',
+        'export default function App() {',
+        '  const [count, setCount] = React.useState(0)',
+        '  return (',
+        '    <Card>',
+        '      <h1>Hello</h1>',
+        '      <p>Count: {count}</p>',
+        '    </Card>',
+        '  )',
+        '}',
+      ].join('\n'))
+    })
+
+    it('parses -A flag and shows lines after match', async () => {
+      const result = await executor.execute('grep -A 2 "import React" src/App.tsx', '/project')
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toContain('import React')
+      expect(result.stdout).toContain('import { Card }')
+    })
+
+    it('parses -B flag and shows lines before match', async () => {
+      const result = await executor.execute('grep -B 1 "export default" src/App.tsx', '/project')
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toContain('export default')
+    })
+
+    it('parses -C flag and shows context both directions', async () => {
+      const result = await executor.execute('grep -C 1 "useState" src/App.tsx', '/project')
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toContain('useState')
+      // Should include at least surrounding lines
+      expect(result.stdout).toContain('export default')
+      expect(result.stdout).toContain('return')
+    })
+
+    it('parses combined form -A2', async () => {
+      const result = await executor.execute('grep -A2 "import React" src/App.tsx', '/project')
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toContain('import React')
+      expect(result.stdout).toContain('import { Card }')
+    })
+
+    it('does not treat -A argument as filename', async () => {
+      const result = await executor.execute('grep -A 5 "import" src/App.tsx', '/project')
+      expect(result.exitCode).toBe(0)
+      expect(result.stderr).not.toContain('5: No such file')
+      expect(result.stdout).toContain('import React')
+    })
+  })
+
+  describe('shell quoting', () => {
+    it('handles single quotes inside double quotes', async () => {
+      await fs.writeFile('/project/src/test.tsx', "const x = 'detail'\nconst y = 'gallery'")
+      const result = await executor.execute('grep "x = \'detail\'" src/test.tsx', '/project')
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toContain("x = 'detail'")
+    })
+  })
+
   describe('combined operators', () => {
     it('handles && followed by ||', async () => {
       // cat missing fails → && echo skipped → || echo runs

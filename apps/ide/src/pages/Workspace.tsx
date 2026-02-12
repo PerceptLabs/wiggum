@@ -1,7 +1,8 @@
 import * as React from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useProject, useFS } from '@/contexts'
-import { useFileTree, useFileContent, useGit, usePreview } from '@/hooks'
+import { useFileTree, useFileContent, useGit } from '@/hooks'
+import { usePreviewWithWatch } from '@/hooks/usePreview'
 import type { FileNode } from '@/hooks/useFileTree'
 import { AppLayout, useLayout } from '@/components/layout'
 import { FileTree, PreviewPane, CodeEditorPane, type GitStatusMap, type GitFileStatus } from '@/components/files'
@@ -70,7 +71,7 @@ export function Workspace() {
   const { addBuildLog } = useLayout()
 
   // Preview/build state
-  const preview = usePreview(projectPath, { onLog: addBuildLog })
+  const preview = usePreviewWithWatch(projectPath, [], { onLog: addBuildLog, debounceMs: 800 })
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return
@@ -95,7 +96,7 @@ export function Workspace() {
   }
 
   return (
-    <ChatProvider>
+    <ChatProvider fullBuild={preview.build}>
       <WorkspaceContent
         projects={projects}
         currentProject={currentProject}
@@ -142,7 +143,7 @@ interface WorkspaceContentProps {
   onNewProject: () => void
   fileTree: ReturnType<typeof useFileTree>
   git: ReturnType<typeof useGit>
-  preview: ReturnType<typeof usePreview>
+  preview: ReturnType<typeof usePreviewWithWatch>
 }
 
 function WorkspaceContent({

@@ -29,12 +29,14 @@ export class MkdirCommand implements ShellCommand {
     }
 
     const errors: string[] = []
+    const changedPaths: string[] = []
 
     for (const dir of dirs) {
       const dirPath = resolvePath(cwd, dir)
 
       try {
         await fs.mkdir(dirPath, { recursive })
+        changedPaths.push(dirPath)
       } catch (err) {
         if (recursive) {
           // With -p, silently ignore if directory exists
@@ -56,6 +58,7 @@ export class MkdirCommand implements ShellCommand {
       exitCode: errors.length > 0 ? 1 : 0,
       stdout: '',
       stderr: errors.join('\n'),
+      filesChanged: changedPaths.length > 0 ? changedPaths : undefined,
     }
   }
 }

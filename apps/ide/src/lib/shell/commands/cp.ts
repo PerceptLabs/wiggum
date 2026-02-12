@@ -49,6 +49,8 @@ export class CpCommand implements ShellCommand {
       return { exitCode: 1, stdout: '', stderr: `cp: target '${dest}' is not a directory` }
     }
 
+    const changedPaths: string[] = []
+
     for (const source of sources) {
       const sourcePath = resolvePath(cwd, source)
       const finalDest = destIsDir ? `${destPath}/${getBasename(source)}` : destPath
@@ -60,11 +62,13 @@ export class CpCommand implements ShellCommand {
           if (!recursive) {
             errors.push(`cp: -r not specified; omitting directory '${source}'`)
           } else {
-            await copyRecursive(fs, sourcePath, finalDest)
+            const copied = await copyRecursive(fs, sourcePath, finalDest)
+            changedPaths.push(...copied)
           }
         } else {
           const content = await fs.readFile(sourcePath)
           await fs.writeFile(finalDest, content)
+          changedPaths.push(finalDest)
         }
       } catch (err) {
         errors.push(`cp: cannot stat '${source}': No such file or directory`)
@@ -75,11 +79,13 @@ export class CpCommand implements ShellCommand {
       exitCode: errors.length > 0 ? 1 : 0,
       stdout: '',
       stderr: errors.join('\n'),
+      filesChanged: changedPaths.length > 0 ? changedPaths : undefined,
     }
   }
 }
 
-async function copyRecursive(fs: ShellOptions['fs'], sourcePath: string, destPath: string): Promise<void> {
+async function copyRecursive(fs: ShellOptions['fs'], sourcePath: string, destPath: string): Promise<string[]> {
+  const copied: string[] = []
   await fs.mkdir(destPath, { recursive: true })
 
   const entries = await fs.readdir(sourcePath, { withFileTypes: true })
@@ -89,12 +95,15 @@ async function copyRecursive(fs: ShellOptions['fs'], sourcePath: string, destPat
     const destEntry = `${destPath}/${entry.name}`
 
     if (entry.type === 'dir') {
-      await copyRecursive(fs, srcEntry, destEntry)
+      const subCopied = await copyRecursive(fs, srcEntry, destEntry)
+      copied.push(...subCopied)
     } else {
       const content = await fs.readFile(srcEntry)
       await fs.writeFile(destEntry, content)
+      copied.push(destEntry)
     }
   }
+  return copied
 }
 
 function getBasename(path: string): string {

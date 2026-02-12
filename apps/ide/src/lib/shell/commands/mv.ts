@@ -45,12 +45,15 @@ export class MvCommand implements ShellCommand {
       return { exitCode: 1, stdout: '', stderr: `mv: target '${dest}' is not a directory` }
     }
 
+    const changedPaths: string[] = []
+
     for (const source of sources) {
       const sourcePath = resolvePath(cwd, source)
       const finalDest = destIsDir ? `${destPath}/${getBasename(source)}` : destPath
 
       try {
         await fs.rename(sourcePath, finalDest)
+        changedPaths.push(finalDest, sourcePath)
       } catch (err) {
         errors.push(`mv: cannot move '${source}': ${err}`)
       }
@@ -60,6 +63,7 @@ export class MvCommand implements ShellCommand {
       exitCode: errors.length > 0 ? 1 : 0,
       stdout: '',
       stderr: errors.join('\n'),
+      filesChanged: changedPaths.length > 0 ? changedPaths : undefined,
     }
   }
 }

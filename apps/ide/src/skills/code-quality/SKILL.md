@@ -54,6 +54,32 @@ select option {
 - Never manually stack multiple overlays
 - Always include close mechanism (X button, click outside, Escape key)
 
+## CSS Syntax (CRITICAL)
+
+CSS comments use `/* */` only. Never use `//` in CSS files — they are not valid CSS and silently break ALL rules below them including @keyframes, @media, and @font-face. esbuild will warn but the preview renders with missing styles and no runtime error.
+
+Wrong: `// Section header`
+Right: `/* Section header */`
+
+## React Context Providers
+
+When creating Context + Provider + useHook:
+- Provider MUST wrap `<App />` in **main.tsx**, never inside App.tsx
+- Components calling useHook must be children of the Provider
+- Never call useHook in the same component that renders the Provider
+
+```tsx
+// main.tsx — correct
+import { ThemeProvider } from './components/ThemeContext'
+import App from './App'
+
+createRoot(document.getElementById('root')!).render(
+  <ThemeProvider>
+    <App />
+  </ThemeProvider>
+)
+```
+
 ## Anti-Patterns
 
 | Never Do | Do Instead |

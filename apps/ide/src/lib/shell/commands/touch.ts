@@ -25,6 +25,7 @@ export class TouchCommand implements ShellCommand {
     }
 
     const errors: string[] = []
+    const changedPaths: string[] = []
 
     for (const file of files) {
       const filePath = resolvePath(cwd, file)
@@ -36,10 +37,12 @@ export class TouchCommand implements ShellCommand {
         // For now, just rewrite the same content
         const content = await fs.readFile(filePath)
         await fs.writeFile(filePath, content)
+        changedPaths.push(filePath)
       } catch {
         // File doesn't exist, create empty file
         try {
           await fs.writeFile(filePath, '', { encoding: 'utf8' })
+          changedPaths.push(filePath)
         } catch (err) {
           errors.push(`touch: cannot touch '${file}': ${err}`)
         }
@@ -50,6 +53,7 @@ export class TouchCommand implements ShellCommand {
       exitCode: errors.length > 0 ? 1 : 0,
       stdout: '',
       stderr: errors.join('\n'),
+      filesChanged: changedPaths.length > 0 ? changedPaths : undefined,
     }
   }
 }

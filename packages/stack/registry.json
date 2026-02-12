@@ -2,58 +2,5 @@
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "@wiggum/stack",
   "homepage": "https://github.com/wiggum-dev/wiggum",
-  "items": [
-    {
-      "name": "hero-section",
-      "type": "registry:block",
-      "title": "Hero Section",
-      "description": "A hero section with title, subtitle, and call-to-action buttons",
-      "files": [
-        {
-          "path": "src/blocks/hero-section.tsx",
-          "type": "registry:component"
-        }
-      ],
-      "dependencies": ["@wiggum/stack"]
-    },
-    {
-      "name": "features-grid",
-      "type": "registry:block",
-      "title": "Features Grid",
-      "description": "A responsive grid of feature cards with icons",
-      "files": [
-        {
-          "path": "src/blocks/features-grid.tsx",
-          "type": "registry:component"
-        }
-      ],
-      "dependencies": ["@wiggum/stack", "lucide-react"]
-    },
-    {
-      "name": "cta-section",
-      "type": "registry:block",
-      "title": "CTA Section",
-      "description": "A call-to-action section with title, description, and button",
-      "files": [
-        {
-          "path": "src/blocks/cta-section.tsx",
-          "type": "registry:component"
-        }
-      ],
-      "dependencies": ["@wiggum/stack"]
-    },
-    {
-      "name": "page-shell",
-      "type": "registry:block",
-      "title": "Page Shell",
-      "description": "A full-page layout shell with optional header and footer",
-      "files": [
-        {
-          "path": "src/blocks/page-shell.tsx",
-          "type": "registry:component"
-        }
-      ],
-      "dependencies": ["@wiggum/stack"]
-    }
-  ]
+  "items": []
 }

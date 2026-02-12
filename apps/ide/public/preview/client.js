@@ -59,6 +59,56 @@
   console.debug = createCapture('debug')
 })()
 
+// ============================================================================
+// EARLY ERROR CAPTURE - Must register BEFORE any HTML scripts load
+// Catches errors during bundle execution, React render, and module evaluation.
+// The Chobitsu bridge (injected later in the HTML) provides additional capture
+// with deduplication and tiered console handling.
+// ============================================================================
+;(function setupEarlyErrorCapture() {
+  window.__wiggum_errors__ = []
+
+  window.onerror = function (message, source, lineno, colno, error) {
+    var errData = {
+      message: String(message),
+      source: source || '',
+      lineno: lineno || 0,
+      colno: colno || 0,
+      stack: (error && error.stack) || '',
+    }
+    window.__wiggum_errors__.push(errData)
+    try {
+      window.parent.postMessage(
+        { type: 'wiggum-runtime-error', error: errData },
+        '*'
+      )
+    } catch (e) {
+      // Ignore postMessage errors
+    }
+  }
+
+  window.addEventListener('unhandledrejection', function (event) {
+    var reason = event.reason
+    var message = (reason && reason.message) || String(reason)
+    var errData = {
+      message: message,
+      source: '',
+      lineno: 0,
+      colno: 0,
+      stack: (reason && reason.stack) || '',
+    }
+    window.__wiggum_errors__.push(errData)
+    try {
+      window.parent.postMessage(
+        { type: 'wiggum-runtime-error', error: errData },
+        '*'
+      )
+    } catch (e) {
+      // Ignore postMessage errors
+    }
+  })
+})()
+
 ;(async function () {
   // Extract project ID from URL
   const urlParams = new URLSearchParams(window.location.search)

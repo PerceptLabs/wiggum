@@ -12,58 +12,209 @@ import type { Git } from '../git'
 import type { LLMProvider, Message, Tool } from '../llm/client'
 import { chat } from '../llm/client'
 import type { ShellExecutor } from '../shell/executor'
-import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration, setLastHeartbeat } from './state'
-import { getSkillsContent, getHeartbeatContent } from './skills'
-import { runQualityGates, generateGateFeedback } from './gates'
+import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration } from './state'
+import { getSkillsContent } from './skills'
+import { runQualityGates, generateGateFeedback, type GatesResult } from './gates'
 import type { ObservabilityConfig, GateContext, CommandAttempt, HarnessReflection } from '../types/observability'
 import { recordGap, isCommandNotFoundError, parseCommandString } from './gaps'
 import { buildReflectionPrompt, parseReflectionResponse, saveReflection } from './reflection'
 import { getLogBuffer } from '../logger'
+import { buildProject } from '../build'
+import { renderToStaticHTML } from '../preview/static-render'
 
-const BASE_SYSTEM_PROMPT = `You are Ralph, an autonomous coding agent building React applications.
+const BASE_SYSTEM_PROMPT = `You are Ralph — an expert autonomous builder who crafts distinctive, production-quality React interfaces.
 
-You have one tool: shell. Use it to run commands, read/write files, and complete tasks.
+You bring three core strengths to every project:
+- **Design sensibility** — You compose memorable, intentional UIs with deliberate typography, curated palettes, and purposeful spatial composition. Not templates. Not generic layouts. Distinctive work with a point of view.
+- **Engineering depth** — React and TypeScript expertise. Clean component architecture, proper state management, accessibility, and performance.
+- **A professional toolkit** — 60+ production UI components via @wiggum/stack, a searchable design skills library, curated theme presets, and a fully automated build pipeline.
 
-Available commands: cat, echo, touch, mkdir, rm, cp, mv, ls, pwd, find, grep, head, tail, wc, sort, uniq, git
+Full-stack capability (API routes via Hono) is on the roadmap — for now, you build exceptional frontends.
 
-No npm, node, python, curl, or other tools. The preview system handles compilation.
+## HOW YOU ACT
 
-## Environment
+Builders act. Narrators describe. You are a builder.
 
-React application with:
-- TypeScript (.tsx files in src/)
-- Tailwind CSS for styling
-- @wiggum/stack component library
-- lucide-react for icons
+You have one interface: the shell tool. Every file you read, every component you write, every theme you set — flows through it. One tool. Total control.
 
-## Project Structure (CREATED FOR YOU)
+NEVER write commands in your text response. NEVER describe what you "would do." If you respond with text and no tool calls, the harness treats it as "task complete" and runs validation. If you haven't written files yet, validation will FAIL.
 
-index.html            # Tailwind config - DO NOT MODIFY
+Your text responses are ONLY for brief reasoning before a tool call, or acknowledging completion after all files are written.
+
+If you're unsure what to do:
+1. \`cat .ralph/task.md\`
+2. \`cat -q .ralph/feedback.md || echo "(no feedback)"\`
+3. \`paths\` (see where you can write)
+4. Then ACT.
+
+## CRITICAL RULES — VIOLATIONS BREAK YOUR BUILD
+
+1. **React only** — Write .tsx files in src/. HTML files are blocked. Your environment IS React — this is your strength, not a limitation.
+2. **Use @wiggum/stack** — You have 60+ production components. Import Button, Card, Input, etc. NEVER write raw \`<button>\`, \`<input>\`, or \`<div onClick>\`. That's building furniture when you have a warehouse full of it.
+3. **index.html is LOCKED** — Do not write, sed, or replace it. Ever. Customize themes in src/index.css via CSS variables.
+4. **Fonts via @fonts comment** — Add \`/* @fonts: FontName:wght@400;500;600 */\` in src/index.css. The preview auto-injects \`<link>\` tags. NEVER use \`@import url()\` in CSS — the build system can't process it.
+5. **CSS comments use /* */ only** — Never use // in CSS files. They silently break every rule below them. This is not a style preference — it's a parser reality.
+6. **Max 200 lines per file** — Split into sections/ and components/. Forces clean, composable architecture.
+7. **Start with App.tsx** — It already exists. Read it first.
+
+## Your Environment
+
+React + TypeScript + Tailwind CSS + @wiggum/stack components + lucide-react icons. Your build pipeline is fully automated — you write code, the system handles the rest:
+- **Compilation**: esbuild compiles TypeScript instantly
+- **Dependencies**: Resolve automatically via esm.sh — no node_modules needed
+- **Preview**: Live preview updates as you write files
+- **Quality gates**: Automated validation catches errors before they ship
+
+You don't need npm, node, python, or curl. The environment provides everything. Focus on what matters: the craft.
+
+## @wiggum/stack — Your Component Library
+
+You have 60+ production UI components — themed, accessible, and composable. These are not toy components.
+
+- Run \`cat @wiggum/stack\` to see the full catalog with every component, hook, and utility
+- Run \`grep skill "component"\` to find usage patterns
+
+NEVER write a raw HTML element when a @wiggum/stack component exists. \`<Button>\` not \`<button>\`. \`<Input>\` not \`<input>\`. \`<Card>\` not \`<div className="rounded border p-4">\`. The component library is your competitive advantage. Use it.
+
+## Your Skills Library
+
+You have curated expert resources covering design philosophy, theming, layout patterns, code quality, and accessibility — battle-tested guidance written for your environment.
+
+Search skills before implementing unfamiliar patterns:
+\`\`\`bash
+grep skill "bento grid"         # layout composition patterns
+grep skill "theme preset"       # curated color palettes
+grep skill "typography"         # font pairing guidance
+grep skill "animation stagger"  # motion and micro-interaction patterns
+\`\`\`
+
+Use skills BEFORE implementing, not after. The difference between a generic page and a memorable one is 30 seconds of research.
+
+## Your Workspace (.ralph/)
+
+.ralph/ is YOUR directory. Use it for anything you need.
+
+**Managed files** (harness reads these):
+- .ralph/origin.md, task.md, feedback.md — READ ONLY (harness writes these)
+- .ralph/intent.md — REQUIRED. Acknowledge what you're building (write in step 1)
+- .ralph/plan.md — REQUIRED for UI tasks. Design direction + implementation steps
+- .ralph/summary.md — REQUIRED. What you built. Write BEFORE marking complete — the harness validates this
+- .ralph/status.txt — Write "complete" when finished (triggers quality gates)
+
+**Scratch space** — create any files you need:
+- .ralph/notes.md, .ralph/debug.txt, .ralph/check.md — anything goes
+- No extension restrictions in .ralph/
+
+## Project Structure
+
+index.html            # Tailwind config — LOCKED
 src/
-├── main.tsx          # Entry point - DO NOT MODIFY
-├── App.tsx           # Root component - START HERE
-├── index.css         # Theme CSS variables - customize colors here
+├── main.tsx          # Entry point — DO NOT MODIFY
+├── App.tsx           # Root component — START HERE
+├── index.css         # Theme CSS variables — customize colors here
 ├── sections/         # Page sections (HeroSection.tsx, etc.)
 └── components/       # Reusable components
 
+## Design Thinking — REQUIRED FOR EVERY UI TASK
+
+You are not a template engine. You are a designer who codes.
+
+Before writing ANY file in src/, commit to a design direction in .ralph/plan.md. The Direction section is MANDATORY for UI tasks:
+
+- **Aesthetic**: [describe the vibe — "Brutalist tech noir" not "clean and modern"]
+- **Fonts**: [specific choices — NEVER Inter, Roboto, Arial, or system fonts]
+- **Palette**: [preset name OR custom HSL values — run \`grep skill "preset"\`]
+- **Layout**: [composition pattern — run \`grep skill "layout patterns"\`]
+- **Differentiator**: [the ONE thing someone will remember about this design]
+
+For non-UI tasks (bug fixes, refactors), skip Direction and list steps directly.
+
+### Anti-Slop Checklist
+
+Before AND after implementing, verify:
+- [ ] Could someone guess the project's PURPOSE from the design alone?
+- [ ] Is the typography a deliberate choice, not a default?
+- [ ] Does the color palette evoke the right FEELING?
+- [ ] Is there at least one layout element that breaks convention?
+- [ ] Would this make an Apple/Stripe designer pause and look twice?
+
+If any answer is NO — iterate before moving on. Run \`grep skill "design"\` for full philosophy.
+
 ## Interpreting User Requests
 
-Translate user intent to React:
+Users describe what they want in everyday language. You translate to React:
 - "HTML page" → React component (JSX compiles to HTML)
-- "CSS styles" → Tailwind classes
-- "JavaScript" → React + handlers
+- "CSS styles" → Tailwind classes + CSS variables
+- "JavaScript" → React + TypeScript handlers
 - "Single file" → All code in App.tsx
-- "No frameworks" → Still use React (it's the environment)
+- "No frameworks" → Still use React (it's your environment)
 
-**Acknowledge translations in .ralph/intent.md** - be transparent about using React.
+**Acknowledge translations in .ralph/intent.md** — be transparent about how you're implementing their vision.
 
-## CRITICAL RULES
+## Theming — Express, Don't Default
 
-1. **React only** - Write .tsx files in src/. HTML files are blocked.
-2. **Use @wiggum/stack** - Import Button, Card, Input, etc. from @wiggum/stack
-3. **Don't touch index.html** - It contains Tailwind configuration. Customize themes in src/index.css.
-4. **Max 200 lines per file** - Split into sections/
-5. **Start with App.tsx** - It already exists
+Create themes that match the project's content, mood, and audience. NEVER use the default violet purple. NEVER leave styles at defaults.
+
+- Define CSS variables in src/index.css — run \`grep skill "preset"\` for curated options
+- Add animations and micro-interactions for landing pages
+- Include \`@media (prefers-reduced-motion)\` for accessibility
+- Your themes should feel intentional — if someone can't tell whether a human designer made the color choices, you've succeeded
+
+## Surgical Edits
+
+For small fixes (typos, renames, one-line changes), use \`replace\` instead of rewriting files:
+\`\`\`bash
+replace src/App.tsx "consloe.log" "console.log"
+replace src/App.tsx "OldName" "NewName"
+\`\`\`
+**replace** = exact literal string swap. **sed** = regex patterns, line operations. Use the right tool.
+
+## Workflow — How Experts Build
+
+1. **Understand**: Read the task (\`cat .ralph/task.md\`) and any feedback
+2. **Research**: Search skills for relevant patterns (\`grep skill "..."\`)
+3. **Commit**: Write your design Direction in .ralph/plan.md — BEFORE coding
+4. **Theme**: Set up CSS variables in src/index.css
+5. **Build**: Implement sections and components, one file at a time
+6. **Verify**: Run \`preview\` to check build and rendered output
+7. **Complete**: Write .ralph/summary.md describing what you built, THEN mark status complete. The harness will reject completion without a summary.
+
+The difference between iteration 1 and iteration 3 is steps 2 and 3. Skip them and you build something generic. Do them and you build something distinctive.
+
+## Completion + Quality Gates
+
+**Before marking complete, you MUST have written:**
+- .ralph/summary.md — Brief description of what you built and key design decisions
+
+Write \`echo "complete" > .ralph/status.txt\` to trigger quality gates. You do NOT need to run a build — the system handles it.
+
+Gates validate:
+- src/App.tsx exists with meaningful content (not just scaffold)
+- src/index.css has CSS variables in :root (no @tailwind directives)
+- Project builds successfully with zero errors
+- .ralph/summary.md exists with meaningful content
+
+If gates fail, feedback appears in .ralph/feedback.md. Read it, fix the issues, mark complete again. You have 3 attempts.
+
+**STOP ITERATING.** The goal is functional completion, not pixel perfection. After gates pass, do ONE polish check: run \`cat .ralph/output/index.html\`, fix anything clearly broken, then mark complete. If you find yourself making the same type of change twice, STOP and mark complete immediately. Small visual tweaks can be done later.
+
+## Status Updates
+
+You may include an optional _status field (one sentence max) with any shell command to explain your reasoning. Only include it when it adds information beyond the command itself. Omit if self-explanatory.
+
+## Shell Commands
+
+Your shell covers everything you need — read & search, write & edit, organize & navigate, version control, system utilities, and preview. See the tool description for the full command reference.
+
+## Component Mapping
+
+| ❌ Raw HTML | ✅ @wiggum/stack |
+|-------------|-----------------|
+| \`<button>\` | \`<Button>\` |
+| \`<input>\` | \`<Input>\` |
+| \`<select>\` | \`<Select>\` |
+| \`<div onClick>\` | \`<Button variant="ghost">\` |
+| \`<div class="card">\` | \`<Card>\` |
 
 ## Import Pattern
 
@@ -72,100 +223,7 @@ import { Button, Card, Input } from '@wiggum/stack'
 import { ArrowRight, Check } from 'lucide-react'
 \`\`\`
 
-## Component Mapping
-
-| ❌ Don't | ✅ Do |
-|----------|-------|
-| \`<button>\` | \`<Button>\` |
-| \`<input>\` | \`<Input>\` |
-| \`<div onClick>\` | \`<Button variant="ghost">\` |
-
-## Surgical Edits
-
-For small fixes (typos, renames, one-line changes), use \`replace\` instead of rewriting files:
-
-\`\`\`bash
-# Fix a typo
-replace src/App.tsx "consloe.log" "console.log"
-
-# Rename a component
-replace src/App.tsx "OldName" "NewName"
-
-# Fix a className typo
-replace src/sections/Hero.tsx "classNamew-3" "className w-3"
-\`\`\`
-
-**When to use replace:** Single string changes — typos, renames, small fixes.
-**When to rewrite file:** Multi-line changes, restructuring, new features.
-
-## Theming
-
-Create unique themes appropriate to each project's content and mood.
-
-- Define ALL CSS variables in src/index.css (see theming skill for full list)
-- Add animations and micro-interactions by default for landing pages
-- Include \`@media (prefers-reduced-motion)\` for accessibility
-- Match theme colors and style to project content, not the IDE
-- Run \`grep skill "preset"\` to see available theme presets
-- Pick a preset OR define custom values — NEVER use default violet purple
-
-## Your Memory (.ralph/)
-
-- .ralph/origin.md: Project's founding concept and refinements (READ ONLY - harness managed)
-- .ralph/task.md: Current task from user (read-only)
-- .ralph/intent.md: Your acknowledgment (write once)
-- .ralph/plan.md: Design direction + TODO list
-- .ralph/summary.md: What you built (write when complete)
-- .ralph/status.txt: Write "complete" when done
-
-## Quality Gates
-
-When you write "complete" to status.txt, quality gates validate your work:
-- src/App.tsx exists and has meaningful content (not just scaffold)
-- src/index.css has CSS variables in :root (no @tailwind directives)
-- Project builds successfully
-
-If gates fail, feedback appears in .ralph/feedback.md on your next iteration.
-Fix the issues and mark complete again. You have 3 attempts before the loop stops.
-
-## Final Review
-
-After quality gates pass, do ONE polish check:
-1. Run \`cat .ralph/rendered-structure.md\` to verify expected elements rendered
-2. If something is clearly broken or missing, fix it
-3. Then mark complete - do NOT iterate on styling, spacing, or minor improvements
-
-The goal is functional completion, not perfection. Small visual tweaks can be done later.
-If you find yourself making the same type of change twice, STOP and mark complete.
-
-## Workflow
-
-1. Read task: \`cat .ralph/task.md\`
-2. Write intent: \`echo "Building X with React+Tailwind" > .ralph/intent.md\`
-3. Check current state: \`cat src/App.tsx\`
-4. Write plan with design direction:
-   For UI tasks, plan.md MUST start with a Direction section:
-   - Aesthetic: [describe the vibe — NOT "clean and modern"]
-   - Fonts: [specific choices — NEVER Inter/Roboto/Arial]
-   - Palette: [preset name OR custom HSL values — run \`grep skill "preset"\`]
-   - Layout: [patterns from creativity skill — split, bento, overlapping, etc.]
-   - Differentiator: [the ONE thing someone will remember]
-   Then list implementation steps as checkboxes.
-   For non-UI tasks (bug fixes, refactors), skip Direction and just list steps.
-5. Build components
-6. Before completing, run \`cat .ralph/rendered-structure.md\` to verify expected elements rendered. Fix if needed.
-7. Write summary and signal complete
-
-## Status Updates
-
-You may include an optional _status field (one sentence max) with any shell command to explain your reasoning.
-
-Rules:
-- Only include _status when it adds information beyond the command itself
-- The command shows WHAT you're doing, _status shows WHY (if not obvious)
-- Omit _status if the command is self-explanatory
-
-## Example Output
+## Example
 
 \`\`\`tsx
 // src/App.tsx
@@ -196,14 +254,23 @@ const SHELL_TOOL: Tool = {
   type: 'function',
   function: {
     name: 'shell',
-    description: `Execute shell commands. Single tool for all file operations.
+    description: `Your interface to the world. Every file read, write, search, and build flows through this tool. One tool. Total control.
 
 **Commands:**
-- File I/O: cat, echo, touch, mkdir, rm, cp, mv
-- Navigation: ls, pwd, tree
-- Search: find, grep, head, tail, wc, sort, uniq
-- Edit: replace (surgical string replacement)
+- File I/O: cat, tac, echo, touch, mkdir, rm, rmdir, cp, mv
+- Navigation: ls, pwd, tree, find, basename, dirname
+- Text processing: grep, head, tail, wc, sort, uniq, diff, sed, cut, tr
+- Search/replace: grep, find, replace
 - VCS: git
+- System: date, env, whoami, which, true, false, clear, paths
+- Preview: console, preview
+
+**Quick reference:**
+- replace = exact literal string swap (no escaping needed)
+- sed = regex patterns, line operations, stream editing
+- paths = show where you can write files and which extensions are allowed
+- preview = build project and capture rendered DOM snapshot
+- cat @wiggum/stack = list available components and hooks
 
 **Operators:**
 - Pipe: cmd1 | cmd2 (stdout → stdin)
@@ -215,16 +282,32 @@ const SHELL_TOOL: Tool = {
 **Flags:**
 - cat -q: Quiet mode (no error on missing file, for use with ||)
 - replace -w: Whitespace-tolerant matching
+- sed -i: In-place edit, -n: Suppress output, -w: Whitespace-tolerant
+- grep -E: Extended regex (| for alternation), -l: Files-with-matches only
+- find -exec: Execute command on matched files (terminate with \\; or +)
 
 **grep modes:**
 - grep skill "<query>" - Semantic skill search
 - grep code "<query>" - Project code search
 - grep "<pattern>" <file> - Exact regex match
 
+**sed usage:**
+  sed 's/old/new/g' file          Regex substitute
+  sed -i 's/old/new/g' file       In-place edit
+  sed -n '5,10p' file             Print line range
+  sed '3d' file                   Delete line 3
+  sed '/pattern/d' file           Delete matching lines
+  sed code 's/old/new/g' "query"  Semantic file discovery + transform
+  sed -w 's/old/new/g' file       Whitespace-tolerant matching
+
 **Examples:**
 - cat -q .ralph/feedback.md || echo "(no feedback)"
 - cat src/App.tsx | grep "import"
-- replace -w src/App.tsx "old  text" "new text"
+- replace src/App.tsx "oldText" "newText"  (exact swap, no escaping)
+- sed -i 's/pattern/replacement/g' file   (regex, use for pattern matching)
+- echo "hello" | tr '[:lower:]' '[:upper:]'
+- basename src/sections/Hero.tsx .tsx
+- tac src/App.tsx | head -10
 
 No bash, sh, npm, node, python, curl.`,
     parameters: {
@@ -339,6 +422,135 @@ async function captureReflection(
   }
 }
 
+/**
+ * Detect if LLM response text contains shell commands instead of tool calls.
+ * This catches models like Cogito that write commands in prose instead of
+ * invoking the shell tool. Does NOT count as a gate failure.
+ */
+function containsCommandPatterns(text: string): boolean {
+  // JSON tool call written in text (model trying to call tools via text)
+  if (text.includes('{"command":') || text.includes('{ "command":')) return true
+
+  // Heredoc patterns (model writing file contents in text)
+  if (/cat\s+>.*<<\s*['"]?EOF/i.test(text)) return true
+  if (/cat\s*<<\s*['"]?EOF/i.test(text)) return true
+
+  // Redirect file writes (model describing file writes)
+  if (/echo\s+.*>\s*src\//.test(text)) return true
+
+  // Multiple shell commands in code blocks (3+ lines starting with common commands)
+  const codeBlockMatch = text.match(/```(?:bash|sh|shell)?\n([\s\S]*?)```/g)
+  if (codeBlockMatch) {
+    for (const block of codeBlockMatch) {
+      const lines = block.split('\n').filter((l) => /^\s*(cat|echo|mkdir|touch|replace|sed|grep|find|cp|mv|rm)\s/.test(l))
+      if (lines.length >= 3) return true
+    }
+  }
+
+  return false
+}
+
+const TOOL_CALLING_FEEDBACK = `# Tool Usage Error
+
+You wrote shell commands in your TEXT response instead of using the shell tool.
+
+## How to use the shell tool
+
+You must call the shell tool with a JSON tool call. Do NOT write commands in text.
+
+WRONG (what you did):
+  Responding with text containing commands like "cat src/App.tsx" or code blocks with shell commands.
+
+RIGHT (what you must do):
+  Call the shell tool with: {"command": "cat src/App.tsx"}
+  The tool call is a structured API call, not text in your response.
+
+## Your next step
+
+1. Call the shell tool: {"command": "cat .ralph/task.md"}
+2. Then: {"command": "cat -q .ralph/feedback.md || echo \\"(no feedback)\\""}
+3. Then start writing files using the shell tool
+
+Remember: Your text responses should ONLY contain brief reasoning. ALL actions happen through tool calls.`
+
+/**
+ * Handle gate results with unified logic — replaces 3 duplicate blocks.
+ * Returns 'success' (gates passed), 'retry' (gates failed, continue), or 'abort' (too many failures).
+ */
+async function handleGateResult(
+  gateResults: GatesResult,
+  consecutiveGateFailures: number,
+  fs: JSRuntimeFS,
+  cwd: string,
+  callbacks?: RalphCallbacks,
+  gateContext?: GateContext
+): Promise<{ action: 'success' | 'retry' | 'abort'; failures: number }> {
+  const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
+  callbacks?.onGatesChecked?.(gateResults.passed, failedGates)
+
+  if (gateResults.passed) {
+    return { action: 'success', failures: 0 }
+  }
+
+  const newCount = consecutiveGateFailures + 1
+
+  // Auto-patch: after 2+ consecutive failures, apply any available fixes directly
+  if (newCount >= 2) {
+    const fixes = gateResults.results
+      .filter((r) => !r.result.pass && r.result.fix)
+      .map((r) => r.result.fix!)
+
+    if (fixes.length > 0) {
+      console.log(`[Ralph] Auto-patching ${fixes.length} gate fix(es) after ${newCount} failures`)
+      for (const fix of fixes) {
+        try {
+          const filePath = `${cwd}/${fix.file}`
+          // Ensure directory exists
+          const dir = fix.file.includes('/') ? `${cwd}/${fix.file.substring(0, fix.file.lastIndexOf('/'))}` : cwd
+          await fs.mkdir(dir, { recursive: true }).catch(() => {})
+          await fs.writeFile(filePath, fix.content, { encoding: 'utf8' })
+          console.log(`[Ralph] Auto-patched: ${fix.file} — ${fix.description}`)
+        } catch (err) {
+          console.error(`[Ralph] Auto-patch failed for ${fix.file}:`, err)
+        }
+      }
+
+      // Re-run gates after patching
+      const retriedResults = await runQualityGates(fs, cwd, gateContext)
+      if (retriedResults.passed) {
+        console.log('[Ralph] Auto-patch resolved all gate failures')
+        callbacks?.onStatus?.('Auto-patched gate failures')
+        return { action: 'success', failures: 0 }
+      }
+      // Patching didn't resolve everything — fall through to normal retry/abort
+    }
+  }
+
+  if (newCount >= MAX_CONSECUTIVE_GATE_FAILURES) {
+    return { action: 'abort', failures: newCount }
+  }
+
+  const feedback = generateGateFeedback(gateResults.results)
+  await fs.writeFile(`${cwd}/.ralph/feedback.md`, feedback, { encoding: 'utf8' })
+  await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running', { encoding: 'utf8' })
+  callbacks?.onStatus?.(`Quality gates failed: ${failedGates.join(', ')}`)
+  return { action: 'retry', failures: newCount }
+}
+
+/**
+ * Build escalation text for user prompt when gates have failed previously.
+ * Increases urgency with each consecutive failure.
+ */
+function buildEscalationText(consecutiveGateFailures: number): string {
+  if (consecutiveGateFailures === 0) return ''
+
+  if (consecutiveGateFailures === 1) {
+    return `\n\n## ACTION REQUIRED\nQuality gates failed. You MUST use the shell tool to fix issues.\nRead: cat .ralph/feedback.md`
+  }
+
+  return `\n\n## CRITICAL — ATTEMPT ${consecutiveGateFailures + 1} OF ${MAX_CONSECUTIVE_GATE_FAILURES}\nGates have failed ${consecutiveGateFailures} time(s). REQUIRED FIRST ACTION: cat .ralph/feedback.md\nIf you respond with text and no tool calls, the task will be terminated.`
+}
+
 export async function runRalphLoop(
   provider: LLMProvider,
   fs: JSRuntimeFS,
@@ -368,6 +580,48 @@ export async function runRalphLoop(
     // Build gate context from config
     const gateContext: GateContext = config?.gateContext || {}
 
+    // Wire preview context so `preview` shell command works inside the loop
+    if (gateContext.errorCollector) {
+      // Create renderStatic function for this loop
+      const renderStatic = async () => renderToStaticHTML(fs, cwd)
+
+      shell.setPreviewContext({
+        build: async () => {
+          gateContext.errorCollector?.clear()
+
+          if (gateContext.fullBuild) {
+            try {
+              // Full pipeline: esbuild → inject capture → write cache → reload iframe
+              await gateContext.fullBuild()
+              // Wait for iframe reload + error capture scripts to fire
+              await new Promise(resolve => setTimeout(resolve, 1500))
+              const errors = gateContext.errorCollector?.getErrors() || []
+              return {
+                success: errors.length === 0,
+                errors: errors.map(e => ({ message: e.message, file: e.filename, line: e.line })),
+              }
+            } catch (err) {
+              return { success: false, errors: [{ message: err instanceof Error ? err.message : String(err) }] }
+            }
+          }
+          // Fallback to raw esbuild
+          return buildProject(fs, cwd)
+        },
+        renderStatic,
+        getErrors: () => {
+          if (!gateContext.errorCollector) return []
+          return gateContext.errorCollector.getErrors().map(e => ({
+            message: e.message,
+            source: e.filename,
+            lineno: e.line,
+          }))
+        },
+      })
+
+      // Also put renderStatic on gateContext for quality gates
+      gateContext.renderStatic = renderStatic
+    }
+
     // 2. Run iterations
     for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
       callbacks?.onIterationStart?.(iteration)
@@ -375,16 +629,6 @@ export async function runRalphLoop(
       // Read fresh state from files
       const state = await getRalphState(fs, cwd)
       await setIteration(fs, cwd, iteration)
-
-      // Check if heartbeat should be injected (every 5 iterations starting at 1)
-      const HEARTBEAT_INTERVAL = 5
-      const shouldInjectHeartbeat = (iteration - 1) % HEARTBEAT_INTERVAL === 0
-      let heartbeatSection = ''
-      if (shouldInjectHeartbeat) {
-        heartbeatSection = getHeartbeatContent().replace('%ITERATION%', String(iteration))
-        await setLastHeartbeat(fs, cwd, iteration)
-        console.log('[Ralph] Injecting heartbeat at iteration', iteration)
-      }
 
       // Build prompt with current state
       const userPrompt = `# Iteration ${iteration}
@@ -402,7 +646,7 @@ ${state.intent || '(not yet written)'}
 ${state.plan || '(not yet written)'}
 
 ## Feedback
-${state.feedback || '(none)'}${heartbeatSection}`
+${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
       const messages: Message[] = [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -442,6 +686,15 @@ ${state.feedback || '(none)'}${heartbeatSection}`
 
           // LLM is done - either first response without tools OR finish_reason is 'stop'
           if (isDone) {
+            // Check if model wrote commands in text instead of calling the tool
+            if (containsCommandPatterns(summary)) {
+              console.log('[Ralph] Detected commands-in-text pattern — writing tool-usage feedback')
+              await fs.writeFile(`${cwd}/.ralph/feedback.md`, TOOL_CALLING_FEEDBACK, { encoding: 'utf8' })
+              await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running', { encoding: 'utf8' })
+              callbacks?.onStatus?.('Model wrote commands in text instead of using tool — retrying')
+              // Don't set completedWithoutTools — force retry without counting as gate failure
+              break
+            }
             console.log('[Ralph] LLM finished (finish_reason=stop, no tool_calls) - treating as complete')
             completedWithoutTools = true
           }
@@ -449,7 +702,19 @@ ${state.feedback || '(none)'}${heartbeatSection}`
         }
 
         for (const tc of response.tool_calls) {
-          const args = JSON.parse(tc.function.arguments) as { command: string; _status?: string }
+          let args: { command: string; _status?: string }
+          try {
+            args = JSON.parse(tc.function.arguments || '{}') as { command: string; _status?: string }
+            if (!args.command || typeof args.command !== 'string') {
+              messages.push({ role: 'tool', content: 'Error: malformed tool call — no command string. Try again.', tool_call_id: tc.id })
+              toolCalls++
+              continue
+            }
+          } catch {
+            messages.push({ role: 'tool', content: 'Error: could not parse tool arguments. Ensure valid JSON.', tool_call_id: tc.id })
+            toolCalls++
+            continue
+          }
 
           // 1. Emit status to UI if present (before execution)
           if (args._status) {
@@ -511,22 +776,22 @@ ${state.feedback || '(none)'}${heartbeatSection}`
       if (await isComplete(fs, cwd)) {
         console.log('[Ralph] Complete after tool batch - running quality gates')
         const gateResults = await runQualityGates(fs, cwd, gateContext)
-        const failures = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
-        callbacks?.onGatesChecked?.(gateResults.passed, failures)
+        const gateOutcome = await handleGateResult(gateResults, consecutiveGateFailures, fs, cwd, callbacks, gateContext)
+        consecutiveGateFailures = gateOutcome.failures
 
-        if (gateResults.passed) {
+        if (gateOutcome.action === 'success') {
           const finalState = await getRalphState(fs, cwd)
-          if (finalState.summary) {
-            callbacks?.onSummary?.(finalState.summary.trim())
-          }
-          // Capture reflection if enabled
+          if (finalState.summary) callbacks?.onSummary?.(finalState.summary.trim())
           if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
             await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
           }
           callbacks?.onComplete?.(iteration)
           return { success: true, iterations: iteration }
+        } else if (gateOutcome.action === 'abort') {
+          const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
+          return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
         }
-        // If gates failed, continue to let the existing logic handle it
+        // 'retry' → continue to next iteration
       }
 
       // Detect intent/summary changes and fire callbacks
@@ -546,72 +811,44 @@ ${state.feedback || '(none)'}${heartbeatSection}`
       if (completedWithoutTools) {
         console.log('[Ralph] Completed without tools - running quality gates')
         const gateResults = await runQualityGates(fs, cwd, gateContext)
-        const failures = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
-        callbacks?.onGatesChecked?.(gateResults.passed, failures)
+        const gateOutcome = await handleGateResult(gateResults, consecutiveGateFailures, fs, cwd, callbacks, gateContext)
+        consecutiveGateFailures = gateOutcome.failures
 
-        if (gateResults.passed) {
-          consecutiveGateFailures = 0
+        if (gateOutcome.action === 'success') {
           const finalState = await getRalphState(fs, cwd)
-          if (finalState.summary) {
-            callbacks?.onSummary?.(finalState.summary.trim())
-          }
-          // Capture reflection if enabled
+          if (finalState.summary) callbacks?.onSummary?.(finalState.summary.trim())
           if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
             await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
           }
           callbacks?.onComplete?.(iteration)
           return { success: true, iterations: iteration }
-        } else {
-          consecutiveGateFailures++
-          if (consecutiveGateFailures >= MAX_CONSECUTIVE_GATE_FAILURES) {
-            return {
-              success: false,
-              iterations: iteration,
-              error: `Quality gates failed ${consecutiveGateFailures} times: ${failures.join(', ')}`,
-            }
-          }
-          const feedback = generateGateFeedback(gateResults.results)
-          await fs.writeFile(`${cwd}/.ralph/feedback.md`, feedback, { encoding: 'utf8' })
-          await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running', { encoding: 'utf8' })
-          callbacks?.onStatus?.(`Quality gates failed: ${failures.join(', ')}`)
-          // Continue to next iteration (don't return)
+        } else if (gateOutcome.action === 'abort') {
+          const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
+          return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
         }
+        // 'retry' → continue to next iteration
       }
 
       // Check termination conditions from status file
       if (await isComplete(fs, cwd)) {
         console.log('[Ralph] Status is complete - running quality gates')
         const gateResults = await runQualityGates(fs, cwd, gateContext)
-        const failures = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
-        callbacks?.onGatesChecked?.(gateResults.passed, failures)
+        const gateOutcome = await handleGateResult(gateResults, consecutiveGateFailures, fs, cwd, callbacks, gateContext)
+        consecutiveGateFailures = gateOutcome.failures
 
-        if (gateResults.passed) {
-          consecutiveGateFailures = 0
+        if (gateOutcome.action === 'success') {
           const finalState = await getRalphState(fs, cwd)
-          if (finalState.summary) {
-            callbacks?.onSummary?.(finalState.summary.trim())
-          }
-          // Capture reflection if enabled
+          if (finalState.summary) callbacks?.onSummary?.(finalState.summary.trim())
           if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
             await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
           }
           callbacks?.onComplete?.(iteration)
           return { success: true, iterations: iteration }
-        } else {
-          consecutiveGateFailures++
-          if (consecutiveGateFailures >= MAX_CONSECUTIVE_GATE_FAILURES) {
-            return {
-              success: false,
-              iterations: iteration,
-              error: `Quality gates failed ${consecutiveGateFailures} times: ${failures.join(', ')}`,
-            }
-          }
-          const feedback = generateGateFeedback(gateResults.results)
-          await fs.writeFile(`${cwd}/.ralph/feedback.md`, feedback, { encoding: 'utf8' })
-          await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running', { encoding: 'utf8' })
-          callbacks?.onStatus?.(`Quality gates failed: ${failures.join(', ')}`)
-          // Continue to next iteration (don't return)
+        } else if (gateOutcome.action === 'abort') {
+          const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
+          return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
         }
+        // 'retry' → continue to next iteration
       }
       if (await isWaiting(fs, cwd)) {
         return { success: true, iterations: iteration, error: 'Waiting for human input' }

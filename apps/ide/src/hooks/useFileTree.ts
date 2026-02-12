@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useFS } from '@/contexts'
+import { fsEvents } from '@/lib/fs/fs-events'
 
 export interface FileNode {
   name: string
@@ -82,6 +83,22 @@ export function useFileTree(rootPath: string | null) {
   React.useEffect(() => {
     refresh()
   }, [refresh])
+
+  // Subscribe to FS events for auto-refresh (debounced 300ms)
+  React.useEffect(() => {
+    if (!rootPath) return
+    let timeout: ReturnType<typeof setTimeout> | null = null
+    const unsub = fsEvents.subscribe((path) => {
+      // Only refresh for events within our root
+      if (!path.startsWith(rootPath)) return
+      if (timeout) clearTimeout(timeout)
+      timeout = setTimeout(() => refresh(), 300)
+    })
+    return () => {
+      unsub()
+      if (timeout) clearTimeout(timeout)
+    }
+  }, [rootPath, refresh])
 
   // Synchronous toggle - just flip the boolean
   const toggleDir = React.useCallback((path: string) => {
