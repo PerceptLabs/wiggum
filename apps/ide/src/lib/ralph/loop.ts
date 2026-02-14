@@ -264,12 +264,14 @@ const SHELL_TOOL: Tool = {
 - VCS: git
 - System: date, env, whoami, which, true, false, clear, paths
 - Preview: console, preview
+- Design: theme
 
 **Quick reference:**
 - replace = exact literal string swap (no escaping needed)
 - sed = regex patterns, line operations, stream editing
 - paths = show where you can write files and which extensions are allowed
 - preview = build project and capture rendered DOM snapshot
+- theme = OKLCH theme generator (presets, sacred geometry, font/shadow/radius validation)
 - cat @wiggum/stack = list available components and hooks
 
 **Operators:**

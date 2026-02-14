@@ -1,5 +1,6 @@
+import picomatch from 'picomatch'
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
-import { resolvePath } from './utils'
+import { resolvePath, basename } from './utils'
 
 /**
  * find - Find files by name pattern
@@ -122,8 +123,8 @@ async function findRecursive(
   const stat = await fs.stat(absPath)
 
   // Check if current path matches
-  const basename = getBasename(absPath)
-  const isMatch = !namePattern || matchGlob(basename, namePattern)
+  const name = basename(absPath)
+  const isMatch = !namePattern || picomatch.isMatch(name, namePattern, { nocase: true })
   const typeMatches =
     !typeFilter ||
     (typeFilter === 'f' && stat.isFile()) ||
@@ -143,25 +144,6 @@ async function findRecursive(
       await findRecursive(fs, entryAbsPath, entryRelPath, namePattern, typeFilter, matches)
     }
   }
-}
-
-function getBasename(path: string): string {
-  const parts = path.replace(/\\/g, '/').split('/')
-  return parts[parts.length - 1] || parts[parts.length - 2] || path
-}
-
-/**
- * Simple glob pattern matching (supports * and ?)
- */
-function matchGlob(str: string, pattern: string): boolean {
-  // Convert glob to regex
-  const regexPattern = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-    .replace(/\*/g, '.*') // * matches any characters
-    .replace(/\?/g, '.') // ? matches single character
-
-  const regex = new RegExp(`^${regexPattern}$`, 'i')
-  return regex.test(str)
 }
 
 /**

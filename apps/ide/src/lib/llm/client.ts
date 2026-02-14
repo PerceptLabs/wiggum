@@ -4,42 +4,42 @@
  */
 
 export interface LLMProvider {
-  name: string;
-  baseUrl: string;
-  apiKey?: string;
-  model: string;
+  name: string
+  baseUrl: string
+  apiKey?: string
+  model: string
 }
 
 export interface Message {
-  role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string;
-  tool_calls?: ToolCall[];
-  tool_call_id?: string;
-  finish_reason?: 'stop' | 'tool_calls' | 'length' | string;
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string
+  tool_calls?: ToolCall[]
+  tool_call_id?: string
+  finish_reason?: 'stop' | 'tool_calls' | 'length' | string
 }
 
 export interface ToolCall {
-  id: string;
-  type: 'function';
-  function: { name: string; arguments: string };
+  id: string
+  type: 'function'
+  function: { name: string; arguments: string }
 }
 
 export interface Tool {
-  type: 'function';
-  function: { name: string; description: string; parameters: object };
+  type: 'function'
+  function: { name: string; description: string; parameters: object }
 }
 
 interface ChatCompletionResponse {
   choices: Array<{
-    message: { role: 'assistant'; content: string | null; tool_calls?: ToolCall[] };
-    finish_reason: string;
-  }>;
+    message: { role: 'assistant'; content: string | null; tool_calls?: ToolCall[] }
+    finish_reason: string
+  }>
 }
 
 export class LLMError extends Error {
   constructor(message: string, public status?: number, public response?: unknown) {
-    super(message);
-    this.name = 'LLMError';
+    super(message)
+    this.name = 'LLMError'
   }
 }
 
@@ -86,7 +86,7 @@ export async function chat(
   tools?: Tool[],
   signal?: AbortSignal
 ): Promise<Message> {
-  const url = `${provider.baseUrl.replace(/\/$/, '')}/chat/completions`;
+  const url = `${provider.baseUrl.replace(/\/$/, '')}/chat/completions`
 
   // Debug logging
   console.log('[LLM] Request:', {
@@ -94,10 +94,10 @@ export async function chat(
     model: provider.model,
     messageCount: messages.length,
     hasTools: !!tools?.length,
-  });
+  })
 
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (provider.apiKey) headers['Authorization'] = `Bearer ${provider.apiKey}`
 
   const body: Record<string, unknown> = {
     model: provider.model,
@@ -109,26 +109,26 @@ export async function chat(
     })),
     // CRITICAL: Disable streaming - Ollama streams by default which hangs response.json()
     stream: false,
-  };
+  }
   if (tools?.length) {
-    body.tools = tools;
-    body.tool_choice = 'auto';
+    body.tools = tools
+    body.tool_choice = 'auto'
   }
 
   // Retry loop with exponential backoff
   for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
     try {
-      console.log('[LLM] Fetch attempt', attempt + 1, 'of', RETRY_CONFIG.maxRetries + 1);
+      console.log('[LLM] Fetch attempt', attempt + 1, 'of', RETRY_CONFIG.maxRetries + 1)
       const response = await fetch(url, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
         signal,
-      });
+      })
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[LLM] API error response:', response.status, errorText.slice(0, 200));
+        const errorText = await response.text()
+        console.error('[LLM] API error response:', response.status, errorText.slice(0, 200))
 
         // Check if retryable
         if (isRetryableError(response.status) && attempt < RETRY_CONFIG.maxRetries) {
@@ -145,41 +145,41 @@ export async function chat(
           `LLM request failed: ${response.status} ${response.statusText}`,
           response.status,
           errorText
-        );
+        )
       }
 
       // ========== SUCCESS PATH ==========
-      console.log('[LLM] Fetch succeeded, status:', response.status);
-      const text = await response.text();
-      console.log('[LLM] Raw response (first 500 chars):', text.substring(0, 500));
+      console.log('[LLM] Fetch succeeded, status:', response.status)
+      const text = await response.text()
+      console.log('[LLM] Raw response (first 500 chars):', text.substring(0, 500))
 
-      let data: ChatCompletionResponse;
+      let data: ChatCompletionResponse
       try {
-        data = JSON.parse(text);
-        console.log('[LLM] Parsed OK, choices:', data.choices?.length);
+        data = JSON.parse(text)
+        console.log('[LLM] Parsed OK, choices:', data.choices?.length)
       } catch (e) {
-        console.error('[LLM] JSON parse failed:', e);
-        throw new LLMError('Failed to parse LLM response as JSON', response.status, text);
+        console.error('[LLM] JSON parse failed:', e)
+        throw new LLMError('Failed to parse LLM response as JSON', response.status, text)
       }
 
       if (!data.choices?.length) {
-        console.error('[LLM] No choices in response:', data);
-        throw new LLMError('No response choices returned from LLM', response.status, data);
+        console.error('[LLM] No choices in response:', data)
+        throw new LLMError('No response choices returned from LLM', response.status, data)
       }
 
-      const choice = data.choices[0];
-      console.log('[LLM] finish_reason:', choice.finish_reason);
+      const choice = data.choices[0]
+      console.log('[LLM] finish_reason:', choice.finish_reason)
       return {
         role: 'assistant',
         content: choice.message.content ?? '',
         ...(choice.message.tool_calls && { tool_calls: choice.message.tool_calls }),
         finish_reason: choice.finish_reason,
-      };
+      }
       // ========== END SUCCESS PATH ==========
 
     } catch (err) {
       // Re-throw LLMErrors (already handled above)
-      if (err instanceof LLMError) throw err;
+      if (err instanceof LLMError) throw err
 
       // Network error - retry if we have attempts left
       if (attempt < RETRY_CONFIG.maxRetries) {
@@ -193,10 +193,10 @@ export async function chat(
         `Network error after ${RETRY_CONFIG.maxRetries} retries: ${err instanceof Error ? err.message : String(err)}`,
         0,
         err
-      );
+      )
     }
   }
 
   // Safety net - should not reach here
-  throw new LLMError('Exhausted all retry attempts', 0);
+  throw new LLMError('Exhausted all retry attempts', 0)
 }

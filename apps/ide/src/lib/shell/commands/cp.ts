@@ -1,5 +1,6 @@
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
-import { resolvePath } from './utils'
+import { validateFileWrite, formatValidationError } from '../write-guard'
+import { resolvePath, basename } from './utils'
 
 /**
  * cp - Copy files
@@ -53,7 +54,13 @@ export class CpCommand implements ShellCommand {
 
     for (const source of sources) {
       const sourcePath = resolvePath(cwd, source)
-      const finalDest = destIsDir ? `${destPath}/${getBasename(source)}` : destPath
+      const finalDest = destIsDir ? `${destPath}/${basename(source)}` : destPath
+
+      const validation = validateFileWrite(finalDest, cwd)
+      if (!validation.allowed) {
+        errors.push(formatValidationError(validation, dest))
+        continue
+      }
 
       try {
         const stat = await fs.stat(sourcePath)
@@ -62,7 +69,7 @@ export class CpCommand implements ShellCommand {
           if (!recursive) {
             errors.push(`cp: -r not specified; omitting directory '${source}'`)
           } else {
-            const copied = await copyRecursive(fs, sourcePath, finalDest)
+            const copied = await copyRecursive(fs, sourcePath, finalDest, cwd)
             changedPaths.push(...copied)
           }
         } else {
@@ -71,7 +78,8 @@ export class CpCommand implements ShellCommand {
           changedPaths.push(finalDest)
         }
       } catch (err) {
-        errors.push(`cp: cannot stat '${source}': No such file or directory`)
+        const msg = err instanceof Error ? err.message : String(err)
+        errors.push(`cp: cannot stat '${source}': ${msg}`)
       }
     }
 
@@ -84,7 +92,7 @@ export class CpCommand implements ShellCommand {
   }
 }
 
-async function copyRecursive(fs: ShellOptions['fs'], sourcePath: string, destPath: string): Promise<string[]> {
+async function copyRecursive(fs: ShellOptions['fs'], sourcePath: string, destPath: string, cwd: string): Promise<string[]> {
   const copied: string[] = []
   await fs.mkdir(destPath, { recursive: true })
 
@@ -95,9 +103,12 @@ async function copyRecursive(fs: ShellOptions['fs'], sourcePath: string, destPat
     const destEntry = `${destPath}/${entry.name}`
 
     if (entry.type === 'dir') {
-      const subCopied = await copyRecursive(fs, srcEntry, destEntry)
+      const subCopied = await copyRecursive(fs, srcEntry, destEntry, cwd)
       copied.push(...subCopied)
     } else {
+      const validation = validateFileWrite(destEntry, cwd)
+      if (!validation.allowed) continue
+
       const content = await fs.readFile(srcEntry)
       await fs.writeFile(destEntry, content)
       copied.push(destEntry)
@@ -106,7 +117,3 @@ async function copyRecursive(fs: ShellOptions['fs'], sourcePath: string, destPat
   return copied
 }
 
-function getBasename(path: string): string {
-  const parts = path.replace(/\\/g, '/').split('/')
-  return parts[parts.length - 1] || parts[parts.length - 2] || path
-}

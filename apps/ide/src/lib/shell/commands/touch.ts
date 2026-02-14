@@ -1,4 +1,5 @@
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
+import { validateFileWrite, formatValidationError } from '../write-guard'
 import { resolvePath } from './utils'
 
 /**
@@ -8,6 +9,7 @@ export class TouchCommand implements ShellCommand {
   name = 'touch'
   description = 'Change file timestamps or create empty files'
 
+  /** Create files or update timestamps for existing files */
   async execute(args: string[], options: ShellOptions): Promise<ShellResult> {
     const { fs, cwd } = options
 
@@ -29,6 +31,12 @@ export class TouchCommand implements ShellCommand {
 
     for (const file of files) {
       const filePath = resolvePath(cwd, file)
+
+      const validation = validateFileWrite(filePath, cwd)
+      if (!validation.allowed) {
+        errors.push(formatValidationError(validation, file))
+        continue
+      }
 
       try {
         // Check if file exists

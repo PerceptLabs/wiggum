@@ -1,5 +1,6 @@
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
-import { resolvePath } from './utils'
+import { validateFileWrite, formatValidationError } from '../write-guard'
+import { resolvePath, basename } from './utils'
 
 /**
  * mv - Move/rename files and directories
@@ -49,13 +50,20 @@ export class MvCommand implements ShellCommand {
 
     for (const source of sources) {
       const sourcePath = resolvePath(cwd, source)
-      const finalDest = destIsDir ? `${destPath}/${getBasename(source)}` : destPath
+      const finalDest = destIsDir ? `${destPath}/${basename(source)}` : destPath
+
+      const validation = validateFileWrite(finalDest, cwd)
+      if (!validation.allowed) {
+        errors.push(formatValidationError(validation, dest))
+        continue
+      }
 
       try {
         await fs.rename(sourcePath, finalDest)
         changedPaths.push(finalDest, sourcePath)
       } catch (err) {
-        errors.push(`mv: cannot move '${source}': ${err}`)
+        const msg = err instanceof Error ? err.message : String(err)
+        errors.push(`mv: cannot move '${source}' to '${dest}': ${msg}`)
       }
     }
 
@@ -68,7 +76,3 @@ export class MvCommand implements ShellCommand {
   }
 }
 
-function getBasename(path: string): string {
-  const parts = path.replace(/\\/g, '/').split('/')
-  return parts[parts.length - 1] || parts[parts.length - 2] || path
-}

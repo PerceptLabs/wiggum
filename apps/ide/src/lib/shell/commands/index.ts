@@ -42,6 +42,7 @@ import { WhoamiCommand } from './whoami'
 import { ClearCommand } from './clear'
 import { PathsCommand } from './paths'
 import { PreviewCommand } from './preview'
+import { ThemeCommand } from './theme'
 
 /**
  * Register all built-in shell commands with the executor
@@ -87,13 +88,14 @@ export function registerAllCommands(executor: ShellExecutor): void {
   executor.registerCommand(new ClearCommand())
   executor.registerCommand(new PathsCommand())
   executor.registerCommand(new PreviewCommand())
+  executor.registerCommand(new ThemeCommand())
 
   // which must be registered last — needs the full command list
   const allCommandNames = [
     'cat', 'ls', 'echo', 'grep', 'head', 'tail', 'wc', 'mkdir', 'rm', 'cp', 'mv',
     'pwd', 'find', 'touch', 'sort', 'uniq', 'git', 'tree', 'replace', 'rmdir', 'diff',
     'console', 'true', 'false', 'basename', 'dirname', 'tac', 'stat', 'sed', 'cut',
-    'tr', 'date', 'env', 'whoami', 'clear', 'paths', 'preview', 'which',
+    'tr', 'date', 'env', 'whoami', 'clear', 'paths', 'preview', 'theme', 'which',
   ]
   executor.registerCommand(new WhichCommand(allCommandNames))
 }
@@ -135,6 +137,7 @@ export { DateCommand } from './date'
 export { EnvCommand } from './env'
 export { WhoamiCommand } from './whoami'
 export { ClearCommand } from './clear'
+export { ThemeCommand } from './theme'
 
 // Export utilities
 export { resolvePath, normalizePath, basename, dirname } from './utils'
