@@ -6,20 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>wiggum</title>
     <script>
-      // Clean up any stale Service Workers from preview system
-      // Only keep SWs scoped to /preview/ - unregister everything else
-      // This prevents stale SWs from intercepting the main IDE
+      // Service Worker hygiene: keep the PWA SW (scope /) and preview SW (scope /preview/)
+      // Unregister anything else (stale SWs from development)
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(regs) {
           for (var i = 0; i < regs.length; i++) {
-            var reg = regs[i];
-            // Keep /preview/ scoped SW, unregister everything else
-            if (!reg.scope.includes('/preview/')) {
-              console.log('[IDE] Unregistering stale SW:', reg.scope);
-              reg.unregister();
+            var reg = regs[i]
+            var scope = new URL(reg.scope).pathname
+            if (scope !== '/' && !scope.startsWith('/preview')) {
+              console.log('[IDE] Unregistering stale SW:', reg.scope)
+              reg.unregister()
             }
           }
-        });
+        })
       }
     </script>
   </head>

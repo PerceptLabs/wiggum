@@ -2,6 +2,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 import fs from 'fs'
 
@@ -41,6 +42,34 @@ export default defineConfig({
     },
     react(),
     tailwindcss(),
+    VitePWA({
+      registerType: 'prompt',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        navigateFallbackDenylist: [/^\/preview/],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/unpkg\.com\/esbuild-wasm@.*\.(js|wasm)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'esbuild-wasm-cache',
+              expiration: {
+                maxEntries: 5,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
+        ],
+      },
+      manifest: {
+        name: 'Wiggum IDE',
+        short_name: 'Wiggum',
+        display: 'standalone',
+        theme_color: '#000000',
+      },
+    }),
   ],
   resolve: {
     alias: {
