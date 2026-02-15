@@ -44,11 +44,14 @@ export default function App() {
 }
 `,
 
-  'src/index.css': `/* Theme Variables - Customize to change the look */
+  'src/index.css': `/* Default theme — Ralph replaces this with theme preset --apply */
 :root {
-  /* Core colors */
   --background: hsl(0 0% 100%);
   --foreground: hsl(0 0% 3.9%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 3.9%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(0 0% 3.9%);
   --primary: hsl(210 100% 50%);
   --primary-foreground: hsl(0 0% 100%);
   --secondary: hsl(0 0% 96.1%);
@@ -59,21 +62,60 @@ export default function App() {
   --accent-foreground: hsl(0 0% 9%);
   --destructive: hsl(0 84.2% 60.2%);
   --destructive-foreground: hsl(0 0% 98%);
-
-  /* Surfaces */
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(0 0% 3.9%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(0 0% 3.9%);
-
-  /* Borders & inputs */
   --border: hsl(0 0% 89.8%);
   --input: hsl(0 0% 89.8%);
-  --ring: hsl(0 0% 3.9%);
+  --ring: hsl(210 100% 50%);
   --radius: 0.5rem;
+  --sidebar-background: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(0 0% 3.9%);
+  --sidebar-primary: hsl(210 100% 50%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(0 0% 96.1%);
+  --sidebar-accent-foreground: hsl(0 0% 9%);
+  --sidebar-border: hsl(0 0% 89.8%);
+  --sidebar-ring: hsl(210 100% 50%);
+  --chart-1: hsl(210 100% 50%);
+  --chart-2: hsl(160 60% 45%);
+  --chart-3: hsl(30 80% 55%);
+  --chart-4: hsl(280 65% 60%);
+  --chart-5: hsl(340 75% 55%);
 }
 
-/* Base styles */
+.dark {
+  --background: hsl(0 0% 3.9%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(0 0% 7%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(0 0% 7%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(210 100% 60%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(0 0% 14.9%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(0 0% 14.9%);
+  --muted-foreground: hsl(0 0% 63.9%);
+  --accent: hsl(0 0% 14.9%);
+  --accent-foreground: hsl(0 0% 98%);
+  --destructive: hsl(0 62.8% 50.6%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(0 0% 14.9%);
+  --input: hsl(0 0% 14.9%);
+  --ring: hsl(210 100% 60%);
+  --sidebar-background: hsl(0 0% 5%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-primary: hsl(210 100% 60%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(0 0% 14.9%);
+  --sidebar-accent-foreground: hsl(0 0% 98%);
+  --sidebar-border: hsl(0 0% 14.9%);
+  --sidebar-ring: hsl(210 100% 60%);
+  --chart-1: hsl(210 100% 60%);
+  --chart-2: hsl(160 60% 55%);
+  --chart-3: hsl(30 80% 65%);
+  --chart-4: hsl(280 65% 70%);
+  --chart-5: hsl(340 75% 65%);
+}
+
 * {
   box-sizing: border-box;
   border-color: var(--border);
@@ -105,34 +147,47 @@ body {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Preview</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            background: 'var(--background)',
-            foreground: 'var(--foreground)',
-            primary: { DEFAULT: 'var(--primary)', foreground: 'var(--primary-foreground)' },
-            secondary: { DEFAULT: 'var(--secondary)', foreground: 'var(--secondary-foreground)' },
-            muted: { DEFAULT: 'var(--muted)', foreground: 'var(--muted-foreground)' },
-            accent: { DEFAULT: 'var(--accent)', foreground: 'var(--accent-foreground)' },
-            destructive: { DEFAULT: 'var(--destructive)', foreground: 'var(--destructive-foreground)' },
-            card: { DEFAULT: 'var(--card)', foreground: 'var(--card-foreground)' },
-            popover: { DEFAULT: 'var(--popover)', foreground: 'var(--popover-foreground)' },
-            border: 'var(--border)',
-            input: 'var(--input)',
-            ring: 'var(--ring)',
-            sidebar: { DEFAULT: 'var(--sidebar-background)', foreground: 'var(--sidebar-foreground)', primary: 'var(--sidebar-primary)', 'primary-foreground': 'var(--sidebar-primary-foreground)', accent: 'var(--sidebar-accent)', 'accent-foreground': 'var(--sidebar-accent-foreground)', border: 'var(--sidebar-border)', ring: 'var(--sidebar-ring)' },
-            chart: { '1': 'var(--chart-1)', '2': 'var(--chart-2)', '3': 'var(--chart-3)', '4': 'var(--chart-4)', '5': 'var(--chart-5)' },
-          },
-          borderRadius: {
-            DEFAULT: 'var(--radius)',
-          }
-        }
-      }
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-background: var(--background);
+      --color-foreground: var(--foreground);
+      --color-card: var(--card);
+      --color-card-foreground: var(--card-foreground);
+      --color-popover: var(--popover);
+      --color-popover-foreground: var(--popover-foreground);
+      --color-primary: var(--primary);
+      --color-primary-foreground: var(--primary-foreground);
+      --color-secondary: var(--secondary);
+      --color-secondary-foreground: var(--secondary-foreground);
+      --color-muted: var(--muted);
+      --color-muted-foreground: var(--muted-foreground);
+      --color-accent: var(--accent);
+      --color-accent-foreground: var(--accent-foreground);
+      --color-destructive: var(--destructive);
+      --color-destructive-foreground: var(--destructive-foreground);
+      --color-border: var(--border);
+      --color-input: var(--input);
+      --color-ring: var(--ring);
+      --color-sidebar-background: var(--sidebar-background);
+      --color-sidebar-foreground: var(--sidebar-foreground);
+      --color-sidebar-primary: var(--sidebar-primary);
+      --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+      --color-sidebar-accent: var(--sidebar-accent);
+      --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+      --color-sidebar-border: var(--sidebar-border);
+      --color-sidebar-ring: var(--sidebar-ring);
+      --color-chart-1: var(--chart-1);
+      --color-chart-2: var(--chart-2);
+      --color-chart-3: var(--chart-3);
+      --color-chart-4: var(--chart-4);
+      --color-chart-5: var(--chart-5);
+      --radius-sm: calc(var(--radius) - 4px);
+      --radius-md: calc(var(--radius) - 2px);
+      --radius-lg: var(--radius);
+      --radius-xl: calc(var(--radius) + 4px);
     }
-  </script>
+  </style>
   <style>
     * { box-sizing: border-box; border-color: var(--border); }
     body { margin: 0; background-color: var(--background); color: var(--foreground); }
@@ -249,9 +304,20 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
 
   // 3. Initialize ephemeral state files (reset each loop)
   await fs.writeFile(path.join(cwd, FILES.task), `# Task\n\n${task}\n`)
-  await fs.writeFile(path.join(cwd, FILES.intent), '')
-  await fs.writeFile(path.join(cwd, FILES.plan), '')
-  await fs.writeFile(path.join(cwd, FILES.summary), '')
+  // Preserve plan/intent/summary from prior runs (continuation support)
+  for (const file of [FILES.intent, FILES.plan, FILES.summary]) {
+    const filePath = path.join(cwd, file)
+    let hasContent = false
+    try {
+      const existing = await fs.readFile(filePath, { encoding: 'utf8' }) as string
+      hasContent = existing.trim().length > 0
+    } catch {
+      // File doesn't exist yet
+    }
+    if (!hasContent) {
+      await fs.writeFile(filePath, '')
+    }
+  }
   await fs.writeFile(path.join(cwd, FILES.feedback), '')
   await fs.writeFile(path.join(cwd, FILES.iteration), '0')
   await fs.writeFile(path.join(cwd, FILES.status), 'running')
