@@ -5,9 +5,11 @@
 
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import type { FontCategory } from '../../theme-generator/types'
+import type { MoodName } from '../../theme-generator/personalities'
 import {
   generateTheme,
   formatThemeOutput,
+  formatThemeCss,
   getPreset,
   listPatterns,
   listPresets,
@@ -18,7 +20,35 @@ import {
   RADIUS_STOPS,
   FONT_REGISTRY,
 } from '../../theme-generator'
+import { MOOD_NAMES, generateDesignBrief } from '../../theme-generator/personalities'
 import { parseOklch, formatOklch, contrastRatio, clampToGamut } from '../../theme-generator/oklch'
+import { validateFileWrite, formatValidationError } from '../write-guard'
+import { resolvePath } from './utils'
+
+/** Semantic pattern aliases — resolve before pattern validation */
+const PATTERN_ALIASES: Record<string, string> = {
+  elegant: 'analogous',
+  bold: 'complementary',
+  minimal: 'monochromatic',
+  vibrant: 'triadic',
+  natural: 'goldenRatio',
+}
+
+/** Inferred mood per preset when --mood is not specified */
+const PRESET_MOOD_MAP: Record<string, MoodName> = {
+  'northern-lights': 'organic',
+  'cyberpunk': 'industrial',
+  'doom-64': 'industrial',
+  'retro-arcade': 'playful',
+  'soft-pop': 'playful',
+  'tangerine': 'playful',
+  'mono': 'minimal',
+  'elegant-luxury': 'premium',
+  'bubblegum': 'playful',
+  'mocha-mousse': 'organic',
+  'caffeine': 'editorial',
+  'catppuccin': 'minimal',
+}
 
 export class ThemeCommand implements ShellCommand {
   name = 'theme'
@@ -29,19 +59,30 @@ export class ThemeCommand implements ShellCommand {
 
     const sub = args[0]
 
-    if (sub === 'preset') return this.handlePreset(args.slice(1))
-    if (sub === 'generate') return this.handleGenerate(args.slice(1))
+    if (sub === 'help' || sub === '--help' || sub === '-h') {
+      return { exitCode: 0, stdout: this.usage(), stderr: '' }
+    }
+
+    if (sub === 'preset') return this.handlePreset(args.slice(1), options)
+    if (sub === 'generate') return this.handleGenerate(args.slice(1), options)
     if (sub === 'modify') return this.handleModify(args.slice(1), options)
     if (sub === 'list') return this.handleList(args.slice(1))
 
     return { exitCode: 1, stdout: '', stderr: `theme: unknown subcommand "${sub}"\n${this.usage()}` }
   }
 
-  private handlePreset(args: string[]): ShellResult {
-    const name = args[0]
+  private async handlePreset(args: string[], options: ShellOptions): Promise<ShellResult> {
+    const flags = parseFlags(args)
+    const apply = flags['apply'] === 'true'
+    const moodFlag = flags['mood']
+    const name = args.find(a => !a.startsWith('--'))
     if (!name) {
       const names = Object.keys(PRESETS).join(', ')
       return { exitCode: 1, stdout: '', stderr: `theme preset: missing name. Available: ${names}` }
+    }
+
+    if (moodFlag && !MOOD_NAMES.includes(moodFlag as MoodName)) {
+      return { exitCode: 1, stdout: '', stderr: `theme preset: unknown mood "${moodFlag}". Available: ${MOOD_NAMES.join(', ')}` }
     }
 
     const result = getPreset(name)
@@ -50,27 +91,81 @@ export class ThemeCommand implements ShellCommand {
       return { exitCode: 1, stdout: '', stderr: `theme preset: unknown preset "${name}". Available: ${names}` }
     }
 
+    if (apply) {
+      const filePath = resolvePath(options.cwd, 'src/index.css')
+      const validation = validateFileWrite(filePath, options.cwd)
+      if (!validation.allowed) {
+        return { exitCode: 1, stdout: '', stderr: formatValidationError(validation, filePath) }
+      }
+      const css = formatThemeCss(result.theme)
+      await options.fs.writeFile(filePath, css)
+
+      const resolvedMood = (moodFlag as MoodName) ?? PRESET_MOOD_MAP[name] ?? 'minimal'
+      const briefPath = resolvePath(options.cwd, '.ralph/design-brief.md')
+      const brief = generateDesignBrief(resolvedMood, name)
+      await options.fs.writeFile(briefPath, brief)
+
+      const varCount = Object.keys(result.theme.cssVars.light).length + Object.keys(result.theme.cssVars.theme).length
+      return {
+        exitCode: 0,
+        stdout: `Applied preset "${name}" to src/index.css (${varCount} vars, :root + .dark) + design brief (${resolvedMood})\n`,
+        stderr: '',
+        filesChanged: [filePath, briefPath],
+      }
+    }
+
     return { exitCode: 0, stdout: result.output + '\n', stderr: '' }
   }
 
-  private handleGenerate(args: string[]): ShellResult {
+  private async handleGenerate(args: string[], options: ShellOptions): Promise<ShellResult> {
     const flags = parseFlags(args)
+    const apply = flags['apply'] === 'true'
     const seed = parseFloat(flags['seed'] ?? '')
-    const pattern = flags['pattern'] ?? ''
+    const rawPattern = flags['pattern'] ?? ''
+    const pattern = PATTERN_ALIASES[rawPattern] ?? rawPattern
     const mode = (flags['mode'] ?? 'both') as 'light' | 'dark' | 'both'
     const font = flags['font']
     const shadowProfile = flags['shadow-profile']
     const radius = flags['radius']
+    const moodFlag = flags['mood']
 
     if (isNaN(seed)) return { exitCode: 1, stdout: '', stderr: 'theme generate: --seed <0-360> is required' }
     if (!pattern) return { exitCode: 1, stdout: '', stderr: 'theme generate: --pattern <name> is required' }
     if (!PATTERNS[pattern]) {
       const names = Object.keys(PATTERNS).join(', ')
-      return { exitCode: 1, stdout: '', stderr: `theme generate: unknown pattern "${pattern}". Available: ${names}` }
+      const aliases = Object.entries(PATTERN_ALIASES).map(([k, v]) => `${k}→${v}`).join(', ')
+      return { exitCode: 1, stdout: '', stderr: `theme generate: unknown pattern "${rawPattern}". Available: ${names}\nAliases: ${aliases}` }
+    }
+    if (moodFlag && !MOOD_NAMES.includes(moodFlag as MoodName)) {
+      return { exitCode: 1, stdout: '', stderr: `theme generate: unknown mood "${moodFlag}". Available: ${MOOD_NAMES.join(', ')}` }
     }
 
     try {
       const theme = generateTheme({ seed, pattern, mode, font, shadowProfile, radius })
+
+      if (apply) {
+        const filePath = resolvePath(options.cwd, 'src/index.css')
+        const validation = validateFileWrite(filePath, options.cwd)
+        if (!validation.allowed) {
+          return { exitCode: 1, stdout: '', stderr: formatValidationError(validation, filePath) }
+        }
+        const css = formatThemeCss(theme)
+        await options.fs.writeFile(filePath, css)
+
+        const resolvedMood = (moodFlag as MoodName) ?? 'minimal'
+        const briefPath = resolvePath(options.cwd, '.ralph/design-brief.md')
+        const brief = generateDesignBrief(resolvedMood, `generated (seed=${seed}, pattern=${pattern})`)
+        await options.fs.writeFile(briefPath, brief)
+
+        const varCount = Object.keys(theme.cssVars.light).length + Object.keys(theme.cssVars.theme).length
+        return {
+          exitCode: 0,
+          stdout: `Applied generated theme to src/index.css (seed=${seed}, pattern=${pattern}, ${varCount} vars) + design brief (${resolvedMood})\n`,
+          stderr: '',
+          filesChanged: [filePath, briefPath],
+        }
+      }
+
       const desc = `seed=${seed}, pattern=${pattern}${font ? `, font=${font}` : ''}${shadowProfile ? `, shadow=${shadowProfile}` : ''}${radius ? `, radius=${radius}` : ''}`
       const output = formatThemeOutput(theme, `generated (${pattern})`, desc)
       return { exitCode: 0, stdout: output + '\n', stderr: '' }
@@ -82,15 +177,18 @@ export class ThemeCommand implements ShellCommand {
 
   private async handleModify(args: string[], options: ShellOptions): Promise<ShellResult> {
     const flags = parseFlags(args)
+    const apply = flags['apply'] === 'true'
     const shiftHue = parseFloat(flags['shift-hue'] ?? '')
     const scope = (flags['scope'] ?? 'all') as 'brand' | 'surface' | 'all'
 
     if (isNaN(shiftHue)) return { exitCode: 1, stdout: '', stderr: 'theme modify: --shift-hue <±degrees> is required' }
 
+    const filePath = resolvePath(options.cwd, 'src/index.css')
+
     // Read current index.css
     let css: string
     try {
-      css = await options.fs.readFile('src/index.css', { encoding: 'utf8' }) as string
+      css = await options.fs.readFile(filePath, { encoding: 'utf8' }) as string
     } catch {
       return { exitCode: 1, stdout: '', stderr: 'theme modify: cannot read src/index.css' }
     }
@@ -127,7 +225,19 @@ export class ThemeCommand implements ShellCommand {
       modified.push(line)
     }
 
-    return { exitCode: 0, stdout: modified.join('\n') + '\n', stderr: '' }
+    const result = modified.join('\n')
+
+    if (apply) {
+      await options.fs.writeFile(filePath, result)
+      return {
+        exitCode: 0,
+        stdout: `Modified theme in src/index.css (shift-hue=${shiftHue}, scope=${scope})\n`,
+        stderr: '',
+        filesChanged: [filePath],
+      }
+    }
+
+    return { exitCode: 0, stdout: result + '\n', stderr: '' }
   }
 
   private handleList(args: string[]): ShellResult {
@@ -189,26 +299,50 @@ export class ThemeCommand implements ShellCommand {
       return { exitCode: 0, stdout: output, stderr: '' }
     }
 
-    return { exitCode: 1, stdout: '', stderr: 'theme list: specify presets, patterns, fonts, shadows, or radii' }
+    if (what === 'moods') {
+      const descriptions: Record<MoodName, string> = {
+        minimal: 'Content-first. Subtle easing, generous whitespace, no decoration.',
+        premium: 'Polished luxury. Light weights at large sizes, spring animations, rich layering.',
+        playful: 'Bouncy and bright. Rounded shapes, animated micro-interactions, surprise.',
+        industrial: 'Raw structure. Mono fonts, no rounded corners, linear easing, sharp contrast.',
+        organic: 'Flowing and warm. Rounded everything, slow easing, natural spacing.',
+        editorial: 'Typography-led. Serif body, tight tracking, print-inspired, minimal color.',
+      }
+      let output = '## Available Moods\n\n'
+      for (const mood of MOOD_NAMES) {
+        output += `  ${mood.padEnd(14)} ${descriptions[mood]}\n`
+      }
+      return { exitCode: 0, stdout: output, stderr: '' }
+    }
+
+    return { exitCode: 1, stdout: '', stderr: 'theme list: specify presets, patterns, fonts, shadows, radii, or moods' }
   }
 
   private usage(): string {
     return `Usage:
-  theme preset <name>
-  theme generate --seed <0-360> --pattern <name> [--font <name>] [--shadow-profile <name>] [--radius <stop>]
-  theme modify --shift-hue <±deg> [--scope brand|surface|all]
-  theme list presets|patterns|fonts|shadows|radii`
+  theme preset <name> [--mood <name>] [--apply]
+  theme generate --seed <0-360> --pattern <name> [--mood <name>] [--font <name>] [--shadow-profile <name>] [--radius <stop>] [--apply]
+  theme modify --shift-hue <±deg> [--scope brand|surface|all] [--apply]
+  theme list presets|patterns|fonts|shadows|radii|moods
+
+  --apply writes directly to src/index.css + .ralph/design-brief.md
+  --mood sets design personality (minimal, premium, playful, industrial, organic, editorial)`
   }
 }
 
 function parseFlags(args: string[]): Record<string, string> {
   const flags: Record<string, string> = {}
   for (let i = 0; i < args.length; i++) {
-    if (args[i].startsWith('--') && i + 1 < args.length) {
+    if (args[i].startsWith('--')) {
       const key = args[i].slice(2)
-      // Handle quoted values: --font "Plus Jakarta Sans"
-      flags[key] = args[i + 1]
-      i++
+      // Bare boolean flag: --apply (no value, or next arg is also a flag)
+      if (i + 1 >= args.length || args[i + 1].startsWith('--')) {
+        flags[key] = 'true'
+      } else {
+        // Handle quoted values: --font "Plus Jakarta Sans"
+        flags[key] = args[i + 1]
+        i++
+      }
     }
   }
   return flags

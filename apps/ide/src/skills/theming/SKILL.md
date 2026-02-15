@@ -7,19 +7,19 @@ description: OKLCH theme generator with sacred geometry, validated fonts, and de
 
 You have a `theme` command. Use it. Never freestyle CSS color values.
 
-**Quick start:**
+**Quick start — always use `--apply`:**
 ```bash
-# Pick a curated preset (12 available)
-theme preset northern-lights
+# Pick a curated preset and apply directly (12 available)
+theme preset retro-arcade --apply
 
-# Generate from sacred geometry
-theme generate --seed 210 --pattern goldenRatio
+# Generate from sacred geometry and apply
+theme generate --seed 210 --pattern goldenRatio --apply
 
 # Full control
-theme generate --seed 150 --pattern triadic --font "Space Grotesk" --shadow-profile moderate --radius rounded
+theme generate --seed 150 --pattern triadic --font "Space Grotesk" --shadow-profile moderate --radius rounded --apply
 
 # Tweak an existing theme
-theme modify --shift-hue 30 --scope brand
+theme modify --shift-hue 30 --scope brand --apply
 
 # Browse options
 theme list presets
@@ -29,7 +29,9 @@ theme list shadows
 theme list radii
 ```
 
-The output is ready-to-paste CSS variables for `src/index.css`. Always includes both `:root` (light) and `.dark` blocks.
+`--apply` writes directly to `src/index.css` with complete `:root` + `.dark` blocks. **Always use `--apply`** — never copy theme output manually.
+
+After applying a theme, use `cat >> src/index.css` (not `cat >`) to append custom CSS like keyframes or utility classes.
 
 ---
 
@@ -52,7 +54,7 @@ The output is ready-to-paste CSS variables for `src/index.css`. Always includes 
 | `caffeine` | Rich espresso tones | Productivity, focused, warm |
 | `catppuccin` | Soft pastels on warm dark | Dev tools, cozy dark mode |
 
-**Usage:** `theme preset <name>` outputs the full CSS block.
+**Usage:** `theme preset <name> --apply` writes directly to src/index.css.
 
 **NEVER default to violet/purple.** If none of these fit, generate a custom theme.
 
@@ -79,6 +81,18 @@ The output is ready-to-paste CSS variables for `src/index.css`. Always includes 
 | `seedOfLife` | 7 | Seven circles at 360/7 intervals |
 
 **Seed** is the base hue (0-360). Pattern generates additional hues from it.
+
+### Pattern Aliases
+
+Semantic shortcuts that resolve to sacred geometry patterns:
+
+| Alias | Resolves To |
+|-------|-------------|
+| `elegant` | analogous |
+| `bold` | complementary |
+| `minimal` | monochromatic |
+| `vibrant` | triadic |
+| `natural` | goldenRatio |
 
 ### Font Registry (32 validated fonts)
 
@@ -122,19 +136,45 @@ Only use fonts from this registry. All have Google Fonts CDN availability.
 
 ---
 
+## Mood / Personality Briefs
+
+The `--mood` flag generates a design personality brief (`.ralph/design-brief.md`) alongside the theme. The brief defines typography hierarchy, animation timing, spacing rhythm, and strict rules.
+
+| Mood | Character |
+|------|-----------|
+| `minimal` | Content-first. Subtle easing, generous whitespace, no decoration. |
+| `premium` | Polished luxury. Light weights at large sizes, spring animations, rich layering. |
+| `playful` | Bouncy and bright. Rounded shapes, animated micro-interactions, surprise. |
+| `industrial` | Raw structure. Mono fonts, no rounded corners, linear easing, sharp contrast. |
+| `organic` | Flowing and warm. Rounded everything, slow easing, natural spacing. |
+| `editorial` | Typography-led. Serif body, tight tracking, print-inspired, minimal color. |
+
+**Usage:**
+```bash
+theme generate --seed 210 --pattern goldenRatio --mood premium --apply
+theme preset elegant-luxury --mood premium --apply
+theme list moods
+```
+
+**Auto-inference:** When no `--mood` is specified with a preset, the mood is inferred from the preset name (e.g., cyberpunk → industrial, bubblegum → playful, mono → minimal).
+
+**The brief is auto-generated — don't hand-write design-brief.md.**
+
+---
+
 ## Modify Existing Themes
 
 `theme modify` reads your current `src/index.css` and shifts colors:
 
 ```bash
-# Shift all brand colors by 30 degrees
-theme modify --shift-hue 30 --scope brand
+# Shift all brand colors by 30 degrees and apply
+theme modify --shift-hue 30 --scope brand --apply
 
 # Shift only surface colors
-theme modify --shift-hue -15 --scope surface
+theme modify --shift-hue -15 --scope surface --apply
 
 # Shift everything
-theme modify --shift-hue 45 --scope all
+theme modify --shift-hue 45 --scope all --apply
 ```
 
 **Scopes:**
@@ -176,6 +216,10 @@ All themes must define these. The `theme` command handles this automatically.
 | `--chart-1` through `--chart-5` | Data visualization colors |
 
 **Values are OKLCH:** `oklch(0.6487 0.1538 150.31)` — the theme generator produces these.
+
+**Tailwind v4 is active.** Opacity modifiers like `bg-primary/30` work natively with OKLCH. No `color-mix()` workaround needed for opacity.
+
+**Color coverage:** For expressive presets, use `bg-primary` or `bg-accent` on at least one major section (hero, CTA, footer). Don't leave every section on `bg-background` — the theme has colors, use them.
 
 ---
 
@@ -457,3 +501,15 @@ input:-webkit-autofill {
 - **ALWAYS** use `theme modify` to adjust existing themes, not manual edits.
 - **ALWAYS** test destructive buttons are visible on both light and dark backgrounds.
 - **Contrast is non-negotiable.** The generator enforces WCAG AA 4.5:1. Don't override.
+
+---
+
+## Customization Workflow
+
+To customize a preset:
+1. `theme preset <name> --apply` — start with a complete, valid theme
+2. `theme modify --shift-hue <deg> --scope brand --apply` — shift colors if needed
+3. `replace src/index.css "old-value" "new-value"` — tweak individual vars
+
+NEVER heredoc-overwrite a complete preset. NEVER write theme CSS vars by hand.
+The preset gives you 32+ correct, contrast-checked vars. Modify from there.

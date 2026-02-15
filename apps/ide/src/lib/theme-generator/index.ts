@@ -2,7 +2,7 @@
  * Theme Generator — Public API
  */
 
-export { generateTheme, formatThemeOutput } from './generator'
+export { generateTheme, formatThemeOutput, formatThemeCss } from './generator'
 export { PATTERNS } from './patterns'
 export { PRESETS } from './presets'
 export type { CuratedPreset } from './presets'
@@ -16,6 +16,8 @@ export {
   buildFontStack,
   findFonts,
 } from './personality'
+export { PERSONALITIES, MOOD_NAMES, generateDesignBrief } from './personalities'
+export type { MoodName, PersonalityBrief } from './personalities'
 export type {
   ThemeConfig,
   GeneratedTheme,

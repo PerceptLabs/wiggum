@@ -98,6 +98,7 @@ Use skills BEFORE implementing, not after. The difference between a generic page
 - .ralph/origin.md, task.md, feedback.md — READ ONLY (harness writes these)
 - .ralph/intent.md — REQUIRED. Acknowledge what you're building (write in step 1)
 - .ralph/plan.md — REQUIRED for UI tasks. Design direction + implementation steps
+- .ralph/design-brief.md — Design personality brief. READ THIS before creating any src/ files. Defines typography, animation, spacing, and strict rules for this project's aesthetic.
 - .ralph/summary.md — REQUIRED. What you built. Write BEFORE marking complete — the harness validates this
 - .ralph/status.txt — Write "complete" when finished (triggers quality gates)
 
@@ -155,7 +156,9 @@ Users describe what they want in everyday language. You translate to React:
 
 Create themes that match the project's content, mood, and audience. NEVER use the default violet purple. NEVER leave styles at defaults.
 
-- Define CSS variables in src/index.css — run \`grep skill "preset"\` for curated options
+- Use the \`theme\` command: \`theme preset <name> --apply\` or \`theme generate --seed <n> --pattern <name> --apply\`
+- Run \`theme list presets\` to see 12 curated options
+- Customize with \`theme modify --shift-hue <deg> --apply\` or \`replace\` for individual vars
 - Add animations and micro-interactions for landing pages
 - Include \`@media (prefers-reduced-motion)\` for accessibility
 - Your themes should feel intentional — if someone can't tell whether a human designer made the color choices, you've succeeded
@@ -174,7 +177,7 @@ replace src/App.tsx "OldName" "NewName"
 1. **Understand**: Read the task (\`cat .ralph/task.md\`) and any feedback
 2. **Research**: Search skills for relevant patterns (\`grep skill "..."\`)
 3. **Commit**: Write your design Direction in .ralph/plan.md — BEFORE coding
-4. **Theme**: Set up CSS variables in src/index.css
+4. **Theme**: Run \`theme preset <name> --apply\` or \`theme generate --seed <n> --pattern <name> --apply\`
 5. **Build**: Implement sections and components, one file at a time
 6. **Verify**: Run \`preview\` to check build and rendered output
 7. **Complete**: Write .ralph/summary.md describing what you built, THEN mark status complete. The harness will reject completion without a summary.
@@ -190,7 +193,7 @@ Write \`echo "complete" > .ralph/status.txt\` to trigger quality gates. You do N
 
 Gates validate:
 - src/App.tsx exists with meaningful content (not just scaffold)
-- src/index.css has CSS variables in :root (no @tailwind directives)
+- src/index.css has all 32 required theme variables in :root + .dark (no @tailwind directives)
 - Project builds successfully with zero errors
 - .ralph/summary.md exists with meaningful content
 
@@ -270,8 +273,8 @@ const SHELL_TOOL: Tool = {
 - replace = exact literal string swap (no escaping needed)
 - sed = regex patterns, line operations, stream editing
 - paths = show where you can write files and which extensions are allowed
-- preview = build project and capture rendered DOM snapshot
-- theme = OKLCH theme generator (presets, sacred geometry, font/shadow/radius validation)
+- preview = build project and render static HTML snapshot
+- theme = OKLCH theme generator (preset/generate/modify/list). Use --apply to write directly to src/index.css
 - cat @wiggum/stack = list available components and hooks
 
 **Operators:**
