@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppProviders } from '@/contexts'
+import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt'
 import {
   Home,
   Workspace,
@@ -28,6 +29,7 @@ function App() {
               </Route>
             </Routes>
           </BrowserRouter>
+          <PWAUpdatePrompt />
         </div>
       </AppProviders>
     </QueryClientProvider>
