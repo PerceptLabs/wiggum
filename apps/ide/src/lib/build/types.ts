@@ -60,6 +60,10 @@ export interface BuildResult {
   outputFiles?: OutputFile[]
   /** Build duration in milliseconds */
   duration?: number
+  /** Import map for browser-native module resolution (when lockfile present) */
+  importMap?: { imports: Record<string, string> }
+  /** Compiled Tailwind CSS from tailwindcss-iso */
+  tailwindCss?: string | null
 }
 
 /**

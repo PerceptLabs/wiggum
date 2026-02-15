@@ -129,13 +129,13 @@ This skill defines philosophy. For implementation details, grep these:
 |-------|---------------|
 | `stack` | Components, imports, project structure |
 | `theming` | CSS variables, dark mode, animation library |
-| `creativity` | Layout patterns, color palettes, motion snippets |
+| `gumdrops` | Compositional recipes, page templates, anti-slop |
 | `code-quality` | React patterns, accessibility, form contrast |
 
 ```bash
 grep skill "<topic>"      # Search all skills
 cat .skills/theming.md    # Read full skill
-cat .skills/creativity.md # Read full skill
+cat .skills/gumdrops.md   # Read full skill
 ```
 
 ## No Two Projects Should Look The Same

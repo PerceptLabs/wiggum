@@ -30,7 +30,7 @@ export function validateFileWrite(filePath: string, cwd: string): WriteValidatio
   if (relativePath === 'index.html') {
     return {
       allowed: false,
-      reason: 'Cannot modify index.html - it contains required Tailwind configuration.',
+      reason: 'Cannot modify index.html - it contains required build configuration.',
       suggestion:
         'Customize theme colors in src/index.css instead. See theming skill.\nTo load fonts, add a comment in src/index.css:\n  /* @fonts: Inter:wght@400;500;600, JetBrains+Mono:wght@400;500 */',
     }
@@ -103,7 +103,7 @@ export function validateFileContent(filePath: string, content: string): WriteVal
   if (ext === '.css' && content.includes('@tailwind')) {
     return {
       allowed: false,
-      reason: 'Cannot use @tailwind directives in CSS files — the browser can\'t process them.\nTailwind utility classes (bg-primary, text-center, flex, grid, etc.) work normally in JSX via the CDN loaded in index.html.\nDefine theme colors as CSS variables in src/index.css. See: grep skill "CSS variables"',
+      reason: 'Cannot use @tailwind directives in CSS files — the build system compiles Tailwind automatically.\nTailwind utility classes (bg-primary, text-center, flex, grid, etc.) work normally in JSX.\nDefine theme colors as CSS variables in src/index.css. See: grep skill "CSS variables"',
       suggestion: `Utility classes work in JSX — only @tailwind directives are blocked.\n\nDefine your theme in src/index.css:\n\n:root {\n  --background: 0 0% 100%;\n  --primary: 210 100% 50%;\n  /* Run: grep skill "preset" for full theme presets */\n}`,
     }
   }

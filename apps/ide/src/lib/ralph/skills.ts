@@ -18,6 +18,14 @@ import frontendDesignSkill from '../../skills/frontend-design/SKILL.md?raw'
 import codeQualitySkill from '../../skills/code-quality/SKILL.md?raw'
 import creativitySkill from '../../skills/creativity/SKILL.md?raw'
 import themingSkill from '../../skills/theming/SKILL.md?raw'
+import gumdropsSkill from '../../skills/gumdrops/SKILL.md?raw'
+import extendedLibrariesSkill from '../../skills/extended-libraries/SKILL.md?raw'
+
+// Glob import for individual gumdrop recipe files (populated in B2/B3)
+const gumdropRecipes = import.meta.glob<string>(
+  '../../skills/gumdrops/{marketing,app,content,interactive,api}/*.md',
+  { query: '?raw', import: 'default', eager: true }
+)
 
 import { parseSkillFile } from '../skills/parser'
 
@@ -27,21 +35,33 @@ import { parseSkillFile } from '../skills/parser'
  * 1. Stack skill - authoritative rules and component documentation
  * 2. Code quality - React patterns, accessibility, dark mode, overlays
  * 3. Theming skill - CSS variables, animations, design philosophy
- * 4. Creativity - Layout patterns, design variety, motion
+ * 4. Gumdrops - Compositional recipes for sections, pages, data flows
+ * 5. Extended libraries - npm packages beyond stack, with when-to-use guidance
+ * 6. Creativity - Redirects to gumdrops
  */
 const SKILLS = [
   { id: 'frontend-design', content: frontendDesignSkill, priority: 0 },
   { id: 'stack', content: stackSkill, priority: 1 },
   { id: 'code-quality', content: codeQualitySkill, priority: 2 },
   { id: 'theming', content: themingSkill, priority: 3 },
-  { id: 'creativity', content: creativitySkill, priority: 4 },
+  { id: 'gumdrops', content: gumdropsSkill, priority: 4 },
+  { id: 'extended-libraries', content: extendedLibrariesSkill, priority: 5 },
+  { id: 'creativity', content: creativitySkill, priority: 6 },
 ]
 
 /**
  * Get raw skill content for search indexing
  */
 export function getSkillsRaw(): Array<{ id: string; content: string }> {
-  return SKILLS.map(({ id, content }) => ({ id, content }))
+  const base = SKILLS.map(({ id, content }) => ({ id, content }))
+  // Add individual gumdrop recipes for search indexing
+  for (const [filePath, content] of Object.entries(gumdropRecipes)) {
+    const match = filePath.match(/\/([^/]+)\.md$/)
+    if (match) {
+      base.push({ id: `gumdrop-${match[1]}`, content })
+    }
+  }
+  return base
 }
 
 /**
@@ -63,17 +83,21 @@ Available knowledge bases you can search:
 | stack | Components, imports, project structure |
 | code-quality | React patterns, accessibility, form contrast, overlays |
 | theming | CSS variables, colors, animations, dark mode |
-| creativity | Layout patterns, design variety, motion |
+| gumdrops | Compositional recipes: marketing, app, content, interactive patterns |
+| extended-libraries | Available npm packages, when-to-use, import patterns |
+| creativity | → See gumdrops for layout patterns and design variety |
 
 ## How to Use
 
 Search skills with grep before implementing unfamiliar patterns:
 
 \`\`\`bash
+grep skill "pricing section"    # → pricing gumdrop recipe
+grep skill "file upload"        # → upload gumdrop recipe
 grep skill "dark mode form"     # → contrast rules for inputs
-grep skill "bento grid"         # → layout pattern code
 grep skill "dialog z-index"     # → overlay stacking rules
-grep skill "staggered animation" # → CSS keyframe examples
+grep package "drag and drop"   # → @dnd-kit/core with imports + guidance
+grep package "form validation" # → react-hook-form + zod
 \`\`\`
 
 **Always grep when unsure.** Skills contain critical rules that prevent bugs.

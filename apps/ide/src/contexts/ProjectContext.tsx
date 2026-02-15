@@ -133,12 +133,12 @@ root.render(
 `
         )
 
-        // CSS file - Tailwind is loaded via CDN in preview
+        // CSS file - Tailwind is compiled at build time
         await fs.writeFile(
           `${path}/src/index.css`,
           `/*
  * Custom styles go here.
- * Tailwind is loaded via CDN in the preview iframe.
+ * Tailwind is compiled at build time.
  * Use Tailwind classes in your components for styling.
  */
 `
@@ -169,7 +169,7 @@ export default function App() {
 `
         )
 
-        // Create index.html entry point with Tailwind CDN
+        // Create index.html entry point
         await fs.writeFile(
           `${path}/index.html`,
           `<!DOCTYPE html>
@@ -178,35 +178,9 @@ export default function App() {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${name}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            background: 'hsl(var(--background))',
-            foreground: 'hsl(var(--foreground))',
-            primary: { DEFAULT: 'hsl(var(--primary))', foreground: 'hsl(var(--primary-foreground))' },
-            secondary: { DEFAULT: 'hsl(var(--secondary))', foreground: 'hsl(var(--secondary-foreground))' },
-            muted: { DEFAULT: 'hsl(var(--muted))', foreground: 'hsl(var(--muted-foreground))' },
-            accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
-            destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
-            card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
-            popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
-            border: 'hsl(var(--border))',
-            input: 'hsl(var(--input))',
-            ring: 'hsl(var(--ring))',
-          },
-          borderRadius: {
-            DEFAULT: 'var(--radius)',
-          }
-        }
-      }
-    }
-  </script>
   <style>
-    * { box-sizing: border-box; border-color: hsl(var(--border)); }
-    body { margin: 0; background-color: hsl(var(--background)); color: hsl(var(--foreground)); }
+    * { box-sizing: border-box; border-color: var(--border); }
+    body { margin: 0; background-color: var(--background); color: var(--foreground); }
   </style>
 </head>
 <body>

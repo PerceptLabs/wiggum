@@ -37,29 +37,22 @@ export interface GatesResult {
 // HELPERS
 // ============================================================================
 
-const CSS_VARIABLES_BASELINE = `:root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --primary: 221 83% 53%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 210 40% 96%;
-  --accent-foreground: 222 47% 11%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 221 83% 53%;
-  --radius: 0.5rem;
-}
-`
+/** All 32 required CSS custom properties for a complete theme */
+const REQUIRED_THEME_VARS = [
+  // Base (14)
+  '--background', '--foreground', '--card', '--card-foreground',
+  '--popover', '--popover-foreground', '--primary', '--primary-foreground',
+  '--secondary', '--secondary-foreground', '--muted', '--muted-foreground',
+  '--accent', '--accent-foreground',
+  // Utility (5)
+  '--destructive', '--destructive-foreground', '--border', '--input', '--ring',
+  // Sidebar (8)
+  '--sidebar-background', '--sidebar-foreground', '--sidebar-primary',
+  '--sidebar-primary-foreground', '--sidebar-accent', '--sidebar-accent-foreground',
+  '--sidebar-border', '--sidebar-ring',
+  // Chart (5)
+  '--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5',
+]
 
 async function fileExists(fs: JSRuntimeFS, filePath: string): Promise<boolean> {
   try {
@@ -127,29 +120,15 @@ function enhanceBuildError(errorMessage: string): string {
  */
 function getExplicitFix(gateName: string): string {
   switch (gateName) {
-    case 'css-has-variables':
+    case 'css-theme-complete':
       return `
-FIX: Add these CSS variables to src/index.css inside :root { }:
+FIX: Run 'theme preset <name> --apply' to generate a complete theme with all required variables.
 
-:root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --primary: 221 83% 53%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 210 40% 96%;
-  --accent-foreground: 222 47% 11%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 221 83% 53%;
-  --radius: 0.5rem;
-}
+Available presets: northern-lights, cyberpunk, doom-64, retro-arcade, soft-pop, tangerine, mono, elegant-luxury, bubblegum, mocha-mousse, caffeine, catppuccin
 
+Example: theme preset retro-arcade --apply
+
+This writes :root + .dark blocks with all 32 required vars to src/index.css.
 Then mark status as complete again.`
 
     case 'app-has-content':
@@ -204,7 +183,7 @@ Instead of:
   @tailwind components;
   @tailwind utilities;
 
-Use CSS variables and regular CSS. Wiggum doesn't process Tailwind directives.
+Use CSS variables and regular CSS. The build system handles Tailwind compilation automatically.
 Keep your utility classes but remove the @tailwind lines.`
 
     case 'runtime-errors':
@@ -267,30 +246,51 @@ export const QUALITY_GATES: QualityGate[] = [
       return {
         pass: !hasTailwind,
         feedback: hasTailwind
-          ? 'src/index.css contains @tailwind directives which browsers cannot process. Use CSS variables instead.'
+          ? 'src/index.css contains @tailwind directives — the build system handles Tailwind compilation automatically. Use CSS variables instead.'
           : undefined,
       }
     },
   },
 
   {
-    name: 'css-has-variables',
-    description: 'CSS should define theme variables',
+    name: 'css-theme-complete',
+    description: 'CSS must define all 32 required theme variables in :root and .dark',
     check: async (fs, cwd) => {
       const css = await readFile(fs, `${cwd}/src/index.css`)
-      if (!css) return { pass: false, feedback: 'Missing src/index.css with theme variables' }
-      const hasVars = css.includes(':root') && (css.includes('--primary') || css.includes('--background'))
-      return {
-        pass: hasVars,
-        feedback: hasVars
-          ? undefined
-          : 'src/index.css should define CSS variables in :root (--primary, --background, etc.)',
-        fix: hasVars ? undefined : {
-          file: 'src/index.css',
-          content: CSS_VARIABLES_BASELINE,
-          description: 'Add baseline CSS theme variables to src/index.css',
-        },
+      if (!css) {
+        return {
+          pass: false,
+          feedback: "Missing src/index.css. Run 'theme preset <name> --apply' to generate a complete theme.",
+        }
       }
+
+      // Extract all CSS custom property declarations
+      const declaredVars = new Set<string>()
+      for (const match of css.matchAll(/(--[\w-]+)\s*:/g)) {
+        declaredVars.add(match[1])
+      }
+
+      // Check required vars
+      const missing = REQUIRED_THEME_VARS.filter(v => !declaredVars.has(v))
+
+      // Check .dark block exists
+      const hasDark = css.includes('.dark')
+
+      if (missing.length > 0 || !hasDark) {
+        const parts: string[] = []
+        if (missing.length > 0) {
+          parts.push(`Missing ${missing.length} required var(s): ${missing.join(', ')}`)
+        }
+        if (!hasDark) {
+          parts.push('Missing .dark {} block for dark mode')
+        }
+        return {
+          pass: false,
+          feedback: parts.join('. ') + ". Run 'theme preset <name> --apply' to generate a complete theme.",
+        }
+      }
+
+      return { pass: true }
     },
   },
 
@@ -325,7 +325,10 @@ export const QUALITY_GATES: QualityGate[] = [
         if (result.success) {
           return { pass: true }
         }
-        const rawMessages = result.errors?.map((e) => e.message) || ['Unknown build error']
+        const rawMessages = result.errors?.map((e) => {
+          const loc = e.file ? ` (${e.file}${e.line ? ':' + e.line : ''})` : ''
+          return `${e.message}${loc}`
+        }) || ['Unknown build error']
         const enhancedErrors = rawMessages.map((msg) => enhanceBuildError(msg)).join('\n\n')
         const rawErrors = rawMessages.join('\n')
         const feedback = `Build failed:\n${enhancedErrors}`

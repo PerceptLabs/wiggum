@@ -7,6 +7,9 @@ import { createWiggumStackPlugin } from './plugins/wiggumStackPlugin'
 import { loadLockfile, createResolver } from './lockfile'
 import * as path from 'path-browserify'
 import { validateImports, collectSourceFiles } from './import-validator'
+import { computeSourceHash, getCachedBuild, setCachedBuild } from './build-cache'
+import { generateImportMap, generateExternals } from './import-map'
+import { compileTailwind } from './tailwind-compiler'
 
 // Re-export types
 export type {
@@ -55,6 +58,8 @@ export interface BuildProjectOptions {
   versions?: Record<string, string>
   /** Shared module cache */
   moduleCache?: Map<string, string>
+  /** Skip import validation (fast-path for single-file changes with unchanged imports) */
+  skipImportValidation?: boolean
 }
 
 /**
@@ -159,6 +164,33 @@ export async function buildProject(
     resolver.setLockfile(lockfile)
   }
 
+  // Generate import map for browser-native module resolution
+  const importMap = lockfile ? generateImportMap(lockfile) : undefined
+  const lockfileExternals = lockfile ? generateExternals(lockfile) : []
+
+  // Build cache: check for cached build result
+  let sourceHash: string | null = null
+  try {
+    sourceHash = await computeSourceHash(fs, projectPath)
+    const cached = await getCachedBuild(sourceHash)
+    if (cached) {
+      console.log(`[Build] Cache hit: ${sourceHash.slice(0, 12)}...`)
+      return {
+        success: true,
+        warnings: cached.warnings,
+        outputFiles: [
+          { path: 'bundle.js', contents: cached.js },
+          ...(cached.css ? [{ path: 'bundle.css', contents: cached.css }] : []),
+        ],
+        importMap,
+        tailwindCss: cached.tailwindCss ?? null,
+        duration: 0,
+      }
+    }
+  } catch {
+    // Cache miss or error — proceed with normal build
+  }
+
   const plugins = [
     // Handle @wiggum/stack imports with pre-bundled code
     createWiggumStackPlugin(),
@@ -172,28 +204,31 @@ export async function buildProject(
     createESMPlugin({
       cdn: options.cdn ?? 'esm.sh',
       cache: moduleCache,
-      external: options.external,
+      external: [...(options.external ?? []), ...lockfileExternals],
       versions: options.versions,
       resolver,
     }),
   ]
 
   // Layer 1: Static import validation — advisory, does not block build
+  // Skipped on fast-path rebuilds where imports haven't changed
   let validatorWarnings: Array<{ message: string; file: string; line: number }> = []
-  try {
-    const sourceFiles = await collectSourceFiles(fs, projectPath)
-    if (sourceFiles.size > 0) {
-      const importErrors = validateImports(sourceFiles)
-      if (importErrors.length > 0) {
-        validatorWarnings = importErrors.map((e) => ({
-          message: `${e.component} is used in JSX but not imported. ${e.suggestion}`,
-          file: e.file,
-          line: e.line,
-        }))
+  if (!options.skipImportValidation) {
+    try {
+      const sourceFiles = await collectSourceFiles(fs, projectPath)
+      if (sourceFiles.size > 0) {
+        const importErrors = validateImports(sourceFiles)
+        if (importErrors.length > 0) {
+          validatorWarnings = importErrors.map((e) => ({
+            message: `${e.component} is used in JSX but not imported. ${e.suggestion}`,
+            file: e.file,
+            line: e.line,
+          }))
+        }
       }
+    } catch {
+      // Validation failure is non-fatal
     }
-  } catch {
-    // Validation failure is non-fatal
   }
 
   // Build — always runs regardless of validator
@@ -218,6 +253,38 @@ export async function buildProject(
     plugins
   )
 
+  // Compile Tailwind CSS from esbuild output
+  // OutputFile.contents is string (types.ts:12) — no decode needed
+  let tailwindCss: string | null = null
+  if (result.success && result.outputFiles) {
+    const jsOutput = result.outputFiles.find((f) => f.path.endsWith('.js'))
+    let indexHtml = ''
+    try {
+      const data = await fs.readFile(`${projectPath}/index.html`, { encoding: 'utf8' })
+      indexHtml = typeof data === 'string' ? data : ''
+    } catch { /* no index.html */ }
+    const scanContent = [jsOutput?.contents ?? '', indexHtml].join('\n')
+    if (scanContent.trim()) {
+      tailwindCss = await compileTailwind(scanContent)
+    }
+  }
+
+  // Cache successful builds (fire-and-forget)
+  if (result.success && sourceHash && result.outputFiles) {
+    const jsFile = result.outputFiles.find((f) => f.path.endsWith('.js'))
+    const cssFile = result.outputFiles.find((f) => f.path.endsWith('.css'))
+    if (jsFile) {
+      setCachedBuild(sourceHash, {
+        hash: sourceHash,
+        js: jsFile.contents,
+        css: cssFile?.contents ?? null,
+        tailwindCss: tailwindCss ?? null,
+        warnings: result.warnings ?? [],
+        timestamp: Date.now(),
+      }).catch(() => {})
+    }
+  }
+
   // If esbuild failed, prepend validator context (deduped by file)
   if (!result.success && validatorWarnings.length > 0) {
     const esbuildFiles = new Set((result.errors || []).map((e) => e.file || ''))
@@ -227,7 +294,11 @@ export async function buildProject(
     }
   }
 
-  return result
+  // Attach import map + tailwind CSS to successful results
+  const extras: Partial<BuildResult> = {}
+  if (importMap) extras.importMap = importMap
+  if (tailwindCss !== null) extras.tailwindCss = tailwindCss
+  return Object.keys(extras).length > 0 ? { ...result, ...extras } : result
 }
 
 /**

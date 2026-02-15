@@ -11,7 +11,7 @@ export interface ExportResult {
 
 /**
  * Export as self-contained single HTML file
- * All CSS and JS inlined - zero external dependencies except Tailwind CDN
+ * All CSS and JS inlined - zero external dependencies
  */
 export async function exportSingleHTML(
   fs: JSRuntimeFS,
@@ -55,36 +55,21 @@ export async function exportSingleHTML(
   }
 
   // Generate self-contained HTML
+  const tailwindStyle = buildResult.tailwindCss
+    ? `  <style id="tailwind-build">\n${buildResult.tailwindCss}\n  </style>\n`
+    : ''
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root {
-      --background: 0 0% 100%;
-      --foreground: 0 0% 3.9%;
-      --primary: 0 0% 9%;
-      --primary-foreground: 0 0% 98%;
-      --secondary: 0 0% 96.1%;
-      --secondary-foreground: 0 0% 9%;
-      --muted: 0 0% 96.1%;
-      --muted-foreground: 0 0% 45.1%;
-      --accent: 0 0% 96.1%;
-      --accent-foreground: 0 0% 9%;
-      --destructive: 0 84.2% 60.2%;
-      --destructive-foreground: 0 0% 98%;
-      --border: 0 0% 89.8%;
-      --input: 0 0% 89.8%;
-      --ring: 0 0% 3.9%;
-      --radius: 0.5rem;
-    }
-    * { border-color: hsl(var(--border)); }
+${tailwindStyle}  <style>
+    * { border-color: var(--border); }
     body {
-      background-color: hsl(var(--background));
-      color: hsl(var(--foreground));
+      background-color: var(--background);
+      color: var(--foreground);
     }
     ${bundleCSS?.contents || ''}
   </style>

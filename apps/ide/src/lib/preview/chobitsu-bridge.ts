@@ -18,7 +18,6 @@ export function getChobitsuInjectionScript(): string {
 
   // ---- Noise blocklist (filtered from all tiers) ----
   const NOISE_PATTERNS = [
-    'cdn.tailwindcss.com should not be used in production',
     'Download the React DevTools',
     '[vite] connecting',
     '[vite] connected',

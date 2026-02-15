@@ -320,8 +320,10 @@ Add `import { motion } from 'motion/react'` to HeroSection.tsx
 
 ## Layer 4: Browser Tailwind via oxide-wasm
 
+> **A1.5 dependency:** Tailwind v4 CDN (`@tailwindcss/browser@4` via esm.sh) and `@theme` directive are already in place from Phase A1.5. This layer moves Tailwind compilation from runtime (CDN script in preview) to build-time (oxide-wasm in esbuild pipeline). The v4 API surface is already live — this is a performance/resilience upgrade, not a v4 introduction.
+
 ### What
-Real Tailwind CSS v4 JIT compilation running in the browser via WASM. Replaces the CDN play script currently used in preview.
+Real Tailwind CSS v4 JIT compilation running in the browser via WASM. Replaces the CDN script currently used in preview with build-time compilation.
 
 ### Why This Matters
 The CDN play script (`<script src="https://cdn.tailwindcss.com">`) is a runtime scanner that handles most utilities but:
@@ -636,14 +638,14 @@ Layer 3 — all three improvements.
 5. Test: refresh preserves instant preview, single-file edit <10ms
 
 ### Phase 4: Browser Tailwind (~3 hours)
-Layer 4 — oxide-wasm integration.
+Layer 4 — oxide-wasm integration. Assumes v4 CDN already in place from A1.5 — this phase moves compilation from runtime to build-time.
 
 1. Install tailwindcss-iso
 2. Create tailwind-compiler.ts
-3. Map CSS variables to @theme tokens
+3. Verify existing `@theme` mappings (from A1.5) work with oxide-wasm input format
 4. Integrate into buildProject() pipeline
-5. Remove CDN play script from preview template
-6. Test: Tailwind classes compile offline, custom themes work
+5. Remove CDN play script from preview template (esm.sh `@tailwindcss/browser` tag)
+6. Test: Tailwind classes compile offline, custom themes work, no FOUC
 
 ### Phase 5: Design Intelligence (~5-6 hours)
 Layer 5 — skills and theme output that make Ralph design with intent. No new dependencies, no build changes — pure knowledge.

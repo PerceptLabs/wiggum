@@ -134,8 +134,22 @@ export async function getSearchDb(): Promise<SearchDb> {
       // Dynamic import to avoid circular dependency
       const { getSkillsRaw } = await import('../ralph/skills')
       await indexSkills(db, getSkillsRaw())
+
+      // Index package registry entries for grep package support
+      const { getPackagesForSearch } = await import('../packages/registry')
+      const pkgs = getPackagesForSearch()
+      for (const pkg of pkgs) {
+        await insert(db, {
+          type: 'package',
+          source: pkg.id,
+          section: 'registry',
+          content: pkg.content,
+          keywords: pkg.keywords,
+        })
+      }
+
       searchDb = db
-      console.log('[Search] Indexed skills:', (await getSkillsRaw()).length)
+      console.log('[Search] Indexed skills:', getSkillsRaw().length, '+ packages:', pkgs.length)
       return db
     })()
   }

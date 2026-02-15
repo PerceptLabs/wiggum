@@ -12,6 +12,12 @@
 - **Why first:** Everything downstream consumes CSS variables. Master doc calls it "priority item."
 - **Output:** `theme` shell command, OKLCH engine, presets
 
+### A1.5 — Durable Theme Application
+- **Feed CC:** `cc-theme-apply-spec.md`
+- **Why now:** A1 testing revealed three stacking failures: Tailwind v3 breaks OKLCH opacity modifiers (every `bg-primary/30` is dead CSS), manual theme transcription corrupts vars, and preset surfaces have invisible chroma. This is a correctness patch — the theme system doesn't function without it.
+- **Output:** Tailwind v4 CDN via esm.sh, `--apply` flag on theme command, `css-theme-complete` quality gate, sidebar var naming fix, surface color tuning on 8 presets, updated skill + loop.ts guidance
+- **Note:** Commit 0 pulls the Tailwind v4 CDN swap forward from Power-up Plan Layer 4 (C4). Only the CDN benefit is taken here. C4's scope narrows to build-time compilation (oxide-wasm, FOUC elimination). See C4 note below.
+
 ### A2 — Mega Plan Cleanup
 - **Feed CC:** The 14-step mega plan (not in project files — from prior chats)
 - **Why now:** Stale descriptions, dead code (`commands/ralph/` 48K), new shell commands. Cleaner foundation for everything after.
@@ -156,7 +162,7 @@
 ## Parallelism Map
 
 ```
-Week 1-2:  A1 ──→ A2 ──→ A3
+Week 1-2:  A1 ──→ A1.5 ──→ A2 ──→ A3
                           ↓
 Week 2-4:  B1 → B2 → B3 → B4      (recipe content)
            C1 → C2 → C3 → C4      (build infra, parallel)

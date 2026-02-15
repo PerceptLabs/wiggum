@@ -108,7 +108,7 @@ Use skills BEFORE implementing, not after. The difference between a generic page
 
 ## Project Structure
 
-index.html            # Tailwind config — LOCKED
+index.html            # Build config — LOCKED
 src/
 ├── main.tsx          # Entry point — DO NOT MODIFY
 ├── App.tsx           # Root component — START HERE
@@ -193,7 +193,7 @@ Write \`echo "complete" > .ralph/status.txt\` to trigger quality gates. You do N
 
 Gates validate:
 - src/App.tsx exists with meaningful content (not just scaffold)
-- src/index.css has all 32 required theme variables in :root + .dark (no @tailwind directives)
+- src/index.css has all 32 required theme variables in :root + .dark (no @tailwind directives — build system compiles Tailwind automatically)
 - Project builds successfully with zero errors
 - .ralph/summary.md exists with meaningful content
 
@@ -268,6 +268,7 @@ const SHELL_TOOL: Tool = {
 - System: date, env, whoami, which, true, false, clear, paths
 - Preview: console, preview
 - Design: theme
+- Modules: modules, cache-stats, build-cache
 
 **Quick reference:**
 - replace = exact literal string swap (no escaping needed)
@@ -276,6 +277,9 @@ const SHELL_TOOL: Tool = {
 - preview = build project and render static HTML snapshot
 - theme = OKLCH theme generator (preset/generate/modify/list). Use --apply to write directly to src/index.css
 - cat @wiggum/stack = list available components and hooks
+- modules = manage ESM module cache (list/status/warm/clear)
+- cache-stats = show Cache Storage statistics
+- build-cache = manage build output cache (status/clear/list)
 
 **Operators:**
 - Pipe: cmd1 | cmd2 (stdout → stdin)
@@ -293,6 +297,7 @@ const SHELL_TOOL: Tool = {
 
 **grep modes:**
 - grep skill "<query>" - Semantic skill search
+- grep package "<query>" - Package registry search
 - grep code "<query>" - Project code search
 - grep "<pattern>" <file> - Exact regex match
 

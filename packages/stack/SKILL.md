@@ -18,6 +18,29 @@ Theme-agnostic React component library with 53 components built on Radix primiti
    - One exported component per file
 4. **Import from stack** - Never recreate existing components
 
+## STOP! Before Writing ANY Component
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  STOP! Before writing ANY component:                        │
+│                                                             │
+│  1. Does this exist in @wiggum/stack?                       │
+│     └─> YES: Import and use it. STOP here.                  │
+│     └─> NO: Continue to step 2                              │
+│                                                             │
+│  2. Can I compose 2-3 stack components to achieve this?     │
+│     └─> YES: Compose them. STOP here.                       │
+│     └─> NO: Continue to step 3                              │
+│                                                             │
+│  3. Can I extend a stack component's styles via CSS vars?   │
+│     └─> YES: Extend styles using theme variables. STOP.     │
+│     └─> NO: Check extended libraries (grep package)         │
+│                                                             │
+│  ❌ NEVER create a component from scratch                   │
+│  ❌ NEVER hardcode colors, shadows, or radius values        │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ## Component Mapping (CRITICAL)
 
 **Use @wiggum/stack components, not raw HTML elements.**
@@ -157,6 +180,25 @@ Don't just use Card and Button for everything. Match component to purpose:
 **Rule:** If you're writing raw `<div>`s for something @wiggum/stack already provides, you're doing it wrong. Every raw element is a missed opportunity for consistency and theming.
 
 **Component variety target:** Aim for 15+ different components per project. If you're only using Button, Card, and Input — expand your palette.
+
+## Quick Lookup by Need
+
+| I need... | Use this | From |
+|-----------|----------|------|
+| Stat display | Card + CardContent + text hierarchy | @wiggum/stack composition |
+| Empty state | Card + centered flex + Button CTA | @wiggum/stack composition |
+| Sidebar layout | Sheet + CSS grid | @wiggum/stack + CSS |
+| Sortable list | Card + DndContext | @wiggum/stack + @dnd-kit |
+| Form wizard | Tabs (hidden list) + Input + Button | @wiggum/stack + react-hook-form |
+| Data table | Table + @tanstack/react-table | @wiggum/stack + registry package |
+| Timeline | Separator + Card + flex column | @wiggum/stack composition |
+| Command palette | Dialog + Command (cmdk) | @wiggum/stack + registry package |
+| Drag and drop | Card + DndContext + SortableContext | @wiggum/stack + @dnd-kit |
+| Rich text editor | Textarea + Button toolbar + Dialog | @wiggum/stack composition |
+
+**Don't see your need?** Run `grep skill "<what you need>"` to search all skills.
+
+**For full section recipes** (complete composition patterns): `grep skill "<what you're building>"`
 
 ## Example: Section with Component Variety
 

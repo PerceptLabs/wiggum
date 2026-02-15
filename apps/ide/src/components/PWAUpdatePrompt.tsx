@@ -1,11 +1,18 @@
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { Button } from '@wiggum/stack'
+import { initPrewarmer } from '@/lib/module-prewarmer'
 
 export function PWAUpdatePrompt() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
-  } = useRegisterSW()
+  } = useRegisterSW({
+    onRegistered(registration) {
+      if (registration) {
+        initPrewarmer()
+      }
+    },
+  })
 
   if (!needRefresh) return null
 

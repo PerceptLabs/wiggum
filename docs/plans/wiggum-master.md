@@ -126,7 +126,7 @@ wiggum/
 ├── errors.md       # Auto-captured runtime errors
 ├── build-errors.md # Auto-captured build errors
 ├── console.md      # Auto-captured console output
-├── rendered-structure.md  # Auto-captured DOM tree
+├── output/index.html      # Static render HTML (written by preview command + quality gate)
 ├── reflections.jsonl      # Post-task reflection data
 └── gaps.jsonl             # Command-not-found tracking
 ```
@@ -147,7 +147,7 @@ wiggum/
 6. **has-summary** — `.ralph/summary.md` exists with 20+ chars
 7. **runtime-errors** — No runtime JS errors (via error collector / chobitsu)
 8. **console-capture** — Informational, always passes, writes `.ralph/console.md`
-9. **rendered-structure** — Informational, always passes, writes DOM snapshot
+9. **rendered-structure** — Informational, always passes, writes static render to `.ralph/output/index.html`
 
 ### Write Guard (Harness Enforcement)
 

@@ -107,7 +107,8 @@ export function validateShadow(values: Record<string, string>): Record<string, s
 }
 
 export function validateFont(name: string): FontEntry | null {
-  return FONT_REGISTRY.find(f => f.name.toLowerCase() === name.toLowerCase()) ?? null
+  const fontName = name.split(':')[0].trim()
+  return FONT_REGISTRY.find(f => f.name.toLowerCase() === fontName.toLowerCase()) ?? null
 }
 
 export function buildFontStack(entry: FontEntry): string {

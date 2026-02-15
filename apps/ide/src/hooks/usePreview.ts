@@ -8,8 +8,28 @@ import {
 } from '@/lib/build'
 import { writePreviewFile, clearPreviewCache } from '@/lib/preview-cache'
 import { injectErrorCapture } from '@/lib/preview/chobitsu-bridge'
+import { serializeImportMap } from '@/lib/build/import-map'
+import { canUseFastPath } from '@/lib/build/swc-fast-path'
 import { fsEvents } from '@/lib/fs/fs-events'
 import type { BuildResult, BuildProjectOptions, BuildError } from '@/lib/build'
+
+/** Strip Tailwind CDN script and <style type="text/tailwindcss"> from HTML */
+function stripTailwindCDN(html: string): string {
+  html = html.replace(
+    /\s*<script\s+src="https:\/\/cdn\.jsdelivr\.net\/npm\/@tailwindcss\/browser@[^"]*"><\/script>/g,
+    ''
+  )
+  html = html.replace(
+    /\s*<style\s+type="text\/tailwindcss">[\s\S]*?<\/style>/g,
+    ''
+  )
+  return html
+}
+
+/** Inject compiled Tailwind CSS before </head> */
+function injectTailwindCSS(html: string, css: string): string {
+  return html.replace('</head>', `  <style id="tailwind-build">\n${css}\n  </style>\n</head>`)
+}
 
 const BUILD_TIMEOUT_MS = 30000
 
@@ -60,8 +80,8 @@ export interface UsePreviewResult {
   isReady: boolean
   /** Last build result */
   lastBuild: BuildResult | null
-  /** Trigger a build */
-  build: () => Promise<void>
+  /** Trigger a build (skipValidation skips import validation on fast-path rebuilds) */
+  build: (skipValidation?: boolean) => Promise<void>
   /** Build duration in ms */
   duration: number | null
 }
@@ -102,7 +122,7 @@ export function usePreview(
   }, [])
 
   // Build function
-  const doBuild = React.useCallback(async () => {
+  const doBuild = React.useCallback(async (skipValidation = false) => {
     if (!fs || !fsReady || !projectPath || !isReady) {
       return
     }
@@ -159,6 +179,7 @@ export function usePreview(
       const buildPromise = buildProject(fs, projectPath, {
         ...buildOptions,
         moduleCache: moduleCacheRef.current,
+        skipImportValidation: skipValidation,
       })
 
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -196,64 +217,85 @@ export function usePreview(
             try {
               indexHtml = await fs.readFile(`${projectPath}/index.html`, 'utf8') as string
             } catch {
-              // Fallback: generate index.html with Tailwind if missing
+              // Fallback: generate index.html if missing
               indexHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Preview</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            background: 'hsl(var(--background))',
-            foreground: 'hsl(var(--foreground))',
-            primary: { DEFAULT: 'hsl(var(--primary))', foreground: 'hsl(var(--primary-foreground))' },
-            secondary: { DEFAULT: 'hsl(var(--secondary))', foreground: 'hsl(var(--secondary-foreground))' },
-            muted: { DEFAULT: 'hsl(var(--muted))', foreground: 'hsl(var(--muted-foreground))' },
-            accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
-            destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
-            card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
-            popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
-            border: 'hsl(var(--border))',
-            input: 'hsl(var(--input))',
-            ring: 'hsl(var(--ring))',
-          },
-          borderRadius: {
-            DEFAULT: 'var(--radius)',
-          }
-        }
-      }
-    }
-  </script>
   <style>
     :root {
-      --background: 0 0% 100%;
-      --foreground: 0 0% 3.9%;
-      --primary: 0 0% 9%;
-      --primary-foreground: 0 0% 98%;
-      --secondary: 0 0% 96.1%;
-      --secondary-foreground: 0 0% 9%;
-      --muted: 0 0% 96.1%;
-      --muted-foreground: 0 0% 45.1%;
-      --accent: 0 0% 96.1%;
-      --accent-foreground: 0 0% 9%;
-      --destructive: 0 84.2% 60.2%;
-      --destructive-foreground: 0 0% 98%;
-      --card: 0 0% 100%;
-      --card-foreground: 0 0% 3.9%;
-      --popover: 0 0% 100%;
-      --popover-foreground: 0 0% 3.9%;
-      --border: 0 0% 89.8%;
-      --input: 0 0% 89.8%;
-      --ring: 0 0% 3.9%;
+      --background: oklch(0.98 0.005 240);
+      --foreground: oklch(0.145 0.005 240);
+      --primary: oklch(0.205 0.015 265);
+      --primary-foreground: oklch(0.985 0.002 240);
+      --secondary: oklch(0.965 0.005 240);
+      --secondary-foreground: oklch(0.205 0.015 240);
+      --muted: oklch(0.965 0.005 240);
+      --muted-foreground: oklch(0.556 0.01 240);
+      --accent: oklch(0.965 0.005 240);
+      --accent-foreground: oklch(0.205 0.015 240);
+      --destructive: oklch(0.577 0.245 27);
+      --destructive-foreground: oklch(0.985 0.002 0);
+      --card: oklch(1.0 0 0);
+      --card-foreground: oklch(0.145 0.005 240);
+      --popover: oklch(1.0 0 0);
+      --popover-foreground: oklch(0.145 0.005 240);
+      --border: oklch(0.922 0.005 240);
+      --input: oklch(0.922 0.005 240);
+      --ring: oklch(0.205 0.015 265);
       --radius: 0.5rem;
+      --sidebar-background: oklch(0.98 0.005 240);
+      --sidebar-foreground: oklch(0.145 0.005 240);
+      --sidebar-primary: oklch(0.205 0.015 265);
+      --sidebar-primary-foreground: oklch(0.985 0.002 240);
+      --sidebar-accent: oklch(0.965 0.005 240);
+      --sidebar-accent-foreground: oklch(0.205 0.015 240);
+      --sidebar-border: oklch(0.922 0.005 240);
+      --sidebar-ring: oklch(0.205 0.015 265);
+      --chart-1: oklch(0.646 0.222 16);
+      --chart-2: oklch(0.6 0.118 184);
+      --chart-3: oklch(0.398 0.07 227);
+      --chart-4: oklch(0.828 0.189 84);
+      --chart-5: oklch(0.769 0.188 70);
     }
-    * { box-sizing: border-box; border-color: hsl(var(--border)); }
-    body { margin: 0; background-color: hsl(var(--background)); color: hsl(var(--foreground)); }
+    .dark {
+      --background: oklch(0.145 0.005 240);
+      --foreground: oklch(0.985 0.002 240);
+      --primary: oklch(0.985 0.002 240);
+      --primary-foreground: oklch(0.205 0.015 265);
+      --secondary: oklch(0.269 0.005 240);
+      --secondary-foreground: oklch(0.985 0.002 240);
+      --muted: oklch(0.269 0.005 240);
+      --muted-foreground: oklch(0.716 0.01 240);
+      --accent: oklch(0.269 0.005 240);
+      --accent-foreground: oklch(0.985 0.002 240);
+      --destructive: oklch(0.396 0.141 25);
+      --destructive-foreground: oklch(0.985 0.002 0);
+      --card: oklch(0.145 0.005 240);
+      --card-foreground: oklch(0.985 0.002 240);
+      --popover: oklch(0.145 0.005 240);
+      --popover-foreground: oklch(0.985 0.002 240);
+      --border: oklch(0.269 0.005 240);
+      --input: oklch(0.269 0.005 240);
+      --ring: oklch(0.871 0.006 286);
+      --sidebar-background: oklch(0.145 0.005 240);
+      --sidebar-foreground: oklch(0.985 0.002 240);
+      --sidebar-primary: oklch(0.985 0.002 240);
+      --sidebar-primary-foreground: oklch(0.205 0.015 265);
+      --sidebar-accent: oklch(0.269 0.005 240);
+      --sidebar-accent-foreground: oklch(0.985 0.002 240);
+      --sidebar-border: oklch(0.269 0.005 240);
+      --sidebar-ring: oklch(0.871 0.006 286);
+      --chart-1: oklch(0.488 0.243 264);
+      --chart-2: oklch(0.696 0.17 162);
+      --chart-3: oklch(0.769 0.188 70);
+      --chart-4: oklch(0.627 0.265 303);
+      --chart-5: oklch(0.645 0.246 16);
+    }
+    * { box-sizing: border-box; border-color: var(--border); }
+    body { margin: 0; background-color: var(--background); color: var(--foreground); }
   </style>
 </head>
 <body>
@@ -262,6 +304,9 @@ export function usePreview(
 </body>
 </html>`
             }
+            // Strip Tailwind CDN from user-provided index.html (migration compatibility)
+            indexHtml = stripTailwindCDN(indexHtml)
+
             // Inject Google Fonts <link> tags from @fonts declaration in index.css
             let fontLinks = ''
             try {
@@ -273,10 +318,7 @@ export function usePreview(
             }
 
             if (fontLinks) {
-              indexHtml = indexHtml.replace(
-                '<script src="https://cdn.tailwindcss.com"></script>',
-                `${fontLinks}\n  <script src="https://cdn.tailwindcss.com"></script>`
-              )
+              indexHtml = indexHtml.replace('</head>', `  ${fontLinks}\n</head>`)
             }
 
             // Write CSS bundle if present
@@ -296,6 +338,17 @@ export function usePreview(
                 '</head>',
                 '  <link rel="stylesheet" href="./bundle.css">\n</head>'
               )
+            }
+
+            // Inject browser-native import map if available
+            if (result.importMap) {
+              const importMapTag = serializeImportMap(result.importMap)
+              distHtml = distHtml.replace(/<script\b/i, importMapTag + '\n  <script')
+            }
+
+            // Inject compiled Tailwind CSS from build
+            if (result.tailwindCss) {
+              distHtml = injectTailwindCSS(distHtml, result.tailwindCss)
             }
 
             await fs.writeFile(`${distPath}/index.html`, distHtml)
@@ -375,33 +428,52 @@ export function usePreviewWithWatch(
   watchPaths: string[],
   options: UsePreviewOptions = {}
 ): UsePreviewResult & { triggerRebuild: () => void } {
+  const { fs } = useFS()
   const preview = usePreview(projectPath, { ...options, autoBuild: false })
   const { debounceMs = 500 } = options
 
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previousContentsRef = React.useRef<Map<string, string>>(new Map())
 
-  const triggerRebuild = React.useCallback(() => {
+  const triggerRebuild = React.useCallback((skipValidation = false) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current)
     }
 
     timeoutRef.current = setTimeout(() => {
-      preview.build()
+      preview.build(skipValidation)
     }, debounceMs)
   }, [preview, debounceMs])
 
   // Subscribe to FS events for auto-rebuild on source file changes
   React.useEffect(() => {
     if (!projectPath) return
-    const unsub = fsEvents.subscribe((path) => {
+
+    // Reset content tracking when project changes
+    previousContentsRef.current.clear()
+
+    const unsub = fsEvents.subscribe(async (changedPath) => {
       // Skip non-source paths
-      if (path.includes('/.ralph/') || path.includes('/dist/') || path.includes('/node_modules/')) return
-      if (/\.(tsx?|css|json)$/.test(path)) {
-        triggerRebuild()
+      if (changedPath.includes('/.ralph/') || changedPath.includes('/dist/') || changedPath.includes('/node_modules/')) return
+      if (!/\.(tsx?|css|json)$/.test(changedPath)) return
+
+      // Fast-path detection: check if imports changed for .ts/.tsx files
+      let skipValidation = false
+      if (fs && /\.tsx?$/.test(changedPath)) {
+        try {
+          const content = await fs.readFile(changedPath, 'utf8') as string
+          const previous = previousContentsRef.current.get(changedPath) ?? null
+          skipValidation = canUseFastPath(previous, content)
+          previousContentsRef.current.set(changedPath, content)
+        } catch {
+          // Can't read file — full rebuild
+        }
       }
+
+      triggerRebuild(skipValidation)
     })
     return unsub
-  }, [projectPath, triggerRebuild])
+  }, [projectPath, fs, triggerRebuild])
 
   // Initial build
   React.useEffect(() => {

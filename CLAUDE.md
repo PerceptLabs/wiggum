@@ -6,7 +6,7 @@ Wiggum is a browser-native AI coding IDE. See the Architecture Quick Reference b
 
 ---
 
-## Current Phase: C2 — ESM Module Cache
+## Current Phase: C4 — Browser Tailwind (Complete)
 
 <!-- AUTO-ADVANCE: When you complete a phase, update this block to the next -->
 <!-- step from the Roadmap Overview below. Change the phase ID, title, and -->
@@ -14,8 +14,7 @@ Wiggum is a browser-native AI coding IDE. See the Architecture Quick Reference b
 <!-- of every completed run. If I want to skip or reorder, I'll override. -->
 <!-- See docs/plans/cc-implementation-timeline.md for the full roadmap. -->
 
-**Read for this phase:**
-- `docs/plans/wiggum-powerup-plan.md` — §Layer2 (ESM Module Cache)
+**C4 complete.** Build-time Tailwind v4 via `tailwindcss-iso` (WASM). CDN stripped from all 5 HTML locations. Compiled CSS injected as `<style id="tailwind-build">`. `wasmFailed` cache for graceful fallback. OKLCH standardized.
 
 **Do NOT read** other plan files in `docs/plans/` unless explicitly asked.
 
@@ -608,7 +607,7 @@ Phase F: Conversational Planner (independent, after D)
   F3  Cross-Tab Intelligence    ← chief-implementation-plan.md Prompt 5
 ```
 
-**You are here: C2.** Do not read ahead or work on future phases.
+**You are here: C4 (complete).** Do not read ahead or work on future phases.
 
 ---
 

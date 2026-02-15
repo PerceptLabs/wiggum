@@ -1,6 +1,7 @@
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import { resolvePath } from './utils'
 import { getSearchDb, semanticSearch } from '../../search'
+import { getPackageEntry } from '../../packages/registry'
 
 /**
  * grep - Search for patterns in files
@@ -9,9 +10,10 @@ import { getSearchDb, semanticSearch } from '../../search'
  */
 export class GrepCommand implements ShellCommand {
   name = 'grep'
-  description = `Search files or skills. Modes:
-  grep skill "<query>" - Semantic search of skills (typo-tolerant)
-  grep code "<query>"  - Semantic search of project (coming soon)
+  description = `Search files, skills, or packages. Modes:
+  grep skill "<query>"   - Semantic search of skills (typo-tolerant)
+  grep package "<query>" - Package registry search (imports + guidance)
+  grep code "<query>"    - Semantic search of project (coming soon)
   grep "<pattern>" <file> - Exact regex match in file`
 
   async execute(args: string[], options: ShellOptions): Promise<ShellResult> {
@@ -83,6 +85,14 @@ export class GrepCommand implements ShellCommand {
         return { exitCode: 2, stdout: '', stderr: 'grep skill: missing query' }
       }
       return this.searchSkills(query)
+    }
+
+    if (mode === 'package' || mode === 'packages') {
+      const query = positionalArgs.slice(1).join(' ')
+      if (!query) {
+        return { exitCode: 2, stdout: '', stderr: 'grep package: missing query' }
+      }
+      return this.searchPackages(query)
     }
 
     if (mode === 'code') {
@@ -190,6 +200,41 @@ export class GrepCommand implements ShellCommand {
         const doc = hit.document
         const content = doc.content.slice(0, 500) + (doc.content.length > 500 ? '...' : '')
         return `--- ${doc.source} / ${doc.section} (score: ${hit.score.toFixed(2)}) ---\n${content}`
+      })
+      .join('\n\n')
+
+    return { exitCode: 0, stdout: output + '\n', stderr: '' }
+  }
+
+  /**
+   * Search package registry using Orama semantic search
+   */
+  private async searchPackages(query: string): Promise<ShellResult> {
+    const db = await getSearchDb()
+    const results = await semanticSearch(db, 'package', query, 5)
+
+    if (results.count === 0) {
+      return { exitCode: 1, stdout: '', stderr: `No packages match "${query}"` }
+    }
+
+    const output = results.hits
+      .map((hit) => {
+        const name = hit.document.source
+        const entry = getPackageEntry(name)
+        if (!entry) return `${name} (no registry entry)`
+
+        const importPath = entry.subpath ? `${name}/${entry.subpath.replace(`${name}/`, '')}` : name
+        const lines = [
+          `${name} v${entry.version} (~${entry.bundleSize})`,
+          `  ${entry.description}`,
+          `  import { ${entry.imports.named.slice(0, 4).join(', ')} } from '${importPath}'`,
+          `  Use when: ${entry.useWhen.join(', ')}`,
+          `  Not when: ${entry.notWhen.join(', ')}`,
+        ]
+        if (entry.relatedPackages?.length) {
+          lines.push(`  Related: ${entry.relatedPackages.join(', ')}`)
+        }
+        return lines.join('\n')
       })
       .join('\n\n')
 

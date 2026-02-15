@@ -45,7 +45,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/preview/],
@@ -58,6 +58,17 @@ export default defineConfig({
               expiration: {
                 maxEntries: 5,
                 maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/esm\.sh\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'wiggum-esm-modules',
+              expiration: {
+                maxEntries: 500,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
               },
             },
           },
@@ -78,7 +89,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['esbuild-wasm'],
+    exclude: ['esbuild-wasm', 'tailwindcss-iso'],
   },
   build: {
     // Don't bundle esbuild-wasm, it needs to load its own worker
