@@ -6,7 +6,7 @@ Wiggum is a browser-native AI coding IDE. See the Architecture Quick Reference b
 
 ---
 
-## Current Phase: A2 — Mega Plan Cleanup
+## Current Phase: C2 — ESM Module Cache
 
 <!-- AUTO-ADVANCE: When you complete a phase, update this block to the next -->
 <!-- step from the Roadmap Overview below. Change the phase ID, title, and -->
@@ -15,7 +15,7 @@ Wiggum is a browser-native AI coding IDE. See the Architecture Quick Reference b
 <!-- See docs/plans/cc-implementation-timeline.md for the full roadmap. -->
 
 **Read for this phase:**
-- 14-step mega plan (prior chats) — stale descriptions, dead command code, glob expansion, skills improvements
+- `docs/plans/wiggum-powerup-plan.md` — §Layer2 (ESM Module Cache)
 
 **Do NOT read** other plan files in `docs/plans/` unless explicitly asked.
 
@@ -571,6 +571,7 @@ Phase 0: Codebase Consistency Pass
 
 Phase A: Foundation
   A1  Theme Generator           ← cc-theme-generato_updatedr.md
+  A1.5 Durable Theme Application ← cc-theme-apply-spec.md
   A2  Mega Plan Cleanup         ← 14-step mega plan (prior chats)
   A3  Component Decision Tree   ← wiggum-powerup-plan.md §5A
 
@@ -607,7 +608,7 @@ Phase F: Conversational Planner (independent, after D)
   F3  Cross-Tab Intelligence    ← chief-implementation-plan.md Prompt 5
 ```
 
-**You are here: A2.** Do not read ahead or work on future phases.
+**You are here: C2.** Do not read ahead or work on future phases.
 
 ---
 
@@ -620,6 +621,7 @@ All in `docs/plans/`:
 | `wiggum-master.md` | Architecture, file structure, core principles. Read when touching core systems (loop, gates, executor, FS, build). |
 | `cc-implementation-timeline.md` | Roadmap + workflow process. |
 | `cc-theme-generato_updatedr.md` | Sacred geometry OKLCH theme generator. Phase A1. |
+| `cc-theme-apply-spec.md` | Durable theme application — v4 CDN, --apply, gate, preset fixes. Phase A1.5. |
 | `gumdrops-ecosystem-design.md` | 50 compositional recipes, 5 domains. Phases B1-B3, D5. |
 | `gumdrops-manifesto.md` | WFC solver, structures, atom sets, harness. Phase E. |
 | `wiggum-powerup-plan.md` | PWA, ESM cache, build intel, Tailwind, design intel. Phases A3, B4, C1-C4. |
@@ -636,6 +638,8 @@ All in `docs/plans/`:
 
 | ID | Category | Issue | Status |
 |----|----------|-------|--------|
-| K1 | Dead code | `RalphContext.tsx` — nothing imports it. Delete. | Pending (mega plan) |
-| K2 | Shell | 14-step mega plan: stale descriptions, dead command code (`commands/ralph/` 48K), 11 new commands, glob expansion, skills improvements | Pending |
 | K8 | File size | loop.ts (507 lines), gates.ts (435 lines) exceed comfortable CC editing range | Monitor — surgical edits only |
+
+**Resolved:**
+- K1 (Dead code): `RalphContext.tsx` — already deleted in prior work. No file exists.
+- K2 (Shell): Mega plan cleanup — completed in A2. `commands/ralph/` never existed (false alarm). Stale descriptions updated in loop.ts. Issues log fixes (TH-001 through TH-008) applied.
