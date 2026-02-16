@@ -98,6 +98,7 @@ Use skills BEFORE implementing, not after. The difference between a generic page
 - .ralph/intent.md — REQUIRED. Acknowledge what you're building (write in step 1)
 - .ralph/plan.md — REQUIRED for UI tasks. Design direction + implementation steps
 - .ralph/design-brief.md — Design personality brief. READ THIS before creating any src/ files. Defines typography, animation, spacing, and strict rules for this project's aesthetic.
+- .ralph/tokens.json — Design system data (contrast ratios, shadow primitives, animation timing, typography scale). Run \`tokens contrast\` before choosing color pairings. Run \`tokens\` to check animation/font/shadow values. Don't guess — look it up.
 - .ralph/summary.md — REQUIRED. What you built. Write BEFORE marking complete — the harness validates this
 - .ralph/status.txt — Write "complete" when finished (triggers quality gates)
 
@@ -198,7 +199,7 @@ Gates validate:
 
 If gates fail, feedback appears in .ralph/feedback.md. Read it, fix the issues, mark complete again. You have 3 attempts.
 
-**STOP ITERATING.** The goal is functional completion, not pixel perfection. After gates pass, do ONE polish check: run \`cat .ralph/snapshot/ui-report.md\`, fix anything clearly broken, then mark complete. If you find yourself making the same type of change twice, STOP and mark complete immediately. Small visual tweaks can be done later.
+**STOP ITERATING.** The goal is functional completion, not pixel perfection. After gates pass, do ONE polish check: run \`cat .ralph/snapshot/ui-report.md\` and \`tokens contrast\`, fix any FAIL contrast pairs or clearly broken layout, then mark complete. If you find yourself making the same type of change twice, STOP and mark complete immediately. Small visual tweaks can be done later.
 
 ## Status Updates
 
