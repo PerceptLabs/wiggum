@@ -20,6 +20,15 @@
 **Scope:** ~30 lines.
 **Phase:** B1-B2 (becomes the fine-tuning step after recipe/preset selection)
 
+### TH-011: Pattern alias not transparent in theme output
+**Source:** Log analysis (fashion magazine test run)
+**Severity:** Low — cosmetic, no functional impact
+**What happened:** Ralph typed `--pattern minimal`, output said `pattern=monochromatic` with no indication that `minimal` was an alias. Confusing for log readers.
+**Where:** `apps/ide/src/lib/shell/commands/theme.ts` — generate/preset stdout messages
+**Implementation:** Include alias in output: `"pattern=monochromatic (alias: minimal)"`. Check if the pattern name differs from the resolved pattern name — if so, append `(alias: {original})`.
+**Scope:** ~3 lines in two places (preset path + generate path).
+**Phase:** Nice-to-have
+
 ### UX-001: Multi-line replace is unreliable
 **Source:** Post-B4 test run 3 (continuation — dark mode toggle)
 **What happened:** Ralph tried multi-line `replace` on plan.md, got "No match found". Fell back to rewriting entire files with `cat > file << 'EOF'`. Also wished for `insert at line number` and `append to file`.
@@ -111,3 +120,4 @@
 | Post-C1 | UX-003 | Scaffold command — quick win |
 | Monitor | UX-002, UX-004 | May resolve with sed + better output formatting |
 | Pre-mega or alongside | DIAG-001 | Timestamp diagnostics for latency measurement |
+| Nice-to-have | TH-011 | Pattern alias transparency in theme output |
