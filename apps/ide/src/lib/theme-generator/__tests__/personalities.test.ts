@@ -3,14 +3,20 @@ import { PERSONALITIES, MOOD_NAMES, generateDesignBrief } from '../personalities
 import type { MoodName } from '../personalities'
 
 describe('PERSONALITIES', () => {
-  it('MOOD_NAMES contains all 6 moods', () => {
-    expect(MOOD_NAMES).toHaveLength(6)
+  it('MOOD_NAMES contains all 12 moods', () => {
+    expect(MOOD_NAMES).toHaveLength(12)
     expect(MOOD_NAMES).toContain('minimal')
     expect(MOOD_NAMES).toContain('premium')
     expect(MOOD_NAMES).toContain('playful')
     expect(MOOD_NAMES).toContain('industrial')
     expect(MOOD_NAMES).toContain('organic')
     expect(MOOD_NAMES).toContain('editorial')
+    expect(MOOD_NAMES).toContain('fashion-editorial')
+    expect(MOOD_NAMES).toContain('brutalist')
+    expect(MOOD_NAMES).toContain('zen')
+    expect(MOOD_NAMES).toContain('corporate')
+    expect(MOOD_NAMES).toContain('retro')
+    expect(MOOD_NAMES).toContain('luxury')
   })
 
   it('PERSONALITIES has an entry for each mood', () => {
@@ -65,7 +71,7 @@ describe('generateDesignBrief', () => {
     expect(brief).toContain('**Mood:** industrial')
   })
 
-  it('all 6 moods produce non-empty briefs', () => {
+  it('all 12 moods produce non-empty briefs', () => {
     for (const mood of MOOD_NAMES) {
       const brief = generateDesignBrief(mood, 'loop-test')
       expect(brief.length).toBeGreaterThan(100)

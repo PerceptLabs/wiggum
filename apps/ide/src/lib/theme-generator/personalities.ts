@@ -1,5 +1,5 @@
 /**
- * Personality Brief System — 6 mood presets for design-brief.md
+ * Personality Brief System — 12 mood presets for design-brief.md
  * Each mood defines typography, animation, spacing, interaction patterns,
  * and strict aesthetic rules. generateDesignBrief() renders markdown.
  *
@@ -8,6 +8,7 @@
  */
 
 export type MoodName = 'minimal' | 'premium' | 'playful' | 'industrial' | 'organic' | 'editorial'
+  | 'fashion-editorial' | 'brutalist' | 'zen' | 'corporate' | 'retro' | 'luxury'
 
 export interface PersonalityBrief {
   philosophy: string
@@ -20,7 +21,10 @@ export interface PersonalityBrief {
   checklist: string[]
 }
 
-export const MOOD_NAMES: MoodName[] = ['minimal', 'premium', 'playful', 'industrial', 'organic', 'editorial']
+export const MOOD_NAMES: MoodName[] = [
+  'minimal', 'premium', 'playful', 'industrial', 'organic', 'editorial',
+  'fashion-editorial', 'brutalist', 'zen', 'corporate', 'retro', 'luxury',
+]
 
 export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
   minimal: {
@@ -368,6 +372,352 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
       'Vertical rhythm is consistent (same leading/spacing throughout)',
       'No animation uses bounce or spring easing',
       'Overall impression: magazine-quality, typography-driven, restrained',
+    ],
+  },
+
+  'fashion-editorial': {
+    philosophy: 'The runway on screen. Drama through restraint and scale.',
+    typography: [
+      { element: 'Hero text', size: '6xl-9xl', weight: 'extralight (200-300)', color: 'foreground', tracking: 'wide' },
+      { element: 'Page titles', size: '2xl-4xl', weight: 'light (300)', color: 'foreground', tracking: 'wide' },
+      { element: 'Section labels', size: 'xs', weight: 'medium (500)', color: 'muted-foreground', tracking: 'widest, uppercase' },
+      { element: 'Body text', size: 'base-lg', weight: 'normal (400)', color: 'foreground', tracking: 'normal, sans-serif' },
+      { element: 'Captions', size: 'xs-sm', weight: 'normal (400)', color: 'muted-foreground', tracking: 'wide' },
+    ],
+    animation: [
+      { type: 'Micro-interactions', duration: '150-200ms', easing: 'ease' },
+      { type: 'Hover states', duration: '200-300ms', easing: 'ease, subtle opacity shifts' },
+      { type: 'Card transitions', duration: '400-500ms', easing: 'ease-out' },
+      { type: 'Page transitions', duration: '500-700ms', easing: 'ease-in-out' },
+      { type: 'Scroll reveals', duration: '600-900ms', easing: 'ease-out, theatrical' },
+    ],
+    spacing: {
+      base: '4px (0.25rem)',
+      section: '96-160px (6-10rem)',
+      cardPadding: '32-48px (2-3rem)',
+      rhythm: 'DRAMATIC section gaps. Content breathes like a Vogue spread. Scale IS the statement.',
+    },
+    interactions: [
+      'Hover: subtle opacity shift (0.7-0.9), no transforms',
+      'Press: opacity 0.6, quick return',
+      'Focus: ring-1 ring-foreground, minimal',
+      'Cards: no lift, border or opacity change only',
+    ],
+    allowed: [
+      'Full-bleed imagery placeholders',
+      'Asymmetric layouts',
+      'Overlapping type on background elements',
+      'Extreme scale contrast between hero and body text',
+      'Deconstructed typography (split words across lines)',
+      'Max 2 colors beyond black/white/neutral',
+    ],
+    notAllowed: [
+      'Rounded corners of any kind (radius: 0 always)',
+      'Bounce or spring animations',
+      'More than 2 accent colors beyond neutrals',
+      'Busy or cluttered layouts',
+      'Small hero text (must be 6xl+)',
+      'Heavy font weights at display sizes',
+    ],
+    checklist: [
+      'Hero text is 6xl+ at light weight (200-300)',
+      'Zero border-radius throughout the entire design',
+      'Section spacing is 6rem+ between major blocks',
+      'No more than 2 accent colors beyond black/white',
+      'Typography does the heavy lifting — minimal iconography',
+      'Body text is sans-serif, clean and modern',
+      'Scroll reveals are slow and theatrical (600ms+)',
+      'Overall impression: high-fashion editorial spread, dramatic restraint',
+    ],
+  },
+
+  brutalist: {
+    philosophy: 'Raw structure. No pretense. The code is the design.',
+    typography: [
+      { element: 'Hero text', size: '3xl-6xl', weight: 'bold (800-900)', color: 'foreground', tracking: 'tight' },
+      { element: 'Page titles', size: 'xl-2xl', weight: 'bold (700-800)', color: 'foreground', tracking: 'tight' },
+      { element: 'Section labels', size: 'xs-sm', weight: 'bold (700)', color: 'foreground', tracking: 'widest, uppercase' },
+      { element: 'Body text', size: 'sm-base', weight: 'normal (400)', color: 'foreground', tracking: 'normal, monospace' },
+      { element: 'Code/data', size: 'sm', weight: 'normal (400)', color: 'foreground', tracking: 'normal, monospace' },
+    ],
+    animation: [
+      { type: 'Micro-interactions', duration: '50ms', easing: 'linear' },
+      { type: 'Hover states', duration: '50-100ms', easing: 'linear' },
+      { type: 'Card transitions', duration: '100ms', easing: 'linear' },
+      { type: 'Page transitions', duration: '100ms', easing: 'linear' },
+      { type: 'Scroll reveals', duration: '50-100ms', easing: 'linear (instant appearance preferred)' },
+    ],
+    spacing: {
+      base: '4px (0.25rem)',
+      section: '32-48px (2-3rem)',
+      cardPadding: '12-20px (0.75-1.25rem)',
+      rhythm: 'Dense. Tight grid. No luxury whitespace — information density is the point.',
+    },
+    interactions: [
+      'Hover: background-color snap change, instant',
+      'Press: invert colors (bg-foreground text-background), instant',
+      'Focus: ring-1 ring-foreground, hard outline',
+      'Cards: border highlight only, no elevation, no shadow',
+    ],
+    allowed: [
+      'Monospace fonts everywhere',
+      'Visible grid lines and borders',
+      'High-contrast black/white',
+      'Raw unprocessed aesthetic',
+      'System fonts as fallback',
+      'Exposed structure (visible padding, explicit borders)',
+      'All-caps section labels',
+    ],
+    notAllowed: [
+      'Gradients of any kind',
+      'Shadows of any kind',
+      'Smooth easing curves (ease, ease-in-out)',
+      'Serif fonts',
+      'Rounded corners of any kind',
+      'Decorative elements or images as decoration',
+      'Colors beyond black/white + one accent max',
+    ],
+    checklist: [
+      'Uses monospace or heavy grotesque sans throughout',
+      'Shadow profile: none — zero shadows anywhere',
+      'Radius: none — zero rounded corners anywhere',
+      'At least one section has visible border-grid structure',
+      'Colors: max 2 (typically black + one accent)',
+      'No easing curves other than linear',
+      'Animation durations under 100ms or instant',
+      'Overall impression: raw, honest, structural, exposed',
+    ],
+  },
+
+  zen: {
+    philosophy: 'Emptiness is form. Let space speak.',
+    typography: [
+      { element: 'Hero text', size: '3xl-4xl', weight: 'light (300)', color: 'foreground', tracking: 'normal' },
+      { element: 'Page titles', size: 'xl-2xl', weight: 'light (300-400)', color: 'foreground', tracking: 'normal' },
+      { element: 'Section labels', size: 'sm', weight: 'normal (400)', color: 'muted-foreground', tracking: 'wide' },
+      { element: 'Body text', size: 'base', weight: 'normal (400)', color: 'foreground', tracking: 'relaxed, serif' },
+      { element: 'Captions', size: 'xs-sm', weight: 'light (300)', color: 'muted-foreground', tracking: 'normal' },
+    ],
+    animation: [
+      { type: 'Micro-interactions', duration: '200-300ms', easing: 'ease-out' },
+      { type: 'Hover states', duration: '400-500ms', easing: 'ease-out' },
+      { type: 'Card transitions', duration: '500-600ms', easing: 'ease-out' },
+      { type: 'Page transitions', duration: '600-800ms', easing: 'ease-out' },
+      { type: 'Scroll reveals', duration: '800-1200ms', easing: 'ease-out, gentle fade' },
+    ],
+    spacing: {
+      base: '4px (0.25rem)',
+      section: '120-200px (7.5-12.5rem)',
+      cardPadding: '40-56px (2.5-3.5rem)',
+      rhythm: 'MAXIMUM whitespace. Expansive rhythm. Let emptiness define the form.',
+    },
+    interactions: [
+      'Hover: opacity shift (0.7), very slow transition (400ms+)',
+      'Press: opacity 0.5, slow return',
+      'Focus: ring-1 ring-ring, subtle',
+      'Cards: subtle border-bottom separator, no elevation',
+    ],
+    allowed: [
+      'Single accent color (earth tones preferred)',
+      'Extreme whitespace between all elements',
+      'Contemplative pacing in all transitions',
+      'Subtle border-bottom separators',
+      'Natural imagery placeholders',
+      'Organic shapes (if any decoration exists)',
+      'Serif body text for unhurried reading',
+    ],
+    notAllowed: [
+      'Bold weights above 500',
+      'More than 1 accent color',
+      'Shadows heavier than subtle',
+      'Fast animations under 400ms',
+      'Dense layouts of any kind',
+      'Uppercase text (too aggressive)',
+      'Decorative flourishes or ornament',
+    ],
+    checklist: [
+      'Section spacing is 8rem+ between major blocks',
+      'Max font weight used anywhere is 500',
+      'No animation duration is under 400ms',
+      'Color palette uses earth tones or cool neutrals',
+      'Body text uses serif font for contemplative reading',
+      'Whitespace is the dominant visual element',
+      'No element feels urgent or demanding',
+      'Overall impression: calm, spacious, contemplative, still',
+    ],
+  },
+
+  corporate: {
+    philosophy: 'Clarity serves confidence. Systems enable trust.',
+    typography: [
+      { element: 'Hero text', size: '3xl-4xl', weight: 'semibold (600)', color: 'foreground', tracking: 'tight' },
+      { element: 'Page titles', size: 'xl-2xl', weight: 'semibold (600)', color: 'foreground', tracking: 'tight' },
+      { element: 'Section labels', size: 'xs-sm', weight: 'medium (500)', color: 'muted-foreground', tracking: 'wide, uppercase' },
+      { element: 'Body text', size: 'base-lg', weight: 'normal (400)', color: 'foreground', tracking: 'normal, neo-grotesque sans' },
+      { element: 'Data/metrics', size: 'sm', weight: 'medium (500)', color: 'foreground', tracking: 'normal' },
+    ],
+    animation: [
+      { type: 'Micro-interactions', duration: '100-150ms', easing: 'ease-out' },
+      { type: 'Hover states', duration: '150-200ms', easing: 'ease-out' },
+      { type: 'Card transitions', duration: '200-250ms', easing: 'ease-out' },
+      { type: 'Page transitions', duration: '200-300ms', easing: 'ease-out' },
+      { type: 'Scroll reveals', duration: '250-300ms', easing: 'ease-out' },
+    ],
+    spacing: {
+      base: '4px (0.25rem)',
+      section: '64-96px (4-6rem)',
+      cardPadding: '24-32px (1.5-2rem)',
+      rhythm: 'Moderate, systematic. Grid-based. Consistent 4px rhythm. Nothing extreme.',
+    },
+    interactions: [
+      'Hover: background-color shift, subtle border highlight',
+      'Press: scale(0.98), 100ms ease-out',
+      'Focus: ring-2 ring-primary, standard outline',
+      'Cards: subtle shadow increase on hover, 200ms',
+    ],
+    allowed: [
+      'Blue-gray color palettes',
+      'Structured grid layouts',
+      'Data-visualization-friendly design',
+      'Clear information hierarchy',
+      'Professional iconography (outline style)',
+      'Card-based layouts with consistent spacing',
+      'Single font family (neo-grotesque sans)',
+    ],
+    notAllowed: [
+      'Decorative or display fonts',
+      'Spring or bounce easing',
+      'Shadow profiles heavier than moderate',
+      'Gradients on backgrounds',
+      'Playful elements or animations',
+      'Asymmetric layouts',
+      'Animation durations exceeding 300ms',
+    ],
+    checklist: [
+      'Single font family throughout (sans-serif, no serif)',
+      'Shadow profile: subtle or moderate only',
+      'Information hierarchy is clear within 2 seconds',
+      'Layout is grid-aligned with consistent spacing',
+      'Color palette is cool and professional (blue-gray)',
+      'No animation exceeds 300ms duration',
+      'Typography uses neo-grotesque sans (Inter, Helvetica Neue, etc.)',
+      'Overall impression: trustworthy, systematic, confident, clear',
+    ],
+  },
+
+  retro: {
+    philosophy: 'Warmth with intention. Nostalgia refined, not replicated.',
+    typography: [
+      { element: 'Hero text', size: '3xl-5xl', weight: 'bold (700)', color: 'foreground', tracking: 'normal' },
+      { element: 'Page titles', size: 'xl-2xl', weight: 'semibold (600)', color: 'foreground', tracking: 'normal' },
+      { element: 'Section labels', size: 'sm', weight: 'semibold (600)', color: 'muted-foreground', tracking: 'wide' },
+      { element: 'Body text', size: 'base', weight: 'normal (400)', color: 'foreground', tracking: 'normal, warm and readable' },
+      { element: 'Display accents', size: 'lg-xl', weight: 'bold (700)', color: 'primary', tracking: 'normal, rounded sans or slab' },
+    ],
+    animation: [
+      { type: 'Micro-interactions', duration: '100-150ms', easing: 'ease-out' },
+      { type: 'Hover states', duration: '200-300ms', easing: 'ease-out, scale + shadow lift' },
+      { type: 'Card transitions', duration: '250-350ms', easing: 'ease-out' },
+      { type: 'Page transitions', duration: '300-400ms', easing: 'ease-out' },
+      { type: 'Scroll reveals', duration: '400-500ms', easing: 'ease-out' },
+    ],
+    spacing: {
+      base: '4px (0.25rem)',
+      section: '64-96px (4-6rem)',
+      cardPadding: '24-32px (1.5-2rem)',
+      rhythm: 'Comfortable, slightly generous. Not tight, not airy. Cozy.',
+    },
+    interactions: [
+      'Hover: scale(1.02) + shadow lift, ease-out 250ms',
+      'Press: scale(0.97), quick return',
+      'Focus: ring-2 ring-primary, warm glow',
+      'Cards: shadow increase + slight lift on hover',
+    ],
+    allowed: [
+      'Warm color palettes (amber, ochre, cream, brown)',
+      'Rounded corners (moderate to rounded)',
+      'Visible shadows for depth and tactile feel',
+      'Texture hints in backgrounds',
+      'Mixed font families (slab/serif + rounded sans)',
+      'Vintage-inspired but not dated aesthetic',
+      'Warm hue range (20-80)',
+    ],
+    notAllowed: [
+      'Neon or electric colors',
+      'Harsh or hard-edge shadows',
+      'Minimal/flat design (needs some depth)',
+      'Cold blue palettes',
+      'Extremely light font weights (below 400)',
+      'Brutalist aesthetics',
+      'Spring or bounce easing (use ease-out)',
+    ],
+    checklist: [
+      'Color palette feels warm (hue range 20-80)',
+      'Border-radius is moderate to rounded throughout',
+      'At least one shadow layer provides tactile depth',
+      'Fonts have personality but remain readable',
+      'Hover states use scale + shadow lift (ease-out, not spring)',
+      'Transitions are 200-400ms with ease-out easing',
+      'Mixed typography adds character without chaos',
+      'Overall impression: inviting, warm, tactile, nostalgic-but-modern',
+    ],
+  },
+
+  luxury: {
+    philosophy: "Whisper, don't shout. Exclusivity through absence.",
+    typography: [
+      { element: 'Hero text', size: '4xl-7xl', weight: 'thin (200-300)', color: 'foreground', tracking: 'widest' },
+      { element: 'Page titles', size: 'xl-3xl', weight: 'light (300)', color: 'foreground', tracking: 'wide' },
+      { element: 'Section labels', size: 'xs', weight: 'medium (500)', color: 'muted-foreground', tracking: 'widest, uppercase' },
+      { element: 'Body text', size: 'sm-base', weight: 'normal (400)', color: 'foreground', tracking: 'normal' },
+      { element: 'Display serif', size: '2xl-4xl', weight: 'light (300)', color: 'foreground', tracking: 'wide, serif' },
+    ],
+    animation: [
+      { type: 'Micro-interactions', duration: '150ms', easing: 'cubic-bezier(0.25, 0.1, 0.25, 1) (silk-smooth)' },
+      { type: 'Hover states', duration: '300-400ms', easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)' },
+      { type: 'Card transitions', duration: '400-500ms', easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)' },
+      { type: 'Page transitions', duration: '500-700ms', easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)' },
+      { type: 'Scroll reveals', duration: '700-1000ms', easing: 'cubic-bezier(0.25, 0.1, 0.25, 1) (glacial)' },
+    ],
+    spacing: {
+      base: '4px (0.25rem)',
+      section: '100-160px (6.25-10rem)',
+      cardPadding: '40-56px (2.5-3.5rem)',
+      rhythm: 'Opulent spacing. Everything has room to breathe. More extreme than premium.',
+    },
+    interactions: [
+      'Hover: opacity shift (0.8) + subtle shadow elevation, slow',
+      'Press: opacity 0.7, glacial return (400ms)',
+      'Focus: ring-1 ring-ring, refined',
+      'Cards: shadow-dramatic elevation on hover, 400ms silk transition',
+    ],
+    allowed: [
+      'Dark backgrounds with light text (inverted sections)',
+      'Gold/champagne accent tones',
+      'Dramatic shadow profiles (diffused, for elevation)',
+      'Thin horizontal rules as dividers',
+      'Serif + thin sans pairing',
+      'Letter-spacing as a design tool',
+      'Wide tracking on labels and hero text',
+    ],
+    notAllowed: [
+      'Bold weights above 500 at display sizes',
+      'More than 2 colors excluding neutrals',
+      'Playful or rounded elements',
+      'Dense layouts',
+      'Casual typography',
+      'Visible borders (shadows for separation instead)',
+      'Fast or bouncy animations',
+    ],
+    checklist: [
+      'Display text weight is 300 or thinner',
+      'Letter-spacing is wide on hero text and labels',
+      'At least one dark-background inverted section exists',
+      'Shadow profile is dramatic (diffused, for elevation)',
+      'Section spacing is 6rem+ between major blocks',
+      'Max 2 colors beyond neutrals in the entire design',
+      'Serif font used for at least one display element',
+      'Overall impression: exclusive, refined, unhurried, effortless',
     ],
   },
 }

@@ -41,14 +41,14 @@ const PATTERN_ALIASES: Record<string, string> = {
 const PRESET_MOOD_MAP: Record<string, MoodName> = {
   'northern-lights': 'organic',
   'cyberpunk': 'industrial',
-  'doom-64': 'industrial',
-  'retro-arcade': 'playful',
+  'doom-64': 'brutalist',
+  'retro-arcade': 'retro',
   'soft-pop': 'playful',
   'tangerine': 'playful',
   'mono': 'minimal',
-  'elegant-luxury': 'premium',
+  'elegant-luxury': 'luxury',
   'bubblegum': 'playful',
-  'mocha-mousse': 'organic',
+  'mocha-mousse': 'zen',
   'caffeine': 'editorial',
   'catppuccin': 'minimal',
 }
@@ -335,16 +335,22 @@ export class ThemeCommand implements ShellCommand {
 
     if (what === 'moods') {
       const descriptions: Record<MoodName, string> = {
-        minimal: 'Content-first. Subtle easing, generous whitespace, no decoration.',
-        premium: 'Polished luxury. Light weights at large sizes, spring animations, rich layering.',
-        playful: 'Bouncy and bright. Rounded shapes, animated micro-interactions, surprise.',
-        industrial: 'Raw structure. Mono fonts, no rounded corners, linear easing, sharp contrast.',
-        organic: 'Flowing and warm. Rounded everything, slow easing, natural spacing.',
-        editorial: 'Typography-led. Serif body, tight tracking, print-inspired, minimal color.',
+        minimal: 'Let content breathe. Every element earns its place.',
+        premium: 'Numbers are heroes, labels are whispers.',
+        playful: 'Surprise at every scroll. Joy is not optional.',
+        industrial: 'Raw materials. Visible structure. Nothing hidden.',
+        organic: 'Natural rhythms. Flowing forms. Living systems.',
+        editorial: 'The page is a stage. Typography performs.',
+        'fashion-editorial': 'The runway on screen. Drama through restraint and scale.',
+        brutalist: 'Raw structure. No pretense. The code is the design.',
+        zen: 'Emptiness is form. Let space speak.',
+        corporate: 'Clarity serves confidence. Systems enable trust.',
+        retro: 'Warmth with intention. Nostalgia refined.',
+        luxury: "Whisper, don't shout. Exclusivity through absence.",
       }
       let output = '## Available Moods\n\n'
       for (const mood of MOOD_NAMES) {
-        output += `  ${mood.padEnd(14)} ${descriptions[mood]}\n`
+        output += `  ${mood.padEnd(20)} ${descriptions[mood]}\n`
       }
       return { exitCode: 0, stdout: output, stderr: '' }
     }
@@ -360,7 +366,8 @@ export class ThemeCommand implements ShellCommand {
   theme list presets|patterns|fonts|shadows|radii|moods
 
   --apply writes directly to src/index.css + .ralph/design-brief.md + .ralph/tokens.json
-  --mood sets design personality (minimal, premium, playful, industrial, organic, editorial)
+  --mood sets design personality (minimal, premium, playful, industrial, organic, editorial,
+        fashion-editorial, brutalist, zen, corporate, retro, luxury)
 
 After applying a theme, use 'tokens' to inspect generated design tokens.`
   }
