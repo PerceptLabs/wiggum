@@ -8,7 +8,7 @@ import { setupLogging } from '@/lib/logger'
 // Initialize logging before React renders
 setupLogging({ enableFingersCrossed: true, bufferSize: 50 })
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById('ide-root')!).render(
   <StrictMode>
     <App />
   </StrictMode>,

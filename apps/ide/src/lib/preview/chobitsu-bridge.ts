@@ -177,6 +177,86 @@ export function getChobitsuInjectionScript(): string {
     warnSeen: warnSeen,
     logRingBuffer: logRingBuffer
   };
+
+  // ---- Iframe Probe: respond to parent layout/theme queries ----
+  var THEME_VARS = [
+    'background','foreground','primary','primary-foreground','secondary','secondary-foreground',
+    'muted','muted-foreground','accent','accent-foreground','destructive','destructive-foreground',
+    'card','card-foreground','popover','popover-foreground','border','input','ring',
+    'sidebar-background','sidebar-foreground','sidebar-primary','sidebar-primary-foreground',
+    'sidebar-accent','sidebar-accent-foreground','sidebar-border','sidebar-ring',
+    'chart-1','chart-2','chart-3','chart-4','chart-5'
+  ];
+
+  window.addEventListener('message', function(event) {
+    if (!event.data || event.data.type !== 'wiggum-probe-request') return;
+    var probeId = event.data.id;
+    try {
+      var computedTheme = {};
+      var rootStyle = getComputedStyle(document.documentElement);
+      for (var v = 0; v < THEME_VARS.length; v++) {
+        var val = rootStyle.getPropertyValue('--' + THEME_VARS[v]).trim();
+        if (val) computedTheme[THEME_VARS[v]] = val;
+      }
+
+      var sections = [];
+      var semanticEls = document.querySelectorAll('main,section,header,footer,nav,article,aside');
+      for (var s = 0; s < semanticEls.length; s++) {
+        var el = semanticEls[s];
+        var rect = el.getBoundingClientRect();
+        sections.push({
+          tag: el.tagName.toLowerCase(), id: el.id || undefined,
+          className: el.className ? String(el.className).substring(0, 100) : undefined,
+          rect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) },
+          childCount: el.children.length
+        });
+      }
+
+      var interEls = document.querySelectorAll('button,a[href],input,select,textarea,[role="button"]');
+      var interactions = [];
+      for (var i = 0; i < interEls.length; i++) {
+        var ie = interEls[i];
+        interactions.push({
+          tag: ie.tagName.toLowerCase(), type: ie.getAttribute('type') || ie.tagName.toLowerCase(),
+          text: (ie.textContent || '').trim().substring(0, 50) || undefined,
+          hasHandler: ie.onclick !== null
+        });
+      }
+
+      var layoutIssues = [];
+      if (document.body.scrollWidth > window.innerWidth + 2) {
+        layoutIssues.push({ type: 'overflow', element: 'body', details: 'horizontal scroll (' + document.body.scrollWidth + 'px > ' + window.innerWidth + 'px)' });
+      }
+      for (var z = 0; z < sections.length; z++) {
+        if (sections[z].rect.width === 0 || sections[z].rect.height === 0) {
+          layoutIssues.push({ type: 'zero-size', element: sections[z].tag + (sections[z].id ? '#' + sections[z].id : ''), details: sections[z].rect.width + 'x' + sections[z].rect.height });
+        }
+      }
+      var root = document.getElementById('root') || document.body;
+      var flowChildren = [];
+      for (var fc = 0; fc < root.children.length; fc++) {
+        var cs = getComputedStyle(root.children[fc]);
+        if (cs.position !== 'absolute' && cs.position !== 'fixed' && cs.position !== 'sticky') flowChildren.push(root.children[fc]);
+      }
+      for (var a = 0; a < flowChildren.length; a++) {
+        var rA = flowChildren[a].getBoundingClientRect();
+        for (var b = a + 1; b < flowChildren.length; b++) {
+          var rB = flowChildren[b].getBoundingClientRect();
+          if (rA.bottom > rB.top + 1 && rA.top < rB.bottom - 1 && rA.right > rB.left + 1 && rA.left < rB.right - 1) {
+            layoutIssues.push({ type: 'overlap', element: flowChildren[a].tagName.toLowerCase() + ' + ' + flowChildren[b].tagName.toLowerCase(), details: 'flow siblings overlap' });
+          }
+        }
+      }
+
+      window.parent.postMessage({ type: 'wiggum-probe-result', id: probeId, result: {
+        rendered: true, sections: sections, interactions: interactions, layoutIssues: layoutIssues, computedTheme: computedTheme
+      }}, '*');
+    } catch (probeErr) {
+      window.parent.postMessage({ type: 'wiggum-probe-result', id: probeId, result: {
+        rendered: false, sections: [], interactions: [], layoutIssues: [], computedTheme: {}
+      }}, '*');
+    }
+  });
 })();
 </script>
 `

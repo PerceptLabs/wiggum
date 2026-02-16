@@ -6,6 +6,7 @@
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import type { FontCategory } from '../../theme-generator/types'
 import type { MoodName } from '../../theme-generator/personalities'
+import type { DtcgOutput } from '../../theme-generator'
 import {
   generateTheme,
   formatThemeOutput,
@@ -19,6 +20,8 @@ import {
   SHADOW_PROFILES,
   RADIUS_STOPS,
   FONT_REGISTRY,
+  toDtcg,
+  patchDtcgColors,
 } from '../../theme-generator'
 import { MOOD_NAMES, generateDesignBrief } from '../../theme-generator/personalities'
 import { parseOklch, formatOklch, contrastRatio, clampToGamut } from '../../theme-generator/oklch'
@@ -105,12 +108,22 @@ export class ThemeCommand implements ShellCommand {
       const brief = generateDesignBrief(resolvedMood, name)
       await options.fs.writeFile(briefPath, brief)
 
+      // DTCG tokens
+      const tokensPath = resolvePath(options.cwd, '.ralph/tokens.json')
+      const dtcg = toDtcg(
+        result.theme,
+        { seed: 0, pattern: 'preset', font: result.meta?.font, radius: result.meta?.radius, shadowProfile: result.meta?.shadowStyle },
+        resolvedMood,
+        result.meta,
+      )
+      await options.fs.writeFile(tokensPath, JSON.stringify(dtcg, null, 2))
+
       const varCount = Object.keys(result.theme.cssVars.light).length + Object.keys(result.theme.cssVars.theme).length
       return {
         exitCode: 0,
-        stdout: `Applied preset "${name}" to src/index.css (${varCount} vars, :root + .dark) + design brief (${resolvedMood})\n`,
+        stdout: `Applied preset "${name}" to src/index.css (${varCount} vars, :root + .dark) + design brief (${resolvedMood}) + tokens.json\n`,
         stderr: '',
-        filesChanged: [filePath, briefPath],
+        filesChanged: [filePath, briefPath, tokensPath],
       }
     }
 
@@ -157,12 +170,17 @@ export class ThemeCommand implements ShellCommand {
         const brief = generateDesignBrief(resolvedMood, `generated (seed=${seed}, pattern=${pattern})`)
         await options.fs.writeFile(briefPath, brief)
 
+        // DTCG tokens
+        const tokensPath = resolvePath(options.cwd, '.ralph/tokens.json')
+        const dtcg = toDtcg(theme, { seed, pattern, font, shadowProfile, radius }, resolvedMood)
+        await options.fs.writeFile(tokensPath, JSON.stringify(dtcg, null, 2))
+
         const varCount = Object.keys(theme.cssVars.light).length + Object.keys(theme.cssVars.theme).length
         return {
           exitCode: 0,
-          stdout: `Applied generated theme to src/index.css (seed=${seed}, pattern=${pattern}, ${varCount} vars) + design brief (${resolvedMood})\n`,
+          stdout: `Applied generated theme to src/index.css (seed=${seed}, pattern=${pattern}, ${varCount} vars) + design brief (${resolvedMood}) + tokens.json\n`,
           stderr: '',
-          filesChanged: [filePath, briefPath],
+          filesChanged: [filePath, briefPath, tokensPath],
         }
       }
 
@@ -205,6 +223,7 @@ export class ThemeCommand implements ShellCommand {
     // Parse and shift oklch values for target tokens
     const lines = css.split('\n')
     const modified: string[] = []
+    const colorUpdates: Record<string, { l: number; c: number; h: number }> = {}
 
     for (const line of lines) {
       const match = line.match(/^\s*(--[\w-]+):\s*oklch\(([^)]+)\)\s*;?\s*$/)
@@ -216,6 +235,7 @@ export class ThemeCommand implements ShellCommand {
             color.h = ((color.h + shiftHue) % 360 + 360) % 360
             const clamped = clampToGamut(color)
             modified.push(`  ${match[1]}: ${formatOklch(clamped)};`)
+            colorUpdates[varName] = clamped
             continue
           } catch {
             // Fall through to unmodified
@@ -229,11 +249,25 @@ export class ThemeCommand implements ShellCommand {
 
     if (apply) {
       await options.fs.writeFile(filePath, result)
+
+      // Update tokens.json if it exists
+      const tokensPath = resolvePath(options.cwd, '.ralph/tokens.json')
+      const changedFiles = [filePath]
+      try {
+        const tokensRaw = await options.fs.readFile(tokensPath, { encoding: 'utf8' }) as string
+        const tokens: DtcgOutput = JSON.parse(tokensRaw)
+        patchDtcgColors(tokens, colorUpdates)
+        await options.fs.writeFile(tokensPath, JSON.stringify(tokens, null, 2))
+        changedFiles.push(tokensPath)
+      } catch {
+        // tokens.json doesn't exist or is invalid — skip
+      }
+
       return {
         exitCode: 0,
         stdout: `Modified theme in src/index.css (shift-hue=${shiftHue}, scope=${scope})\n`,
         stderr: '',
-        filesChanged: [filePath],
+        filesChanged: changedFiles,
       }
     }
 
@@ -325,8 +359,10 @@ export class ThemeCommand implements ShellCommand {
   theme modify --shift-hue <±deg> [--scope brand|surface|all] [--apply]
   theme list presets|patterns|fonts|shadows|radii|moods
 
-  --apply writes directly to src/index.css + .ralph/design-brief.md
-  --mood sets design personality (minimal, premium, playful, industrial, organic, editorial)`
+  --apply writes directly to src/index.css + .ralph/design-brief.md + .ralph/tokens.json
+  --mood sets design personality (minimal, premium, playful, industrial, organic, editorial)
+
+After applying a theme, use 'tokens' to inspect generated design tokens.`
   }
 }
 

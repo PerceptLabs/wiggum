@@ -1,5 +1,7 @@
 import * as React from 'react'
 import type { AIMessage } from '@/lib/llm'
+import type { BuildResult } from '@/lib/build'
+import type { IframeProbeResult } from '@/lib/preview/snapshot'
 import { useAIChat } from '@/hooks/useAIChat'
 
 interface ChatState {
@@ -32,15 +34,17 @@ export function useChat() {
 interface ChatProviderProps {
   children: React.ReactNode
   /** Full preview build pipeline (esbuild → inject → cache → reload) */
-  fullBuild?: () => Promise<void>
+  fullBuild?: () => Promise<BuildResult | undefined>
+  /** Probe preview iframe for layout/theme data */
+  probeIframe?: () => Promise<IframeProbeResult>
 }
 
 /**
  * ChatProvider - Provides chat functionality to child components
  * Uses useAIChat internally to connect to the AI system
  */
-export function ChatProvider({ children, fullBuild }: ChatProviderProps) {
-  const chat = useAIChat({ fullBuild })
+export function ChatProvider({ children, fullBuild, probeIframe }: ChatProviderProps) {
+  const chat = useAIChat({ fullBuild, probeIframe })
 
   const value = React.useMemo(
     () => ({

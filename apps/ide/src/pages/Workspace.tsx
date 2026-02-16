@@ -7,6 +7,7 @@ import type { FileNode } from '@/hooks/useFileTree'
 import { AppLayout, useLayout } from '@/components/layout'
 import { FileTree, PreviewPane, CodeEditorPane, type GitStatusMap, type GitFileStatus } from '@/components/files'
 import { ChatPane, ChatProvider } from '@/components/chat'
+import type { IframeProbeResult } from '@/lib/preview/snapshot'
 import {
   Dialog,
   DialogContent,
@@ -73,6 +74,27 @@ export function Workspace() {
   // Preview/build state
   const preview = usePreviewWithWatch(projectPath, [], { onLog: addBuildLog, debounceMs: 800 })
 
+  // Iframe ref + probe function for snapshot Layer 3
+  const iframeRef = React.useRef<HTMLIFrameElement>(null)
+
+  const probeIframe = React.useCallback(async (): Promise<IframeProbeResult> => {
+    return new Promise<IframeProbeResult>((resolve, reject) => {
+      const id = crypto.randomUUID()
+      const timeout = setTimeout(() => {
+        window.removeEventListener('message', handler)
+        reject(new Error('Probe timeout (5s)'))
+      }, 5000)
+      const handler = (event: MessageEvent) => {
+        if (event.data?.type !== 'wiggum-probe-result' || event.data.id !== id) return
+        clearTimeout(timeout)
+        window.removeEventListener('message', handler)
+        resolve(event.data.result as IframeProbeResult)
+      }
+      window.addEventListener('message', handler)
+      iframeRef.current?.contentWindow?.postMessage({ type: 'wiggum-probe-request', id }, '*')
+    })
+  }, [])
+
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return
     const project = await createProject(newProjectName.trim())
@@ -96,7 +118,7 @@ export function Workspace() {
   }
 
   return (
-    <ChatProvider fullBuild={preview.build}>
+    <ChatProvider fullBuild={preview.build} probeIframe={probeIframe}>
       <WorkspaceContent
         projects={projects}
         currentProject={currentProject}
@@ -105,6 +127,7 @@ export function Workspace() {
         fileTree={fileTree}
         git={git}
         preview={preview}
+        iframeRef={iframeRef}
       />
 
       {/* Create project dialog */}
@@ -144,6 +167,7 @@ interface WorkspaceContentProps {
   fileTree: ReturnType<typeof useFileTree>
   git: ReturnType<typeof useGit>
   preview: ReturnType<typeof usePreviewWithWatch>
+  iframeRef: React.RefObject<HTMLIFrameElement | null>
 }
 
 function WorkspaceContent({
@@ -154,6 +178,7 @@ function WorkspaceContent({
   fileTree,
   git,
   preview,
+  iframeRef,
 }: WorkspaceContentProps) {
   // Filesystem access for Service Worker preview mode
   const { fs } = useFS()
@@ -421,6 +446,7 @@ function WorkspaceContent({
         chat={<ChatPane />}
         preview={
           <PreviewPane
+            ref={iframeRef}
             error={preview.error ?? undefined}
             errors={preview.errors ?? undefined}
             isLoading={preview.isBuilding}

@@ -81,7 +81,7 @@ export interface UsePreviewResult {
   /** Last build result */
   lastBuild: BuildResult | null
   /** Trigger a build (skipValidation skips import validation on fast-path rebuilds) */
-  build: (skipValidation?: boolean) => Promise<void>
+  build: (skipValidation?: boolean) => Promise<BuildResult | undefined>
   /** Build duration in ms */
   duration: number | null
 }
@@ -107,6 +107,13 @@ export function usePreview(
   // Shared module cache
   const moduleCacheRef = React.useRef(createModuleCache())
 
+  // Build concurrency lock — synchronous, not React state
+  const buildLockRef = React.useRef(false)
+  // Pending build request coalesced while build is in-flight (null = none)
+  const pendingBuildRef = React.useRef<boolean | null>(null)
+  // Monotonic counter for unique console.time labels
+  const buildCountRef = React.useRef(0)
+
   // Initialize esbuild
   React.useEffect(() => {
     if (isInitialized()) {
@@ -127,13 +134,28 @@ export function usePreview(
       return
     }
 
+    // Concurrency guard: if build running, coalesce this request
+    if (buildLockRef.current) {
+      // AND: if ANY request wants full validation (false), coalesced build does full validation
+      pendingBuildRef.current =
+        pendingBuildRef.current === null
+          ? skipValidation
+          : pendingBuildRef.current && skipValidation
+      return
+    }
+    buildLockRef.current = true
+
     setIsBuilding(true)
     setError(null)
     setErrors(null)
     onLog?.(`Building ${projectPath}...`)
 
+    let buildResult: BuildResult | undefined
+
     try {
-      console.time('[Preview] Build total')
+      const buildId = ++buildCountRef.current
+      const timerLabel = `[Preview] Build #${buildId}`
+      console.time(timerLabel)
 
       // Extract project ID from path (e.g., /projects/abc123 -> abc123)
       const projectId = projectPath.split('/').filter(Boolean).pop() || 'default'
@@ -162,12 +184,11 @@ export function usePreview(
           await clearPreviewCache(projectId)
           await writePreviewFile(projectId, '/index.html', htmlWithErrorCapture, 'text/html')
 
-          console.timeEnd('[Preview] Build total')
+          console.timeEnd(timerLabel)
           onLog?.('✓ Standalone HTML served')
           setBuildVersion((v) => v + 1)
           setError(null)
           setErrors(null)
-          setIsBuilding(false)
           return
         }
       } catch {
@@ -190,8 +211,9 @@ export function usePreview(
       )
 
       const result = await Promise.race([buildPromise, timeoutPromise])
+      buildResult = result
 
-      console.timeEnd('[Preview] Build total')
+      console.timeEnd(timerLabel)
 
       setLastBuild(result)
       setDuration(result.duration ?? null)
@@ -396,8 +418,18 @@ export function usePreview(
       setError(message)
       setErrors([{ message }])
     } finally {
+      // Release lock and dispatch any coalesced pending build
+      const pending = pendingBuildRef.current
+      pendingBuildRef.current = null
+      buildLockRef.current = false
       setIsBuilding(false)
+
+      if (pending !== null) {
+        queueMicrotask(() => doBuild(pending))
+      }
     }
+
+    return buildResult
   }, [fs, fsReady, projectPath, isReady, buildOptions, onLog])
 
   // Auto-build on mount and when project changes

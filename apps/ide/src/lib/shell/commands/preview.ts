@@ -1,11 +1,11 @@
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
-import { countHtmlElements } from '../../preview/static-render'
+import { extractBuildMeta, generateSnapshot } from '../../preview/snapshot'
 
 /**
  * preview - Build project and capture rendered output
  *
  * Triggers an on-demand build, reports errors/warnings,
- * and runs a static render to produce inspectable HTML.
+ * and generates a layered snapshot for visual feedback.
  */
 export class PreviewCommand implements ShellCommand {
   name = 'preview'
@@ -26,9 +26,11 @@ export class PreviewCommand implements ShellCommand {
 
     // Step 1: Build
     let buildSuccess = false
+    let buildMetafile: Record<string, unknown> | undefined
     try {
       const buildResult = await preview.build()
       buildSuccess = buildResult.success
+      buildMetafile = buildResult.metafile
 
       if (!buildResult.success) {
         lines.push('# Build FAILED')
@@ -81,40 +83,41 @@ export class PreviewCommand implements ShellCommand {
       // Runtime error collection not available
     }
 
-    // Step 3: Static render (only if build succeeded)
+    // Step 3: Layered snapshot
     if (buildSuccess) {
       try {
-        const result = await preview.renderStatic()
+        // Extract build metadata from esbuild metafile (captured in Step 1)
+        const buildMeta = extractBuildMeta(
+          buildMetafile as Parameters<typeof extractBuildMeta>[0]
+        )
 
-        if (result.errors.length > 0) {
-          lines.push('Static render errors:')
-          for (const err of result.errors) {
-            lines.push(`  ❌ ${err}`)
-          }
-          lines.push('')
-        }
-
-        if (result.html) {
-          const elementSummary = countHtmlElements(result.html)
-          if (elementSummary.length > 0) {
-            lines.push(`Structure: ${elementSummary}`)
-          }
-
-          // Write full HTML to .ralph/output/
+        // Probe iframe (Layer 3 — optional, graceful degradation)
+        let probeResult = undefined
+        if (preview.probeIframe) {
           try {
-            await fs.mkdir(`${cwd}/.ralph/output`, { recursive: true })
-            await fs.writeFile(`${cwd}/.ralph/output/index.html`, result.html, {
-              encoding: 'utf8',
-            })
-            lines.push('Full render written to .ralph/output/index.html')
+            probeResult = await preview.probeIframe()
           } catch {
-            lines.push('(could not write render output)')
+            // Probe unavailable (preview tab not open, timeout) — Layer 3 skipped
           }
-        } else {
-          lines.push('Static render: no output (build may have component errors)')
         }
-      } catch {
-        lines.push('Static render failed')
+
+        // Generate snapshot report
+        const snapshot = await generateSnapshot(fs, cwd, buildMeta, probeResult)
+
+        // Write report to disk
+        await fs.mkdir(`${cwd}/.ralph/snapshot`, { recursive: true }).catch(() => {})
+        await fs.writeFile(`${cwd}/.ralph/snapshot/ui-report.md`, snapshot.report, { encoding: 'utf8' })
+
+        // Report layer status
+        const layerStatus = [
+          snapshot.layers.theme ? '✓ Theme' : '✗ Theme',
+          snapshot.layers.structure ? '✓ Structure' : '✗ Structure',
+          snapshot.layers.render ? '✓ Render' : '✗ Render',
+        ].join('  ')
+        lines.push(`Snapshot: ${layerStatus}`)
+        lines.push(`Written to .ralph/snapshot/ui-report.md`)
+      } catch (err) {
+        lines.push(`Snapshot: failed — ${err instanceof Error ? err.message : String(err)}`)
       }
     }
 
@@ -122,6 +125,7 @@ export class PreviewCommand implements ShellCommand {
       exitCode: buildSuccess ? 0 : 1,
       stdout: lines.join('\n') + '\n',
       stderr: '',
+      filesChanged: buildSuccess ? [`${cwd}/.ralph/snapshot/ui-report.md`] : undefined,
     }
   }
 }

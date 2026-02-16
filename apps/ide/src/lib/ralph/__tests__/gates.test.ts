@@ -213,4 +213,4 @@ describe('has-summary gate', () => {
 // - build-succeeds: requires esbuild-wasm which is a heavy dependency not suitable for unit tests
 // - runtime-errors: requires browser context (errorCollector from preview iframe)
 // - console-capture: informational only, always passes
-// - rendered-structure: requires renderStatic from browser context
+// - rendered-structure: reads snapshot file from disk, informational only

@@ -18,10 +18,13 @@ export {
 } from './personality'
 export { PERSONALITIES, MOOD_NAMES, generateDesignBrief } from './personalities'
 export type { MoodName, PersonalityBrief } from './personalities'
+export { toDtcg, patchDtcgColors, CONTRAST_PAIRS } from './dtcg'
+export type { DtcgOutput } from './dtcg'
 export type {
   ThemeConfig,
   GeneratedTheme,
   ThemeCssVars,
+  ThemePresetMeta,
   OklchColor,
   GeometryPattern,
   FontEntry,
@@ -31,13 +34,13 @@ export type {
   ShadowRange,
 } from './types'
 
-import type { GeneratedTheme, FontCategory } from './types'
+import type { GeneratedTheme, ThemePresetMeta, FontCategory } from './types'
 import { PRESETS } from './presets'
 import { PATTERNS } from './patterns'
 import { FONT_REGISTRY } from './personality'
 import { formatThemeOutput } from './generator'
 
-export function getPreset(name: string): { theme: GeneratedTheme, output: string } | null {
+export function getPreset(name: string): { theme: GeneratedTheme, output: string, meta?: ThemePresetMeta } | null {
   const preset = PRESETS[name]
   if (!preset) return null
 
@@ -45,7 +48,7 @@ export function getPreset(name: string): { theme: GeneratedTheme, output: string
     cssVars: preset.cssVars,
     meta: { seed: 0, pattern: 'preset', hues: [], source: 'preset' },
   }
-  return { theme, output: formatThemeOutput(theme, name, preset.description) }
+  return { theme, output: formatThemeOutput(theme, name, preset.description), meta: preset.meta }
 }
 
 export function listPatterns(): Array<{ name: string, description: string }> {

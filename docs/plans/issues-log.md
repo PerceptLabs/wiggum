@@ -71,6 +71,15 @@
 **Scope:** ~20 lines. `Date.now()` diffs at request/response/tool-call boundaries.
 **Phase:** Pre-mega-plan or alongside skills consolidation (provides measurement for optimization)
 
+### TH-012: Portable theme configs as compact strings
+**Source:** Design review (shadcn /create URL analysis)
+**Severity:** Nice-to-have — no functional impact, future enhancement
+**What happened:** shadcn's `/create` encodes full project config in URL params (`?style=lyra&baseColor=neutral&font=figtree&radius=default`). Wiggum's `theme generate` flags are the same concept — declarative params that fully describe a design system. A compact, shareable theme string would let users reproduce exact themes across projects: `theme import "seed=55&pattern=minimal&mood=fashion-editorial&font=Outfit&shadow=dramatic"`. Currently tokens.json captures this data but isn't portable.
+**Where:** `apps/ide/src/lib/shell/commands/theme.ts` — new `import`/`export` subcommands
+**Implementation:** Serialize ThemeConfig to URL-param-style string. `theme export` outputs the string. `theme import <string>` parses and regenerates. Could also store config string in tokens.json metadata for reproducibility.
+**Scope:** ~40-60 lines (serialize/deserialize + two subcommands).
+**Phase:** Future — after smart merge and mood expansion ship
+
 ---
 
 ## Resolved Issues

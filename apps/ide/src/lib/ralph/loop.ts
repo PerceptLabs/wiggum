@@ -20,7 +20,6 @@ import { recordGap, isCommandNotFoundError, parseCommandString } from './gaps'
 import { buildReflectionPrompt, parseReflectionResponse, saveReflection } from './reflection'
 import { getLogBuffer } from '../logger'
 import { buildProject } from '../build'
-import { renderToStaticHTML } from '../preview/static-render'
 
 const BASE_SYSTEM_PROMPT = `You are Ralph — an expert autonomous builder who crafts distinctive, production-quality React interfaces.
 
@@ -199,7 +198,7 @@ Gates validate:
 
 If gates fail, feedback appears in .ralph/feedback.md. Read it, fix the issues, mark complete again. You have 3 attempts.
 
-**STOP ITERATING.** The goal is functional completion, not pixel perfection. After gates pass, do ONE polish check: run \`cat .ralph/output/index.html\`, fix anything clearly broken, then mark complete. If you find yourself making the same type of change twice, STOP and mark complete immediately. Small visual tweaks can be done later.
+**STOP ITERATING.** The goal is functional completion, not pixel perfection. After gates pass, do ONE polish check: run \`cat .ralph/snapshot/ui-report.md\`, fix anything clearly broken, then mark complete. If you find yourself making the same type of change twice, STOP and mark complete immediately. Small visual tweaks can be done later.
 
 ## Status Updates
 
@@ -267,7 +266,7 @@ const SHELL_TOOL: Tool = {
 - VCS: git
 - System: date, env, whoami, which, true, false, clear, paths
 - Preview: console, preview
-- Design: theme
+- Design: theme, tokens
 - Modules: modules, cache-stats, build-cache
 
 **Quick reference:**
@@ -280,6 +279,7 @@ const SHELL_TOOL: Tool = {
 - modules = manage ESM module cache (list/status/warm/clear)
 - cache-stats = show Cache Storage statistics
 - build-cache = manage build output cache (status/clear/list)
+- tokens = read design token data from .ralph/tokens.json (palette/contrast/font/shadow/mood)
 
 **Operators:**
 - Pipe: cmd1 | cmd2 (stdout → stdin)
@@ -592,9 +592,6 @@ export async function runRalphLoop(
 
     // Wire preview context so `preview` shell command works inside the loop
     if (gateContext.errorCollector) {
-      // Create renderStatic function for this loop
-      const renderStatic = async () => renderToStaticHTML(fs, cwd)
-
       shell.setPreviewContext({
         build: async () => {
           gateContext.errorCollector?.clear()
@@ -602,22 +599,23 @@ export async function runRalphLoop(
           if (gateContext.fullBuild) {
             try {
               // Full pipeline: esbuild → inject capture → write cache → reload iframe
-              await gateContext.fullBuild()
+              const buildResult = await gateContext.fullBuild()
               // Wait for iframe reload + error capture scripts to fire
               await new Promise(resolve => setTimeout(resolve, 1500))
               const errors = gateContext.errorCollector?.getErrors() || []
               return {
                 success: errors.length === 0,
                 errors: errors.map(e => ({ message: e.message, file: e.filename, line: e.line })),
+                metafile: buildResult?.metafile,
               }
             } catch (err) {
               return { success: false, errors: [{ message: err instanceof Error ? err.message : String(err) }] }
             }
           }
           // Fallback to raw esbuild
-          return buildProject(fs, cwd)
+          const fallbackResult = await buildProject(fs, cwd)
+          return { ...fallbackResult, metafile: fallbackResult.metafile }
         },
-        renderStatic,
         getErrors: () => {
           if (!gateContext.errorCollector) return []
           return gateContext.errorCollector.getErrors().map(e => ({
@@ -626,10 +624,8 @@ export async function runRalphLoop(
             lineno: e.line,
           }))
         },
+        probeIframe: gateContext.probeIframe,
       })
-
-      // Also put renderStatic on gateContext for quality gates
-      gateContext.renderStatic = renderStatic
     }
 
     // 2. Run iterations

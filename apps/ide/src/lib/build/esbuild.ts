@@ -185,6 +185,7 @@ export async function build(
       loader: options.loader,
       treeShaking: options.treeShaking ?? true,
       write: false, // Return output instead of writing
+      metafile: true,
       plugins: plugins ?? [],
       absWorkingDir: options.workingDir ?? '/',
     })
@@ -203,6 +204,7 @@ export async function build(
         bytes: f.contents,
       })),
       duration,
+      metafile: result.metafile,
     }
   } catch (err) {
     const duration = Date.now() - startTime

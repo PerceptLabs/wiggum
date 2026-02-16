@@ -64,6 +64,11 @@ export interface BuildResult {
   importMap?: { imports: Record<string, string> }
   /** Compiled Tailwind CSS from tailwindcss-iso */
   tailwindCss?: string | null
+  /** esbuild metafile — module graph and bundle analysis */
+  metafile?: {
+    inputs: Record<string, { bytes: number; imports: Array<{ path: string }> }>
+    outputs: Record<string, { bytes: number; inputs: Record<string, { bytesInOutput: number }> }>
+  }
 }
 
 /**

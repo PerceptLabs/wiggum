@@ -8,6 +8,8 @@ import { runRalphLoop, type RalphCallbacks } from '@/lib/ralph'
 import { Git } from '@/lib/git'
 import { getSearchDb } from '@/lib/search'
 import { createErrorCollector } from '@/lib/preview/error-collector'
+import type { BuildResult } from '@/lib/build'
+import type { GateContext } from '@/lib/types/observability'
 
 // Storage key for chat messages (scoped by project)
 const getChatStorageKey = (projectId: string | undefined) =>
@@ -54,7 +56,9 @@ export interface UseChatOptions {
   /** Callback on status change */
   onStatusChange?: (status: 'idle' | 'running' | 'waiting' | 'complete' | 'error') => void
   /** Full preview build pipeline (esbuild → inject → cache → reload) */
-  fullBuild?: () => Promise<void>
+  fullBuild?: () => Promise<BuildResult | undefined>
+  /** Probe preview iframe for layout/theme data */
+  probeIframe?: () => Promise<unknown>
 }
 
 export interface ChatState {
@@ -290,7 +294,7 @@ export function useAIChat(options: UseChatOptions = {}) {
               captureReflection: true,
               minIterationsForReflection: 1,
             },
-            gateContext: { errorCollector, fullBuild: options.fullBuild }
+            gateContext: { errorCollector, fullBuild: options.fullBuild, probeIframe: options.probeIframe as GateContext['probeIframe'] }
           }
         )
 

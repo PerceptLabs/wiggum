@@ -1,5 +1,6 @@
 import type { JSRuntimeFS } from '../fs/types'
 import type { Git } from '../git'
+import type { IframeProbeResult } from '../preview/snapshot'
 
 export interface ShellCommand {
   name: string
@@ -14,11 +15,11 @@ export interface ShellOptions {
   git?: Git
   /** Execute a command string via the shell executor (for -exec in find, etc.) */
   exec?: (commandLine: string, cwd: string) => Promise<ShellResult>
-  /** Preview context for on-demand build + DOM capture */
+  /** Preview context for on-demand build + error capture */
   preview?: {
-    build: () => Promise<{ success: boolean; errors?: Array<{ message: string; file?: string; line?: number }>; warnings?: Array<{ message: string; file?: string; line?: number }> }>
-    renderStatic: () => Promise<{ html: string; errors: string[] }>
+    build: () => Promise<{ success: boolean; errors?: Array<{ message: string; file?: string; line?: number }>; warnings?: Array<{ message: string; file?: string; line?: number }>; metafile?: Record<string, unknown> }>
     getErrors: () => Array<{ message: string; source?: string; lineno?: number }>
+    probeIframe?: () => Promise<IframeProbeResult>
   }
 }
 

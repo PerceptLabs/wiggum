@@ -8,6 +8,8 @@ Wiggum is a browser-native AI coding IDE. See the Architecture Quick Reference b
 
 ## Current Phase: C4 — Browser Tailwind (Complete)
 
+**Hotfix applied:** Preview sandbox hardening (3-layer fix). IDE mount renamed to #ide-root, static render in Worker, bundle contamination guard.
+
 <!-- AUTO-ADVANCE: When you complete a phase, update this block to the next -->
 <!-- step from the Roadmap Overview below. Change the phase ID, title, and -->
 <!-- doc list. Do NOT wait for a snapshot/push — do it as the last action -->
@@ -389,6 +391,7 @@ When something goes wrong, check in this order:
 2. Check `preview-cache.ts` — stale cache from previous build
 3. Check `src/main.tsx` — must render to `#root`
 4. Check browser console — if preview tab is open, errors show there
+5. Check `static-render.ts` — if "contaminated bundle" in console, esbuild raced with file writes. Retry build.
 
 ### Shell Command Not Found
 
@@ -638,6 +641,7 @@ All in `docs/plans/`:
 | ID | Category | Issue | Status |
 |----|----------|-------|--------|
 | K8 | File size | loop.ts (507 lines), gates.ts (435 lines) exceed comfortable CC editing range | Monitor — surgical edits only |
+| K9 | Preview | Static render executes in Worker — DO NOT move blob import() back to main window | Fixed |
 
 **Resolved:**
 - K1 (Dead code): `RalphContext.tsx` — already deleted in prior work. No file exists.

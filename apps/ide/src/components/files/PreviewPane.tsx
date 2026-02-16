@@ -78,7 +78,7 @@ interface PreviewPaneProps {
   onReadFile?: (path: string) => Promise<string | Uint8Array | null>
 }
 
-export function PreviewPane({
+export const PreviewPane = React.forwardRef<HTMLIFrameElement, PreviewPaneProps>(function PreviewPane({
   url,
   error,
   errors,
@@ -92,8 +92,17 @@ export function PreviewPane({
   projectPath,
   buildVersion = 0,
   onReadFile,
-}: PreviewPaneProps) {
-  const iframeRef = React.useRef<HTMLIFrameElement>(null)
+}: PreviewPaneProps, forwardedRef) {
+  const internalRef = React.useRef<HTMLIFrameElement>(null)
+
+  // Merge forwarded ref with internal ref
+  const mergedRef = React.useCallback((node: HTMLIFrameElement | null) => {
+    internalRef.current = node
+    if (typeof forwardedRef === 'function') forwardedRef(node)
+    else if (forwardedRef) (forwardedRef as React.MutableRefObject<HTMLIFrameElement | null>).current = node
+  }, [forwardedRef])
+
+  const iframeRef = internalRef
   const [viewport, setViewport] = React.useState<ViewportPreset>(VIEWPORT_PRESETS[0])
   const [swReady, setSwReady] = React.useState(false)
   const [iframeKey, setIframeKey] = React.useState(0)
@@ -400,7 +409,7 @@ export function PreviewPane({
             >
               <iframe
                 key={iframeKey}
-                ref={iframeRef}
+                ref={mergedRef}
                 src={iframeSrc}
                 className="w-full h-full border-0"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
@@ -423,4 +432,4 @@ export function PreviewPane({
       </div>
     </div>
   )
-}
+})

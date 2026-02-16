@@ -9,7 +9,6 @@ import type { JSRuntimeFS } from '../fs/types'
 import { buildProject } from '../build'
 import type { GateContext } from '../types/observability'
 import { formatRuntimeErrors } from '../preview/error-collector'
-import { countHtmlElements } from '../preview/static-render'
 
 // ============================================================================
 // TYPES
@@ -499,33 +498,18 @@ export const QUALITY_GATES: QualityGate[] = [
   {
     name: 'rendered-structure',
     description: 'Capture what actually rendered',
-    check: async (fs, cwd, context) => {
-      if (!context?.renderStatic) {
-        return { pass: true }
-      }
-
-      const result = await context.renderStatic()
-
-      if (result.html) {
-        try {
-          await fs.mkdir(`${cwd}/.ralph/output`, { recursive: true })
-          await fs.writeFile(`${cwd}/.ralph/output/index.html`, result.html, { encoding: 'utf8' })
-        } catch {
-          // Ignore write failures
-        }
-      }
-
-      if (result.errors.length > 0) {
+    check: async (fs, cwd) => {
+      // Read snapshot report if available (written by preview command)
+      try {
+        const report = await fs.readFile(`${cwd}/.ralph/snapshot/ui-report.md`, { encoding: 'utf8' }) as string
+        const preview = report.split('\n').slice(0, 20).join('\n')
         return {
-          pass: true, // informational only
-          feedback: `Static render had errors: ${result.errors.join('; ')}. See build output.`,
+          pass: true,
+          feedback: `Snapshot available. Preview:\n${preview}`,
         }
-      }
-
-      const summary = countHtmlElements(result.html)
-      return {
-        pass: true,
-        feedback: `Rendered: ${summary}. See .ralph/output/index.html for full HTML.`,
+      } catch {
+        // No snapshot yet — pass silently
+        return { pass: true }
       }
     },
   },

@@ -4,6 +4,9 @@
  * Used across: ralph/, preview/, logger/
  */
 
+import type { BuildResult } from '../build/types'
+import type { IframeProbeResult } from '../preview/snapshot'
+
 /**
  * Records when Ralph tries a command that doesn't exist
  */
@@ -146,7 +149,7 @@ export interface GateContext {
   consoleCollector?: ConsoleCollectorGate
   logBuffer?: LogEntry[]
   /** Full preview build pipeline (esbuild → inject → cache → reload iframe) */
-  fullBuild?: () => Promise<void>
-  /** Static render: esbuild + renderToStaticMarkup → HTML string */
-  renderStatic?: () => Promise<{ html: string; errors: string[] }>
+  fullBuild?: () => Promise<BuildResult | undefined>
+  /** Probe the preview iframe for layout/theme data */
+  probeIframe?: () => Promise<IframeProbeResult>
 }
