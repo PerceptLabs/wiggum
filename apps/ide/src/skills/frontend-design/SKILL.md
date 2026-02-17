@@ -41,11 +41,12 @@ Commit to a cohesive palette. Dominant colors with sharp accents outperform timi
 
 **NEVER:** Purple gradients on white (the universal AI slop signal).
 
-Use the `theme` command to generate your palette. Never freestyle color values.
+Use the `theme` command to generate your palette. Never freestyle color values. For content-specific colors beyond the semantic palette, use `theme extend --name <name> --hue <deg>`.
 
 ```bash
 theme preset retro-arcade --apply          # curated preset
 theme generate --seed 38 --pattern analogous --mood retro --chroma high --apply  # custom
+theme extend --name grape --hue 300        # content-specific color
 grep skill "CSS variables theme"
 ```
 

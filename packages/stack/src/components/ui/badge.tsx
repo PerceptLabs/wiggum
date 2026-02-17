@@ -15,9 +15,9 @@ const badgeVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
         success:
-          "bg-emerald-500 text-white hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
+          "bg-success text-success-foreground hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
         warning:
-          "bg-amber-500 text-black hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
+          "bg-warning text-warning-foreground hover:translate-x-[var(--hover-translate-x)] hover:translate-y-[var(--hover-translate-y)] hover:[box-shadow:var(--shadow-md)]",
         outline: "bg-background text-foreground",
       },
     },

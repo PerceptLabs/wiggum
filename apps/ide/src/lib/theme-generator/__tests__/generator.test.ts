@@ -2,13 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { formatThemeCss, formatThemeOutput, generateTheme } from '../generator'
 import { getPreset } from '../index'
 
-/** All 32 required CSS custom properties — mirrors REQUIRED_THEME_VARS in gates.ts */
+/** All 36 required CSS custom properties — mirrors REQUIRED_THEME_VARS in gates.ts */
 const REQUIRED_THEME_VARS = [
   '--background', '--foreground', '--card', '--card-foreground',
   '--popover', '--popover-foreground', '--primary', '--primary-foreground',
   '--secondary', '--secondary-foreground', '--muted', '--muted-foreground',
   '--accent', '--accent-foreground',
   '--destructive', '--destructive-foreground', '--border', '--input', '--ring',
+  '--success', '--success-foreground', '--warning', '--warning-foreground',
   '--sidebar-background', '--sidebar-foreground', '--sidebar-primary',
   '--sidebar-primary-foreground', '--sidebar-accent', '--sidebar-accent-foreground',
   '--sidebar-border', '--sidebar-ring',

@@ -263,9 +263,15 @@ export async function buildProject(
       const data = await fs.readFile(`${projectPath}/index.html`, { encoding: 'utf8' })
       indexHtml = typeof data === 'string' ? data : ''
     } catch { /* no index.html */ }
+    // Read index.css for extended color registration
+    let indexCss = ''
+    try {
+      const cssData = await fs.readFile(`${projectPath}/src/index.css`, { encoding: 'utf8' })
+      indexCss = typeof cssData === 'string' ? cssData : ''
+    } catch { /* no index.css */ }
     const scanContent = [jsOutput?.contents ?? '', indexHtml].join('\n')
     if (scanContent.trim()) {
-      tailwindCss = await compileTailwind(scanContent)
+      tailwindCss = await compileTailwind(scanContent, indexCss || undefined)
     }
   }
 

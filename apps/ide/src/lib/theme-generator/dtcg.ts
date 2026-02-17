@@ -183,6 +183,8 @@ export const CONTRAST_PAIRS: [string, string][] = [
   ['muted-foreground', 'muted'],
   ['accent-foreground', 'accent'],
   ['destructive-foreground', 'destructive'],
+  ['success-foreground', 'success'],
+  ['warning-foreground', 'warning'],
   ['sidebar-foreground', 'sidebar-background'],
   ['sidebar-primary-foreground', 'sidebar-primary'],
   ['sidebar-accent-foreground', 'sidebar-accent'],

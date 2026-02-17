@@ -48,7 +48,7 @@ function findGate(name: string) {
 describe('css-theme-complete gate', () => {
   const gate = findGate('css-theme-complete')
 
-  it('passes with valid CSS containing all 32 vars + .dark block', async () => {
+  it('passes with valid CSS containing all 36 vars + .dark block', async () => {
     const result = getPreset('mono')!
     const css = formatThemeCss(result.theme)
     const fs = createMockFS({ '/cwd/src/index.css': css })

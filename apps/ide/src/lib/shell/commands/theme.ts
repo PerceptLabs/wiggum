@@ -29,6 +29,7 @@ import { MOOD_NAMES, PERSONALITIES, generateDesignBrief } from '../../theme-gene
 import { parseOklch, formatOklch, contrastRatio, clampToGamut } from '../../theme-generator/oklch'
 import { validateFileWrite, formatValidationError } from '../write-guard'
 import { resolvePath } from './utils'
+import { handleExtend, readExtendedEntriesFromTokens, regenerateExtendedColors } from './theme-extend'
 
 /** Semantic pattern aliases — two-dimensional: pattern + chroma hint */
 interface PatternAlias {
@@ -76,6 +77,7 @@ export class ThemeCommand implements ShellCommand {
     if (sub === 'preset') return this.handlePreset(args.slice(1), options)
     if (sub === 'generate') return this.handleGenerate(args.slice(1), options)
     if (sub === 'modify') return this.handleModify(args.slice(1), options)
+    if (sub === 'extend') return handleExtend(args.slice(1), options)
     if (sub === 'list') return this.handleList(args.slice(1))
 
     return { exitCode: 1, stdout: '', stderr: `theme: unknown subcommand "${sub}"\n${this.usage()}` }
@@ -103,6 +105,9 @@ export class ThemeCommand implements ShellCommand {
     }
 
     if (apply) {
+      // Save extended color entries before theme wipe (for regeneration)
+      const savedExtended = await readExtendedEntriesFromTokens(options)
+
       const filePath = resolvePath(options.cwd, 'src/index.css')
       const validation = validateFileWrite(filePath, options.cwd)
       if (!validation.allowed) {
@@ -132,12 +137,18 @@ export class ThemeCommand implements ShellCommand {
       )
       await options.fs.writeFile(tokensPath, JSON.stringify(dtcg, null, 2))
 
+      // Regenerate extended colors with new theme's chroma
+      const extraFiles = await regenerateExtendedColors(savedExtended, options)
+
       const varCount = Object.keys(result.theme.cssVars.light).length + Object.keys(result.theme.cssVars.theme).length
+      const extInfo = Object.keys(savedExtended).length > 0
+        ? ` + ${Object.keys(savedExtended).length} extended colors regenerated`
+        : ''
       return {
         exitCode: 0,
-        stdout: `Applied preset "${name}" to src/index.css (${varCount} vars, :root + .dark) + design brief (${resolvedMood}) + tokens.json\n`,
+        stdout: `Applied preset "${name}" to src/index.css (${varCount} vars, :root + .dark) + design brief (${resolvedMood}) + tokens.json${extInfo}\n`,
         stderr: '',
-        filesChanged: [filePath, briefPath, tokensPath],
+        filesChanged: [...new Set([filePath, briefPath, tokensPath, ...extraFiles])],
       }
     }
 
@@ -209,6 +220,9 @@ export class ThemeCommand implements ShellCommand {
       const theme = generateTheme({ seed, pattern, mode, font, shadowProfile, radius, chroma: resolvedChroma })
 
       if (apply) {
+        // Save extended color entries before theme wipe (for regeneration)
+        const savedExtended = await readExtendedEntriesFromTokens(options)
+
         const filePath = resolvePath(options.cwd, 'src/index.css')
         const validation = validateFileWrite(filePath, options.cwd)
         if (!validation.allowed) {
@@ -239,11 +253,17 @@ export class ThemeCommand implements ShellCommand {
         )
         await options.fs.writeFile(tokensPath, JSON.stringify(dtcg, null, 2))
 
+        // Regenerate extended colors with new theme's chroma
+        const extraFiles = await regenerateExtendedColors(savedExtended, options)
+
         const varCount = Object.keys(theme.cssVars.light).length + Object.keys(theme.cssVars.theme).length
         const moodInfo = customPersonality
           ? (resolvedMood ? `personality + mood: ${resolvedMood}` : 'personality: custom')
           : `mood: ${briefMood}`
-        let stdout = `Applied generated theme to src/index.css (seed=${seed}, pattern=${pattern}, ${varCount} vars) + design brief (${moodInfo}) + tokens.json\n`
+        const extInfo = Object.keys(savedExtended).length > 0
+          ? ` + ${Object.keys(savedExtended).length} extended colors regenerated`
+          : ''
+        let stdout = `Applied generated theme to src/index.css (seed=${seed}, pattern=${pattern}, ${varCount} vars) + design brief (${moodInfo}) + tokens.json${extInfo}\n`
         if (customPersonality && resolvedMood) {
           stdout += `Note: --personality overrides --mood for design brief. Mood "${resolvedMood}" recorded in metadata.\n`
         }
@@ -251,7 +271,7 @@ export class ThemeCommand implements ShellCommand {
           exitCode: 0,
           stdout,
           stderr: '',
-          filesChanged: [filePath, briefPath, tokensPath],
+          filesChanged: [...new Set([filePath, briefPath, tokensPath, ...extraFiles])],
         }
       }
 
@@ -434,6 +454,9 @@ export class ThemeCommand implements ShellCommand {
   theme preset <name> [--mood <name>] [--chroma <level>] [--apply]
   theme generate --seed <0-360> --pattern <name> --mood <name> [--chroma <level>] [--personality <file>] [--font <name>] [--shadow-profile <name>] [--radius <stop>] [--apply]
   theme modify --shift-hue <±deg> [--scope brand|surface|all] [--apply]
+  theme extend --name <name> --hue <0-360>    Add a content-specific color
+  theme extend --list                          List extended colors
+  theme extend --remove <name>                 Remove an extended color
   theme list presets|patterns|fonts|shadows|radii|moods
 
   --apply writes directly to src/index.css + .ralph/design-brief.md + .ralph/tokens.json

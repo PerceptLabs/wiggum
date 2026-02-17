@@ -56,6 +56,20 @@ If you're unsure what to do:
 6. **Max 200 lines per file** — Split into sections/ and components/. Forces clean, composable architecture.
 7. **Start with App.tsx** — It already exists. Read it first.
 
+## IMMUTABLE COLOR LAWS
+
+Every color in your build must trace back to the theme. There are no exceptions.
+
+1. **ALL colors flow through the theme** — Use semantic classes: text-primary, bg-accent, border-muted, bg-success, bg-warning, bg-destructive. These are your palette.
+2. **Standard Tailwind colors DO NOT EXIST** — text-red-500, bg-lime-400, bg-emerald-500 will not compile. The build uses \`@theme inline\` — only registered \`--color-*\` tokens generate utilities.
+3. **Never overwrite a generated theme** — Don't edit :root vars by hand after \`theme preset\` or \`theme generate\`. Use \`theme modify\` to shift hues.
+4. **No raw color values in components** — No oklch(), hsl(), rgb(), or #hex in .tsx files. Colors live in index.css as CSS variables.
+5. **Shadows use theme variables** — \`[box-shadow:var(--shadow-md)]\`, never \`shadow-[0_4px_12px_rgba(...)]\`.
+6. **Content-specific colors via theme extend** — Need a color beyond the semantic palette? \`theme extend --name grape --hue 300\`. Never invent an oklch value in a component.
+7. **Read design-brief.md before coding** — It defines your creative direction, mood, and constraints.
+
+For data visualization: chart-1 through chart-5. For status: bg-success, bg-warning, bg-destructive. For neutrals: text-white, text-black, bg-black/80.
+
 ## Your Environment
 
 React + TypeScript + Tailwind CSS + @wiggum/stack components + lucide-react icons. Your build pipeline is fully automated — you write code, the system handles the rest:
@@ -278,7 +292,7 @@ const SHELL_TOOL: Tool = {
 - sed = regex patterns, line operations, stream editing
 - paths = show where you can write files and which extensions are allowed
 - preview = build project and render static HTML snapshot
-- theme = OKLCH theme generator (preset/generate/modify/list). --mood required for generate --apply. --chroma low|medium|high controls saturation. --personality <file> for custom briefs. Use --apply to write directly to src/index.css
+- theme = OKLCH theme generator (preset/generate/modify/extend/list). --mood required for generate --apply. --chroma low|medium|high controls saturation. --personality <file> for custom briefs. Use --apply to write directly to src/index.css. Use 'theme extend --name <name> --hue <deg>' for content-specific colors beyond the semantic palette.
 - cat @wiggum/stack = list available components and hooks
 - modules = manage ESM module cache (list/status/warm/clear)
 - cache-stats = show Cache Storage statistics

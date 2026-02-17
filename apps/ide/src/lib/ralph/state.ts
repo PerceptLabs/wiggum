@@ -58,6 +58,10 @@ export default function App() {
   --accent-foreground: oklch(0.205 0.015 240);
   --destructive: oklch(0.577 0.245 27);
   --destructive-foreground: oklch(0.985 0.002 0);
+  --success: oklch(0.55 0.18 145);
+  --success-foreground: oklch(0.985 0.002 145);
+  --warning: oklch(0.75 0.16 85);
+  --warning-foreground: oklch(0.21 0.01 85);
   --card: oklch(1.0 0 0);
   --card-foreground: oklch(0.145 0.005 240);
   --popover: oklch(1.0 0 0);
@@ -94,6 +98,10 @@ export default function App() {
   --accent-foreground: oklch(0.985 0.002 240);
   --destructive: oklch(0.396 0.141 25);
   --destructive-foreground: oklch(0.985 0.002 0);
+  --success: oklch(0.45 0.153 145);
+  --success-foreground: oklch(0.015 0.002 145);
+  --warning: oklch(0.25 0.136 85);
+  --warning-foreground: oklch(0.79 0.009 85);
   --card: oklch(0.145 0.005 240);
   --card-foreground: oklch(0.985 0.002 240);
   --popover: oklch(0.145 0.005 240);

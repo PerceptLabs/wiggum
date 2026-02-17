@@ -52,6 +52,8 @@ const CONTRAST_PAIRS: [string, string][] = [
   ['muted-foreground', 'muted'],
   ['accent-foreground', 'accent'],
   ['destructive-foreground', 'destructive'],
+  ['success-foreground', 'success'],
+  ['warning-foreground', 'warning'],
 ]
 
 // ============================================================================
@@ -103,6 +105,12 @@ export function generateTheme(config: ThemeConfig): GeneratedTheme {
   lightColors['chart-3'] = clampToGamut({ l: 0.815, c: 0.095 * chromaMultiplier, h: accentHue })
   lightColors['chart-4'] = clampToGamut({ l: 0.55, c: 0.15 * chromaMultiplier, h: hues[2] ?? ((primaryHue + 90) % 360) })
   lightColors['chart-5'] = clampToGamut({ l: 0.50, c: 0.20 * chromaMultiplier, h: (primaryHue + 180) % 360 })
+
+  // Success/warning semantic colors (fixed hues, chroma-scaled)
+  lightColors['success'] = clampToGamut({ l: 0.55, c: 0.18 * chromaMultiplier, h: 145 })
+  lightColors['success-foreground'] = clampToGamut({ l: 0.985, c: 0.002, h: 145 })
+  lightColors['warning'] = clampToGamut({ l: 0.75, c: 0.16 * chromaMultiplier, h: 85 })
+  lightColors['warning-foreground'] = clampToGamut({ l: 0.21, c: 0.01, h: 85 })
 
   // Sidebar colors (mirror main roles)
   lightColors['sidebar-background'] = lightColors['background']

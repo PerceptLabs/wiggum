@@ -271,6 +271,10 @@ All themes must define these. The `theme` command handles this automatically.
 | `--ring` | Focus rings |
 | `--radius` | Border radius |
 | `--sidebar-*` | 8 sidebar variants (background, foreground, primary, etc.) |
+| `--success` | Success states, confirmations |
+| `--success-foreground` | Text on success |
+| `--warning` | Warnings, attention states |
+| `--warning-foreground` | Text on warning |
 | `--chart-1` through `--chart-5` | Data visualization colors |
 
 **Values are OKLCH:** `oklch(0.6487 0.1538 150.31)` — the theme generator produces these.
@@ -278,6 +282,41 @@ All themes must define these. The `theme` command handles this automatically.
 **Tailwind v4 is active.** Opacity modifiers like `bg-primary/30` work natively with OKLCH. No `color-mix()` workaround needed for opacity.
 
 **Color coverage:** For expressive presets, use `bg-primary` or `bg-accent` on at least one major section (hero, CTA, footer). Don't leave every section on `bg-background` — the theme has colors, use them.
+
+---
+
+## Semantic Color Mapping
+
+Every color need maps to a semantic token:
+
+| Need | Class | Variable |
+|------|-------|----------|
+| Primary action, CTA | `bg-primary text-primary-foreground` | `var(--primary)` |
+| Secondary action | `bg-secondary text-secondary-foreground` | `var(--secondary)` |
+| Accent, hover | `bg-accent text-accent-foreground` | `var(--accent)` |
+| Delete, error | `bg-destructive text-destructive-foreground` | `var(--destructive)` |
+| Success, confirm | `bg-success text-success-foreground` | `var(--success)` |
+| Warning, caution | `bg-warning text-warning-foreground` | `var(--warning)` |
+| Subtle background | `bg-muted text-muted-foreground` | `var(--muted)` |
+| Data chart | `bg-chart-1`, `text-chart-2`, etc. | `var(--chart-1)` |
+| Neutral overlay | `bg-black/80`, `text-white` | — |
+
+**If you need a color that isn't in this table**, use `theme extend`:
+
+```bash
+# Add a content-specific color at a specific hue
+theme extend --name grape --hue 300
+theme extend --name ocean --hue 200
+
+# Then use it like any other token
+# bg-grape text-grape-foreground border-grape
+
+# List/remove extended colors
+theme extend --list
+theme extend --remove grape
+```
+
+Extended colors are auto-registered with `@theme inline` at build time. They regenerate automatically when you switch themes, maintaining harmony with the new palette.
 
 ---
 

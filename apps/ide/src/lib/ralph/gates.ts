@@ -9,6 +9,7 @@ import type { JSRuntimeFS } from '../fs/types'
 import { buildProject } from '../build'
 import type { GateContext } from '../types/observability'
 import { formatRuntimeErrors } from '../preview/error-collector'
+import { noHardcodedColorsGate } from './color-gate'
 
 // ============================================================================
 // TYPES
@@ -36,15 +37,16 @@ export interface GatesResult {
 // HELPERS
 // ============================================================================
 
-/** All 32 required CSS custom properties for a complete theme */
+/** All 36 required CSS custom properties for a complete theme */
 const REQUIRED_THEME_VARS = [
   // Base (14)
   '--background', '--foreground', '--card', '--card-foreground',
   '--popover', '--popover-foreground', '--primary', '--primary-foreground',
   '--secondary', '--secondary-foreground', '--muted', '--muted-foreground',
   '--accent', '--accent-foreground',
-  // Utility (5)
+  // Utility (9)
   '--destructive', '--destructive-foreground', '--border', '--input', '--ring',
+  '--success', '--success-foreground', '--warning', '--warning-foreground',
   // Sidebar (8)
   '--sidebar-background', '--sidebar-foreground', '--sidebar-primary',
   '--sidebar-primary-foreground', '--sidebar-accent', '--sidebar-accent-foreground',
@@ -213,6 +215,23 @@ echo "Built a [description] with [key features]." > .ralph/summary.md
 
 Then mark status as complete again.`
 
+    case 'no-hardcoded-colors':
+      return `
+FIX: Replace hardcoded colors with semantic theme tokens.
+
+Tailwind colors (text-red-500, bg-lime-400) → use semantic classes:
+  text-primary, bg-accent, border-muted, bg-success, bg-warning, bg-destructive
+
+Raw color values (oklch(), hsl(), rgb(), #hex) → use CSS variables:
+  var(--primary), var(--accent), var(--muted), var(--success), var(--warning)
+
+For content-specific colors (not covered by semantic tokens):
+  theme extend --name <name> --hue <degrees>
+
+For data visualization: chart-1 through chart-5
+
+These are the ONLY colors that exist in your build (@theme inline).`
+
     default:
       return ''
   }
@@ -253,7 +272,7 @@ export const QUALITY_GATES: QualityGate[] = [
 
   {
     name: 'css-theme-complete',
-    description: 'CSS must define all 32 required theme variables in :root and .dark',
+    description: 'CSS must define all 36 required theme variables in :root and .dark',
     check: async (fs, cwd) => {
       const css = await readFile(fs, `${cwd}/src/index.css`)
       if (!css) {
@@ -292,6 +311,8 @@ export const QUALITY_GATES: QualityGate[] = [
       return { pass: true }
     },
   },
+
+  noHardcodedColorsGate,
 
   {
     name: 'build-succeeds',
