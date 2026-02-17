@@ -5,7 +5,7 @@
 
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import type { FontCategory } from '../../theme-generator/types'
-import type { MoodName } from '../../theme-generator/personalities'
+import type { MoodName, PersonalityBrief } from '../../theme-generator/personalities'
 import type { DtcgOutput } from '../../theme-generator'
 import {
   generateTheme,
@@ -22,19 +22,26 @@ import {
   FONT_REGISTRY,
   toDtcg,
   patchDtcgColors,
+  validatePersonality,
+  resolveChromaMultiplier,
 } from '../../theme-generator'
-import { MOOD_NAMES, generateDesignBrief } from '../../theme-generator/personalities'
+import { MOOD_NAMES, PERSONALITIES, generateDesignBrief } from '../../theme-generator/personalities'
 import { parseOklch, formatOklch, contrastRatio, clampToGamut } from '../../theme-generator/oklch'
 import { validateFileWrite, formatValidationError } from '../write-guard'
 import { resolvePath } from './utils'
 
-/** Semantic pattern aliases — resolve before pattern validation */
-const PATTERN_ALIASES: Record<string, string> = {
-  elegant: 'analogous',
-  bold: 'complementary',
-  minimal: 'monochromatic',
-  vibrant: 'triadic',
-  natural: 'goldenRatio',
+/** Semantic pattern aliases — two-dimensional: pattern + chroma hint */
+interface PatternAlias {
+  pattern: string
+  chromaHint: 'low' | 'medium' | 'high'
+}
+
+const PATTERN_ALIASES: Record<string, PatternAlias> = {
+  elegant:  { pattern: 'analogous',      chromaHint: 'low' },
+  bold:     { pattern: 'complementary',   chromaHint: 'high' },
+  minimal:  { pattern: 'monochromatic',   chromaHint: 'low' },
+  vibrant:  { pattern: 'triadic',         chromaHint: 'high' },
+  natural:  { pattern: 'goldenRatio',     chromaHint: 'medium' },
 }
 
 /** Inferred mood per preset when --mood is not specified */
@@ -78,6 +85,7 @@ export class ThemeCommand implements ShellCommand {
     const flags = parseFlags(args)
     const apply = flags['apply'] === 'true'
     const moodFlag = flags['mood']
+    const chromaFlag = flags['chroma']
     const name = args.find(a => !a.startsWith('--'))
     if (!name) {
       const names = Object.keys(PRESETS).join(', ')
@@ -108,13 +116,19 @@ export class ThemeCommand implements ShellCommand {
       const brief = generateDesignBrief(resolvedMood, name)
       await options.fs.writeFile(briefPath, brief)
 
+      // Chroma cascade: explicit > mood's chromaHint > default
+      const resolvedChroma = resolveChromaFlag(chromaFlag, undefined, resolvedMood)
+
       // DTCG tokens
       const tokensPath = resolvePath(options.cwd, '.ralph/tokens.json')
+      const moodPersonality = PERSONALITIES[resolvedMood]
       const dtcg = toDtcg(
         result.theme,
         { seed: 0, pattern: 'preset', font: result.meta?.font, radius: result.meta?.radius, shadowProfile: result.meta?.shadowStyle },
         resolvedMood,
         result.meta,
+        moodPersonality,
+        resolvedChroma,
       )
       await options.fs.writeFile(tokensPath, JSON.stringify(dtcg, null, 2))
 
@@ -135,26 +149,64 @@ export class ThemeCommand implements ShellCommand {
     const apply = flags['apply'] === 'true'
     const seed = parseFloat(flags['seed'] ?? '')
     const rawPattern = flags['pattern'] ?? ''
-    const pattern = PATTERN_ALIASES[rawPattern] ?? rawPattern
+    const chromaFlag = flags['chroma']
+    const personalityFlag = flags['personality']
+    const moodFlag = flags['mood']
+
+    // Resolve alias (two-dimensional: pattern + chromaHint)
+    const alias = PATTERN_ALIASES[rawPattern]
+    const pattern = alias ? alias.pattern : rawPattern
+    const aliasChromaHint = alias ? alias.chromaHint : undefined
+
     const mode = (flags['mode'] ?? 'both') as 'light' | 'dark' | 'both'
     const font = flags['font']
     const shadowProfile = flags['shadow-profile']
     const radius = flags['radius']
-    const moodFlag = flags['mood']
 
     if (isNaN(seed)) return { exitCode: 1, stdout: '', stderr: 'theme generate: --seed <0-360> is required' }
     if (!pattern) return { exitCode: 1, stdout: '', stderr: 'theme generate: --pattern <name> is required' }
     if (!PATTERNS[pattern]) {
       const names = Object.keys(PATTERNS).join(', ')
-      const aliases = Object.entries(PATTERN_ALIASES).map(([k, v]) => `${k}→${v}`).join(', ')
+      const aliases = Object.entries(PATTERN_ALIASES).map(([k, v]) => k + '\u2192' + v.pattern).join(', ')
       return { exitCode: 1, stdout: '', stderr: `theme generate: unknown pattern "${rawPattern}". Available: ${names}\nAliases: ${aliases}` }
     }
     if (moodFlag && !MOOD_NAMES.includes(moodFlag as MoodName)) {
       return { exitCode: 1, stdout: '', stderr: `theme generate: unknown mood "${moodFlag}". Available: ${MOOD_NAMES.join(', ')}` }
     }
 
+    // Mood required for --apply (unless --personality provided)
+    if (apply && !moodFlag && !personalityFlag) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `theme generate: --mood is required with --apply (or use --personality for custom brief).\nAvailable moods: ${MOOD_NAMES.join(', ')}`,
+      }
+    }
+
+    // Load custom personality if provided
+    let customPersonality: PersonalityBrief | undefined
+    if (personalityFlag) {
+      try {
+        const pPath = resolvePath(options.cwd, personalityFlag)
+        const raw = await options.fs.readFile(pPath, { encoding: 'utf8' }) as string
+        const parsed = JSON.parse(raw)
+        const validation = validatePersonality(parsed)
+        if (!validation.valid) {
+          return { exitCode: 1, stdout: '', stderr: `theme generate: invalid personality file "${personalityFlag}":\n${(validation as { errors: string[] }).errors.join('\n')}` }
+        }
+        customPersonality = parsed as PersonalityBrief
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        return { exitCode: 1, stdout: '', stderr: `theme generate: cannot read personality file "${personalityFlag}": ${msg}` }
+      }
+    }
+
+    // Chroma cascade: explicit > alias hint > mood's hint > default medium
+    const resolvedMood = moodFlag ? (moodFlag as MoodName) : undefined
+    const resolvedChroma = resolveChromaFlag(chromaFlag, aliasChromaHint, resolvedMood)
+
     try {
-      const theme = generateTheme({ seed, pattern, mode, font, shadowProfile, radius })
+      const theme = generateTheme({ seed, pattern, mode, font, shadowProfile, radius, chroma: resolvedChroma })
 
       if (apply) {
         const filePath = resolvePath(options.cwd, 'src/index.css')
@@ -165,26 +217,45 @@ export class ThemeCommand implements ShellCommand {
         const css = formatThemeCss(theme)
         await options.fs.writeFile(filePath, css)
 
-        const resolvedMood = (moodFlag as MoodName) ?? 'minimal'
+        // Design brief: custom personality or mood-based
         const briefPath = resolvePath(options.cwd, '.ralph/design-brief.md')
-        const brief = generateDesignBrief(resolvedMood, `generated (seed=${seed}, pattern=${pattern})`)
+        const themeName = `generated (seed=${seed}, pattern=${pattern})`
+        const briefMood = resolvedMood ?? 'minimal'
+        const brief = customPersonality
+          ? generateDesignBriefFromPersonality(customPersonality, themeName)
+          : generateDesignBrief(briefMood, themeName)
         await options.fs.writeFile(briefPath, brief)
 
         // DTCG tokens
         const tokensPath = resolvePath(options.cwd, '.ralph/tokens.json')
-        const dtcg = toDtcg(theme, { seed, pattern, font, shadowProfile, radius }, resolvedMood)
+        const personalityForDtcg = customPersonality ?? (resolvedMood ? PERSONALITIES[resolvedMood] : undefined)
+        const dtcg = toDtcg(
+          theme,
+          { seed, pattern, font, shadowProfile, radius, chroma: resolvedChroma },
+          resolvedMood,
+          undefined,
+          personalityForDtcg,
+          resolvedChroma,
+        )
         await options.fs.writeFile(tokensPath, JSON.stringify(dtcg, null, 2))
 
         const varCount = Object.keys(theme.cssVars.light).length + Object.keys(theme.cssVars.theme).length
+        const moodInfo = customPersonality
+          ? (resolvedMood ? `personality + mood: ${resolvedMood}` : 'personality: custom')
+          : `mood: ${briefMood}`
+        let stdout = `Applied generated theme to src/index.css (seed=${seed}, pattern=${pattern}, ${varCount} vars) + design brief (${moodInfo}) + tokens.json\n`
+        if (customPersonality && resolvedMood) {
+          stdout += `Note: --personality overrides --mood for design brief. Mood "${resolvedMood}" recorded in metadata.\n`
+        }
         return {
           exitCode: 0,
-          stdout: `Applied generated theme to src/index.css (seed=${seed}, pattern=${pattern}, ${varCount} vars) + design brief (${resolvedMood}) + tokens.json\n`,
+          stdout,
           stderr: '',
           filesChanged: [filePath, briefPath, tokensPath],
         }
       }
 
-      const desc = `seed=${seed}, pattern=${pattern}${font ? `, font=${font}` : ''}${shadowProfile ? `, shadow=${shadowProfile}` : ''}${radius ? `, radius=${radius}` : ''}`
+      const desc = `seed=${seed}, pattern=${pattern}${font ? `, font=${font}` : ''}${shadowProfile ? `, shadow=${shadowProfile}` : ''}${radius ? `, radius=${radius}` : ''}${resolvedChroma !== undefined ? `, chroma=${resolvedChroma}` : ''}`
       const output = formatThemeOutput(theme, `generated (${pattern})`, desc)
       return { exitCode: 0, stdout: output + '\n', stderr: '' }
     } catch (err) {
@@ -360,17 +431,107 @@ export class ThemeCommand implements ShellCommand {
 
   private usage(): string {
     return `Usage:
-  theme preset <name> [--mood <name>] [--apply]
-  theme generate --seed <0-360> --pattern <name> [--mood <name>] [--font <name>] [--shadow-profile <name>] [--radius <stop>] [--apply]
+  theme preset <name> [--mood <name>] [--chroma <level>] [--apply]
+  theme generate --seed <0-360> --pattern <name> --mood <name> [--chroma <level>] [--personality <file>] [--font <name>] [--shadow-profile <name>] [--radius <stop>] [--apply]
   theme modify --shift-hue <±deg> [--scope brand|surface|all] [--apply]
   theme list presets|patterns|fonts|shadows|radii|moods
 
   --apply writes directly to src/index.css + .ralph/design-brief.md + .ralph/tokens.json
-  --mood sets design personality (minimal, premium, playful, industrial, organic, editorial,
-        fashion-editorial, brutalist, zen, corporate, retro, luxury)
+  --mood required with --apply on generate (presets auto-infer from PRESET_MOOD_MAP)
+        Available: ${MOOD_NAMES.join(', ')}
+  --chroma controls saturation: low (0.4x), medium (1.0x), high (1.6x), or numeric 0.0-2.0
+  --personality path to custom PersonalityBrief JSON (replaces --mood for design brief)
 
 After applying a theme, use 'tokens' to inspect generated design tokens.`
   }
+}
+
+/** Chroma cascade: explicit > alias hint > mood's hint > default (undefined = 1.0x) */
+function resolveChromaFlag(
+  explicit?: string,
+  aliasHint?: 'low' | 'medium' | 'high',
+  mood?: MoodName,
+): 'low' | 'medium' | 'high' | number | undefined {
+  // 1. Explicit --chroma flag
+  if (explicit) {
+    if (['low', 'medium', 'high'].includes(explicit)) return explicit as 'low' | 'medium' | 'high'
+    const num = parseFloat(explicit)
+    if (!isNaN(num)) return num
+  }
+  // 2. Alias chromaHint
+  if (aliasHint) return aliasHint
+  // 3. Mood's chromaHint
+  if (mood && PERSONALITIES[mood]?.chromaHint) return PERSONALITIES[mood].chromaHint
+  // 4. Default (undefined = 1.0x in resolveChromaMultiplier)
+  return undefined
+}
+
+/** Generate design brief from a custom PersonalityBrief (same format as generateDesignBrief but using the object directly) */
+function generateDesignBriefFromPersonality(p: PersonalityBrief, themeName: string): string {
+  const lines: string[] = []
+  lines.push(`# Design Brief — ${themeName}`)
+  lines.push('')
+  lines.push(`> ${p.philosophy}`)
+  lines.push('')
+  lines.push(`**Mood:** custom`)
+  lines.push('')
+
+  lines.push('## Typography Hierarchy')
+  lines.push('')
+  lines.push('| Element | Size | Weight | Color | Tracking |')
+  lines.push('|---------|------|--------|-------|----------|')
+  for (const t of p.typography) {
+    lines.push(`| ${t.element} | ${t.size} | ${t.weight} | ${t.color} | ${t.tracking} |`)
+  }
+  lines.push('')
+
+  lines.push('## Animation Timing')
+  lines.push('')
+  lines.push('| Type | Duration | Easing |')
+  lines.push('|------|----------|--------|')
+  for (const a of p.animation) {
+    lines.push(`| ${a.type} | ${a.duration} | ${a.easing} |`)
+  }
+  lines.push('')
+
+  lines.push('## Spacing Rhythm')
+  lines.push('')
+  lines.push(`- **Base unit:** ${p.spacing.base}`)
+  lines.push(`- **Section gap:** ${p.spacing.section}`)
+  lines.push(`- **Card padding:** ${p.spacing.cardPadding}`)
+  lines.push(`- **Rhythm:** ${p.spacing.rhythm}`)
+  lines.push('')
+
+  if (p.interactions?.length) {
+    lines.push('## Interaction Patterns')
+    lines.push('')
+    for (const i of p.interactions) lines.push(`- ${i}`)
+    lines.push('')
+  }
+
+  if (p.allowed?.length || p.notAllowed?.length) {
+    lines.push('## Strict Rules')
+    lines.push('')
+    if (p.allowed?.length) {
+      lines.push('### Allowed')
+      for (const a of p.allowed) lines.push(`- ${a}`)
+      lines.push('')
+    }
+    if (p.notAllowed?.length) {
+      lines.push('### Not Allowed')
+      for (const n of p.notAllowed) lines.push(`- ${n}`)
+      lines.push('')
+    }
+  }
+
+  if (p.checklist?.length) {
+    lines.push('## Quality Checklist')
+    lines.push('')
+    for (const c of p.checklist) lines.push(`- [ ] ${c}`)
+    lines.push('')
+  }
+
+  return lines.join('\n')
 }
 
 function parseFlags(args: string[]): Record<string, string> {

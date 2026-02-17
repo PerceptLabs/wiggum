@@ -5,7 +5,7 @@
  */
 
 import type { GeneratedTheme, ThemeConfig, ThemePresetMeta } from './types'
-import type { MoodName } from './personalities'
+import type { MoodName, PersonalityBrief } from './personalities'
 import { PERSONALITIES } from './personalities'
 import { parseOklch, contrastRatio } from './oklch'
 import { FONT_REGISTRY, RADIUS_STOPS } from './personality'
@@ -98,6 +98,7 @@ interface DtcgMetadata {
   shadowProfile?: string
   radius?: string
   generatedAt: string
+  chroma?: 'low' | 'medium' | 'high' | number
   personality?: DtcgPersonality
 }
 
@@ -377,11 +378,14 @@ function buildFontToken(
 // Main: toDtcg
 // ============================================================================
 
+// TODO: 6 positional params (4 optional) — candidate for options-object refactor
 export function toDtcg(
   theme: GeneratedTheme,
   config: ThemeConfig,
   mood?: MoodName,
-  presetMeta?: ThemePresetMeta
+  presetMeta?: ThemePresetMeta,
+  personality?: PersonalityBrief,
+  chroma?: 'low' | 'medium' | 'high' | number
 ): DtcgOutput {
   const { cssVars, meta } = theme
 
@@ -414,15 +418,17 @@ export function toDtcg(
     generatedAt: new Date().toISOString(),
   }
 
+  if (chroma !== undefined) $metadata.chroma = chroma
+
   if (meta.source === 'preset' && presetMeta?.name) {
     $metadata.preset = presetMeta.name
   }
 
-  // D5-D7: Mood personality in metadata
-  if (mood && PERSONALITIES[mood]) {
-    const p = PERSONALITIES[mood]
+  // D5-D7: Personality in metadata (custom personality overrides mood-based lookup)
+  const p = personality ?? (mood ? PERSONALITIES[mood] : undefined)
+  if (p) {
     $metadata.personality = {
-      mood,
+      mood: mood ?? 'custom',
       philosophy: p.philosophy,
       animation: p.animation,
       typography: p.typography,

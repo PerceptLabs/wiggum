@@ -16,7 +16,7 @@ export {
   buildFontStack,
   findFonts,
 } from './personality'
-export { PERSONALITIES, MOOD_NAMES, generateDesignBrief } from './personalities'
+export { PERSONALITIES, MOOD_NAMES, generateDesignBrief, validatePersonality } from './personalities'
 export type { MoodName, PersonalityBrief } from './personalities'
 export { toDtcg, patchDtcgColors, CONTRAST_PAIRS } from './dtcg'
 export type { DtcgOutput } from './dtcg'

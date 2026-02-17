@@ -19,6 +19,7 @@ export interface PersonalityBrief {
   allowed: string[]
   notAllowed: string[]
   checklist: string[]
+  chromaHint?: 'low' | 'medium' | 'high'
 }
 
 export const MOOD_NAMES: MoodName[] = [
@@ -29,6 +30,7 @@ export const MOOD_NAMES: MoodName[] = [
 export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
   minimal: {
     philosophy: 'Let content breathe. Every element earns its place.',
+    chromaHint: 'low',
     typography: [
       { element: 'Hero numbers', size: '4xl-6xl', weight: 'normal (400)', color: 'foreground', tracking: 'tight' },
       { element: 'Page titles', size: 'xl-2xl', weight: 'medium (500)', color: 'foreground', tracking: 'tight' },
@@ -85,6 +87,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   premium: {
     philosophy: 'Numbers are heroes, labels are whispers.',
+    chromaHint: 'medium',
     typography: [
       { element: 'Hero numbers', size: '3xl-6xl', weight: 'light (300)', color: 'foreground', tracking: 'tight' },
       { element: 'Page titles', size: 'lg-xl', weight: 'light (300)', color: 'foreground', tracking: 'normal' },
@@ -143,6 +146,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   playful: {
     philosophy: 'Surprise at every scroll. Joy is not optional.',
+    chromaHint: 'high',
     typography: [
       { element: 'Hero text', size: '3xl-5xl', weight: 'bold (700)', color: 'foreground', tracking: 'tight' },
       { element: 'Page titles', size: 'xl-2xl', weight: 'semibold (600)', color: 'foreground', tracking: 'normal' },
@@ -201,6 +205,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   industrial: {
     philosophy: 'Raw structure. Exposed grid. No decoration.',
+    chromaHint: 'low',
     typography: [
       { element: 'Hero text', size: '3xl-5xl', weight: 'bold (700)', color: 'foreground', tracking: 'tighter' },
       { element: 'Page titles', size: 'xl-2xl', weight: 'semibold (600)', color: 'foreground', tracking: 'tight' },
@@ -261,6 +266,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   organic: {
     philosophy: 'Flowing shapes. Nothing has hard edges.',
+    chromaHint: 'medium',
     typography: [
       { element: 'Hero text', size: '3xl-5xl', weight: 'normal (400)', color: 'foreground', tracking: 'normal' },
       { element: 'Page titles', size: 'xl-2xl', weight: 'medium (500)', color: 'foreground', tracking: 'normal' },
@@ -319,6 +325,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   editorial: {
     philosophy: 'Typography leads. Color supports.',
+    chromaHint: 'low',
     typography: [
       { element: 'Hero text', size: '4xl-6xl', weight: 'bold (700)', color: 'foreground', tracking: 'tighter' },
       { element: 'Page titles', size: 'xl-3xl', weight: 'semibold (600)', color: 'foreground', tracking: 'tight' },
@@ -377,6 +384,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   'fashion-editorial': {
     philosophy: 'The runway on screen. Drama through restraint and scale.',
+    chromaHint: 'low',
     typography: [
       { element: 'Hero text', size: '6xl-9xl', weight: 'extralight (200-300)', color: 'foreground', tracking: 'wide' },
       { element: 'Page titles', size: '2xl-4xl', weight: 'light (300)', color: 'foreground', tracking: 'wide' },
@@ -433,6 +441,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   brutalist: {
     philosophy: 'Raw structure. No pretense. The code is the design.',
+    chromaHint: 'low',
     typography: [
       { element: 'Hero text', size: '3xl-6xl', weight: 'bold (800-900)', color: 'foreground', tracking: 'tight' },
       { element: 'Page titles', size: 'xl-2xl', weight: 'bold (700-800)', color: 'foreground', tracking: 'tight' },
@@ -491,6 +500,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   zen: {
     philosophy: 'Emptiness is form. Let space speak.',
+    chromaHint: 'low',
     typography: [
       { element: 'Hero text', size: '3xl-4xl', weight: 'light (300)', color: 'foreground', tracking: 'normal' },
       { element: 'Page titles', size: 'xl-2xl', weight: 'light (300-400)', color: 'foreground', tracking: 'normal' },
@@ -549,6 +559,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   corporate: {
     philosophy: 'Clarity serves confidence. Systems enable trust.',
+    chromaHint: 'medium',
     typography: [
       { element: 'Hero text', size: '3xl-4xl', weight: 'semibold (600)', color: 'foreground', tracking: 'tight' },
       { element: 'Page titles', size: 'xl-2xl', weight: 'semibold (600)', color: 'foreground', tracking: 'tight' },
@@ -607,6 +618,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   retro: {
     philosophy: 'Warmth with intention. Nostalgia refined, not replicated.',
+    chromaHint: 'high',
     typography: [
       { element: 'Hero text', size: '3xl-5xl', weight: 'bold (700)', color: 'foreground', tracking: 'normal' },
       { element: 'Page titles', size: 'xl-2xl', weight: 'semibold (600)', color: 'foreground', tracking: 'normal' },
@@ -665,6 +677,7 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
 
   luxury: {
     philosophy: "Whisper, don't shout. Exclusivity through absence.",
+    chromaHint: 'low',
     typography: [
       { element: 'Hero text', size: '4xl-7xl', weight: 'thin (200-300)', color: 'foreground', tracking: 'widest' },
       { element: 'Page titles', size: 'xl-3xl', weight: 'light (300)', color: 'foreground', tracking: 'wide' },
@@ -720,6 +733,53 @@ export const PERSONALITIES: Record<MoodName, PersonalityBrief> = {
       'Overall impression: exclusive, refined, unhurried, effortless',
     ],
   },
+}
+
+export function validatePersonality(obj: unknown): { valid: true } | { valid: false, errors: string[] } {
+  const errors: string[] = []
+  if (!obj || typeof obj !== 'object') return { valid: false, errors: ['Input must be an object'] }
+  const o = obj as Record<string, unknown>
+
+  if (typeof o.philosophy !== 'string' || !o.philosophy) errors.push('philosophy: required string')
+
+  if (!Array.isArray(o.typography) || o.typography.length === 0) {
+    errors.push('typography: required non-empty array')
+  } else {
+    for (const [i, t] of o.typography.entries()) {
+      if (!t || typeof t !== 'object') { errors.push(`typography[${i}]: must be an object`); continue }
+      const to = t as Record<string, unknown>
+      for (const k of ['element', 'size', 'weight', 'color', 'tracking']) {
+        if (typeof to[k] !== 'string') errors.push(`typography[${i}].${k}: required string`)
+      }
+    }
+  }
+
+  if (!Array.isArray(o.animation) || o.animation.length === 0) {
+    errors.push('animation: required non-empty array')
+  } else {
+    for (const [i, a] of o.animation.entries()) {
+      if (!a || typeof a !== 'object') { errors.push(`animation[${i}]: must be an object`); continue }
+      const ao = a as Record<string, unknown>
+      for (const k of ['type', 'duration', 'easing']) {
+        if (typeof ao[k] !== 'string') errors.push(`animation[${i}].${k}: required string`)
+      }
+    }
+  }
+
+  if (!o.spacing || typeof o.spacing !== 'object') {
+    errors.push('spacing: required object')
+  } else {
+    const s = o.spacing as Record<string, unknown>
+    for (const k of ['base', 'section', 'cardPadding', 'rhythm']) {
+      if (typeof s[k] !== 'string') errors.push(`spacing.${k}: required string`)
+    }
+  }
+
+  if (o.chromaHint !== undefined && !['low', 'medium', 'high'].includes(o.chromaHint as string)) {
+    errors.push('chromaHint: must be "low", "medium", or "high"')
+  }
+
+  return errors.length === 0 ? { valid: true } : { valid: false, errors }
 }
 
 export function generateDesignBrief(mood: MoodName, themeName: string): string {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PERSONALITIES, MOOD_NAMES, generateDesignBrief } from '../personalities'
+import { PERSONALITIES, MOOD_NAMES, generateDesignBrief, validatePersonality } from '../personalities'
 import type { MoodName } from '../personalities'
 
 describe('PERSONALITIES', () => {
@@ -40,6 +40,69 @@ describe('PERSONALITIES', () => {
       expect(p.notAllowed.length).toBeGreaterThan(0)
       expect(p.checklist.length).toBeGreaterThanOrEqual(8)
     }
+  })
+
+  it('all 12 PERSONALITIES have valid chromaHint', () => {
+    for (const mood of MOOD_NAMES) {
+      const p = PERSONALITIES[mood]
+      expect(p.chromaHint).toBeDefined()
+      expect(['low', 'medium', 'high']).toContain(p.chromaHint)
+    }
+  })
+})
+
+describe('validatePersonality', () => {
+  const validPersonality = {
+    philosophy: 'Test philosophy',
+    typography: [
+      { element: 'Hero', size: '4xl', weight: 'bold', color: 'foreground', tracking: 'tight' },
+    ],
+    animation: [
+      { type: 'Hover', duration: '200ms', easing: 'ease' },
+    ],
+    spacing: { base: '4px', section: '64px', cardPadding: '24px', rhythm: 'Test' },
+  }
+
+  it('accepts valid PersonalityBrief', () => {
+    expect(validatePersonality(validPersonality)).toEqual({ valid: true })
+  })
+
+  it('accepts full PersonalityBrief with all optional fields', () => {
+    const full = {
+      ...validPersonality,
+      interactions: ['Hover: scale'],
+      allowed: ['Gradients'],
+      notAllowed: ['Bounce'],
+      checklist: ['Check 1'],
+      chromaHint: 'high',
+    }
+    expect(validatePersonality(full)).toEqual({ valid: true })
+  })
+
+  it('rejects missing philosophy', () => {
+    const { philosophy, ...rest } = validPersonality
+    const result = validatePersonality(rest)
+    expect(result.valid).toBe(false)
+    if (!result.valid) expect(result.errors).toContain('philosophy: required string')
+  })
+
+  it('rejects bad typography shape', () => {
+    const bad = { ...validPersonality, typography: [{ element: 'Hero' }] }
+    const result = validatePersonality(bad)
+    expect(result.valid).toBe(false)
+    if (!result.valid) expect(result.errors.some((e: string) => e.includes('typography[0]'))).toBe(true)
+  })
+
+  it('accepts missing optional fields', () => {
+    // interactions, allowed, notAllowed, checklist are all optional
+    expect(validatePersonality(validPersonality)).toEqual({ valid: true })
+  })
+
+  it('rejects invalid chromaHint', () => {
+    const bad = { ...validPersonality, chromaHint: 'ultra' }
+    const result = validatePersonality(bad)
+    expect(result.valid).toBe(false)
+    if (!result.valid) expect(result.errors).toContain('chromaHint: must be "low", "medium", or "high"')
   })
 })
 
