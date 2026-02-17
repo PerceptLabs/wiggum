@@ -2,7 +2,7 @@
  * Theme Generator — Public API
  */
 
-export { generateTheme, formatThemeOutput, formatThemeCss } from './generator'
+export { generateTheme, formatThemeOutput, formatThemeCss, resolveChromaMultiplier, CHROMA_LEVELS } from './generator'
 export { PATTERNS } from './patterns'
 export { PRESETS } from './presets'
 export type { CuratedPreset } from './presets'

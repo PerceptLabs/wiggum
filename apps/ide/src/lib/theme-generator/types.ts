@@ -21,6 +21,7 @@ export interface ThemeConfig {
   font?: string          // Font name from registry
   shadowProfile?: string // Shadow profile name
   radius?: string        // Radius stop name
+  chroma?: 'low' | 'medium' | 'high' | number  // Chroma multiplier (0.0-2.0 or named)
 }
 
 export interface ThemeCssVars {

@@ -55,11 +55,24 @@ const CONTRAST_PAIRS: [string, string][] = [
 ]
 
 // ============================================================================
+// CHROMA MULTIPLIER
+// ============================================================================
+
+export const CHROMA_LEVELS: Record<string, number> = { low: 0.4, medium: 1.0, high: 1.6 }
+
+export function resolveChromaMultiplier(chroma?: 'low' | 'medium' | 'high' | number): number {
+  if (chroma === undefined) return 1.0
+  if (typeof chroma === 'string') return CHROMA_LEVELS[chroma] ?? 1.0
+  return Math.max(0.0, Math.min(2.0, chroma))
+}
+
+// ============================================================================
 // MAIN GENERATOR
 // ============================================================================
 
 export function generateTheme(config: ThemeConfig): GeneratedTheme {
   const { seed, pattern: patternName, mode = 'both' } = config
+  const chromaMultiplier = resolveChromaMultiplier(config.chroma)
 
   const pattern = PATTERNS[patternName]
   if (!pattern) throw new Error(`Unknown pattern "${patternName}". Use: theme list patterns`)
@@ -78,18 +91,18 @@ export function generateTheme(config: ThemeConfig): GeneratedTheme {
     shifted: hues[2] ?? ((primaryHue + 60) % 360),
   }
 
-  // Generate light mode colors
+  // Generate light mode colors (chroma multiplier scales saturation)
   const lightColors: Record<string, OklchColor> = {}
   for (const [role, spec] of Object.entries(LIGHT_ROLES)) {
-    lightColors[role] = clampToGamut({ l: spec.l, c: spec.c, h: hueMap[spec.hueSource] })
+    lightColors[role] = clampToGamut({ l: spec.l, c: spec.c * chromaMultiplier, h: hueMap[spec.hueSource] })
   }
 
-  // Chart colors
-  lightColors['chart-1'] = clampToGamut({ l: 0.56, c: 0.195, h: primaryHue })
-  lightColors['chart-2'] = clampToGamut({ l: 0.61, c: 0.115, h: accentHue })
-  lightColors['chart-3'] = clampToGamut({ l: 0.815, c: 0.095, h: accentHue })
-  lightColors['chart-4'] = clampToGamut({ l: 0.55, c: 0.15, h: hues[2] ?? ((primaryHue + 90) % 360) })
-  lightColors['chart-5'] = clampToGamut({ l: 0.50, c: 0.20, h: (primaryHue + 180) % 360 })
+  // Chart colors (also scaled by chroma multiplier)
+  lightColors['chart-1'] = clampToGamut({ l: 0.56, c: 0.195 * chromaMultiplier, h: primaryHue })
+  lightColors['chart-2'] = clampToGamut({ l: 0.61, c: 0.115 * chromaMultiplier, h: accentHue })
+  lightColors['chart-3'] = clampToGamut({ l: 0.815, c: 0.095 * chromaMultiplier, h: accentHue })
+  lightColors['chart-4'] = clampToGamut({ l: 0.55, c: 0.15 * chromaMultiplier, h: hues[2] ?? ((primaryHue + 90) % 360) })
+  lightColors['chart-5'] = clampToGamut({ l: 0.50, c: 0.20 * chromaMultiplier, h: (primaryHue + 180) % 360 })
 
   // Sidebar colors (mirror main roles)
   lightColors['sidebar-background'] = lightColors['background']
