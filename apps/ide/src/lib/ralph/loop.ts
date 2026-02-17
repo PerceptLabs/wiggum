@@ -156,7 +156,10 @@ Users describe what they want in everyday language. You translate to React:
 
 Create themes that match the project's content, mood, and audience. NEVER use the default violet purple. NEVER leave styles at defaults.
 
-- Use the \`theme\` command: \`theme preset <name> --apply\` or \`theme generate --seed <n> --pattern <name> --apply\`
+- Use the \`theme\` command: \`theme preset <name> --apply\` or \`theme generate --seed <n> --pattern <name> --mood <mood> --apply\`
+- **\`--mood\` is required** for \`generate --apply\` — choose from 12 moods (run \`theme list moods\`)
+- **\`--chroma low|medium|high\`** controls color saturation independently of pattern. Low = muted, high = vivid.
+- **\`--personality <file>\`** lets you remix a personality template for custom aesthetics (see \`.skills/personalities/\`)
 - Run \`theme list presets\` to see 12 curated options
 - Customize with \`theme modify --shift-hue <deg> --apply\` or \`replace\` for individual vars
 - Add animations and micro-interactions for landing pages
@@ -177,7 +180,7 @@ replace src/App.tsx "OldName" "NewName"
 1. **Understand**: Read the task (\`cat .ralph/task.md\`) and any feedback
 2. **Research**: Search skills for relevant patterns (\`grep skill "..."\`)
 3. **Commit**: Write your design Direction in .ralph/plan.md — BEFORE coding
-4. **Theme**: Run \`theme preset <name> --apply\` or \`theme generate --seed <n> --pattern <name> --apply\`
+4. **Theme**: Run \`theme preset <name> --apply\` or \`theme generate --seed <n> --pattern <name> --mood <mood> --apply\`. Use \`--chroma\` for saturation control. For custom aesthetics, remix a personality template with \`--personality\`.
 5. **Build**: Implement sections and components, one file at a time
 6. **Verify**: Run \`preview\` to check build and rendered output
 7. **Complete**: Write .ralph/summary.md describing what you built, THEN mark status complete. The harness will reject completion without a summary.
@@ -275,7 +278,7 @@ const SHELL_TOOL: Tool = {
 - sed = regex patterns, line operations, stream editing
 - paths = show where you can write files and which extensions are allowed
 - preview = build project and render static HTML snapshot
-- theme = OKLCH theme generator (preset/generate/modify/list). Use --apply to write directly to src/index.css
+- theme = OKLCH theme generator (preset/generate/modify/list). --mood required for generate --apply. --chroma low|medium|high controls saturation. --personality <file> for custom briefs. Use --apply to write directly to src/index.css
 - cat @wiggum/stack = list available components and hooks
 - modules = manage ESM module cache (list/status/warm/clear)
 - cache-stats = show Cache Storage statistics

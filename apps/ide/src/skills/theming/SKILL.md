@@ -13,10 +13,10 @@ You have a `theme` command. Use it. Never freestyle CSS color values.
 theme preset retro-arcade --apply
 
 # Generate from sacred geometry and apply
-theme generate --seed 210 --pattern goldenRatio --apply
+theme generate --seed 210 --pattern goldenRatio --mood organic --apply
 
 # Full control
-theme generate --seed 150 --pattern triadic --font "Space Grotesk" --shadow-profile moderate --radius rounded --apply
+theme generate --seed 150 --pattern triadic --mood playful --chroma high --font "Space Grotesk" --shadow-profile moderate --radius rounded --apply
 
 # Tweak an existing theme
 theme modify --shift-hue 30 --scope brand --apply
@@ -84,15 +84,17 @@ After applying a theme, use `cat >> src/index.css` (not `cat >`) to append custo
 
 ### Pattern Aliases
 
-Semantic shortcuts that resolve to sacred geometry patterns:
+Semantic shortcuts that resolve to a pattern + auto-chroma hint:
 
-| Alias | Resolves To |
-|-------|-------------|
-| `elegant` | analogous |
-| `bold` | complementary |
-| `minimal` | monochromatic |
-| `vibrant` | triadic |
-| `natural` | goldenRatio |
+| Alias | Pattern | Auto-Chroma | Use When |
+|-------|---------|-------------|----------|
+| `elegant` | analogous | low | Refined, harmonious palettes |
+| `bold` | complementary | high | High-contrast, energetic |
+| `minimal` | monochromatic | low | Single-hue, content-first |
+| `vibrant` | triadic | high | Vivid, saturated, playful |
+| `natural` | goldenRatio | medium | Balanced, organic feel |
+
+Auto-chroma is applied unless you explicitly pass `--chroma`. Example: `--pattern vibrant` gives triadic + high chroma. `--pattern vibrant --chroma low` overrides to low.
 
 ### Font Registry (32 validated fonts)
 
@@ -140,14 +142,20 @@ Only use fonts from this registry. All have Google Fonts CDN availability.
 
 The `--mood` flag generates a design personality brief (`.ralph/design-brief.md`) alongside the theme. The brief defines typography hierarchy, animation timing, spacing rhythm, and strict rules.
 
-| Mood | Character |
-|------|-----------|
-| `minimal` | Content-first. Subtle easing, generous whitespace, no decoration. |
-| `premium` | Polished luxury. Light weights at large sizes, spring animations, rich layering. |
-| `playful` | Bouncy and bright. Rounded shapes, animated micro-interactions, surprise. |
-| `industrial` | Raw structure. Mono fonts, no rounded corners, linear easing, sharp contrast. |
-| `organic` | Flowing and warm. Rounded everything, slow easing, natural spacing. |
-| `editorial` | Typography-led. Serif body, tight tracking, print-inspired, minimal color. |
+| Mood | Chroma | Character |
+|------|--------|-----------|
+| `minimal` | low | Content-first. Subtle easing, generous whitespace, no decoration. |
+| `premium` | medium | Polished luxury. Light weights at large sizes, spring animations, rich layering. |
+| `playful` | high | Bouncy and bright. Rounded shapes, animated micro-interactions, surprise. |
+| `industrial` | low | Raw structure. Mono fonts, no rounded corners, linear easing, sharp contrast. |
+| `organic` | medium | Flowing and warm. Rounded everything, slow easing, natural spacing. |
+| `editorial` | low | Typography-led. Serif body, tight tracking, print-inspired, minimal color. |
+| `fashion-editorial` | low | Runway on screen. Extreme scale, light weights, dramatic restraint. |
+| `brutalist` | low | Raw structure. Monospace, zero shadows, zero radius, instant transitions. |
+| `zen` | low | Emptiness is form. Maximum whitespace, slow transitions, earth tones. |
+| `corporate` | medium | Clarity serves confidence. Systematic, professional, blue-gray palettes. |
+| `retro` | high | Warmth with intention. Nostalgic but refined, amber/ochre, tactile shadows. |
+| `luxury` | low | Whisper, don't shout. Thin weights, wide tracking, opulent spacing. |
 
 **Usage:**
 ```bash
@@ -156,9 +164,59 @@ theme preset elegant-luxury --mood premium --apply
 theme list moods
 ```
 
-**Auto-inference:** When no `--mood` is specified with a preset, the mood is inferred from the preset name (e.g., cyberpunk → industrial, bubblegum → playful, mono → minimal).
+**Presets auto-infer mood** from the preset name (e.g., cyberpunk → industrial, bubblegum → playful). **`generate --apply` requires `--mood`** — you must choose a design direction.
 
-**The brief is auto-generated — don't hand-write design-brief.md.**
+---
+
+## Chroma — The Saturation Dial
+
+Chroma controls how vivid or muted colors are, independent of hue/pattern:
+
+| Level | Multiplier | Effect |
+|-------|-----------|--------|
+| `low` | 0.4x | Muted, desaturated — whisper palette |
+| `medium` | 1.0x | Default — unchanged output |
+| `high` | 1.6x | Vivid, saturated — punchy palette |
+
+You can also pass a numeric value (0.0-2.0) for fine control.
+
+**Usage:**
+```bash
+theme generate --seed 150 --pattern triadic --chroma high --mood playful --apply
+theme preset cyberpunk --chroma low --apply
+```
+
+**Chroma cascade priority:** explicit `--chroma` > alias auto-chroma > mood's chromaHint > default (1.0x).
+
+### OKLCH Color Model
+
+Theme colors use OKLCH: `oklch(L C H)` where:
+- **L** (Lightness): 0 = black, 1 = white
+- **C** (Chroma): 0 = gray, higher = more saturated. The `--chroma` flag scales this channel.
+- **H** (Hue): 0-360 degrees. The `--pattern` flag controls hue harmony.
+
+Pattern controls WHICH colors. Chroma controls HOW VIVID they are. Independent knobs.
+
+---
+
+## Custom Personalities — Remix the Presets
+
+12 personality templates are available in `.skills/personalities/`. Use them as starting points:
+
+```bash
+# Browse available personalities
+ls .skills/personalities/
+
+# Read one
+cat .skills/personalities/industrial.json
+
+# Copy, remix, and use
+cp .skills/personalities/industrial.json .ralph/my-personality.json
+replace .ralph/my-personality.json "Raw structure." "Futuristic minimalism."
+theme generate --seed 200 --pattern triadic --personality .ralph/my-personality.json --apply
+```
+
+When `--personality` is provided, it replaces `--mood` for the design brief. You can remix any field: philosophy, typography, animation timing, spacing rhythm, allowed/notAllowed rules, and checklist.
 
 ---
 

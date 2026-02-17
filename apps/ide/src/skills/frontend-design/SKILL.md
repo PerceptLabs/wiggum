@@ -41,9 +41,11 @@ Commit to a cohesive palette. Dominant colors with sharp accents outperform timi
 
 **NEVER:** Purple gradients on white (the universal AI slop signal).
 
-Define your palette as CSS variables in `src/index.css`:
+Use the `theme` command to generate your palette. Never freestyle color values.
 
 ```bash
+theme preset retro-arcade --apply          # curated preset
+theme generate --seed 38 --pattern analogous --mood retro --chroma high --apply  # custom
 grep skill "CSS variables theme"
 ```
 
@@ -92,8 +94,8 @@ If any answer is NO — iterate before moving on.
 ## Cookie-Cutter vs Distinctive (Examples)
 
 ### Cookie-Cutter (what Ralph defaults to)
-```css
---primary: 262 83% 58%;  /* violet purple — the universal AI slop signal */
+```bash
+# No theme command at all — just default violet purple
 ```
 - Inter font (the universal AI default)
 - Centered hero → 3-card feature grid → CTA footer
@@ -104,8 +106,9 @@ If any answer is NO — iterate before moving on.
 **Result:** Looks like every other AI-generated landing page. Forgettable.
 
 ### Distinctive (what Ralph should produce)
-```css
---primary: 38 92% 50%;   /* amber gold — warm, inviting, specific */
+```bash
+theme generate --seed 38 --pattern analogous --mood retro --chroma high --apply
+# → warm amber/ochre palette with tactile depth
 ```
 - Instrument Sans (display) + Source Serif 4 (body) — deliberate pairing
 - Split hero with offset terminal mockup → masonry features → diagonal CTA
