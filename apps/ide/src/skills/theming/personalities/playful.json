@@ -1,0 +1,108 @@
+{
+  "philosophy": "Surprise at every scroll. Joy is not optional.",
+  "chromaHint": "high",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "3xl-5xl",
+      "weight": "bold (700)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-2xl",
+      "weight": "semibold (600)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Section labels",
+      "size": "sm",
+      "weight": "semibold (600)",
+      "color": "primary",
+      "tracking": "normal"
+    },
+    {
+      "element": "Body text",
+      "size": "base",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Callouts",
+      "size": "lg",
+      "weight": "bold (700)",
+      "color": "accent-foreground",
+      "tracking": "normal"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "150-200ms",
+      "easing": "cubic-bezier(0.34, 1.56, 0.64, 1) (spring)"
+    },
+    {
+      "type": "Hover states",
+      "duration": "200-300ms",
+      "easing": "cubic-bezier(0.34, 1.56, 0.64, 1) (bounce)"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "300-400ms",
+      "easing": "cubic-bezier(0.34, 1.56, 0.64, 1) (spring)"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "400-600ms",
+      "easing": "cubic-bezier(0.22, 1, 0.36, 1) (easeOutQuint)"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "500-700ms",
+      "easing": "cubic-bezier(0.34, 1.56, 0.64, 1) (spring)"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "48-80px (3-5rem)",
+    "cardPadding": "20-28px (1.25-1.75rem)",
+    "rhythm": "Tighter than premium. Energy comes from density and motion, not space."
+  },
+  "interactions": [
+    "Hover: scale(1.03) + rotate(1deg), spring easing",
+    "Press: scale(0.95), bouncy return",
+    "Focus: ring-2 ring-primary + slight scale(1.02)",
+    "Cards: bounce-lift on hover, shadow increase + slight rotation"
+  ],
+  "allowed": [
+    "Bounce and spring easing everywhere",
+    "Bold/black font weights for impact",
+    "Bright accent colors and high chroma",
+    "Rounded corners (0.75rem+) on everything",
+    "Decorative elements (dots, blobs, emoji)",
+    "Staggered animations with visible delays",
+    "Rotation on hover (subtle, 1-3deg)",
+    "Gradient backgrounds and colorful sections"
+  ],
+  "notAllowed": [
+    "Flat, static layouts — must have motion",
+    "Muted or desaturated colors as primaries",
+    "Sharp corners (radius < 0.5rem)",
+    "Linear or ease-in easing — always spring or bounce",
+    "Formal serif fonts",
+    "Gray-heavy palettes — playful needs color"
+  ],
+  "checklist": [
+    "At least 3 elements have hover animations",
+    "Border-radius is rounded (0.75rem) or pill (1rem) throughout",
+    "Primary and accent colors are vibrant (high chroma)",
+    "Entrance animations use spring/bounce easing",
+    "Font weights include at least one bold (700) usage",
+    "Layout has at least one unexpected/delightful element",
+    "Color is used on backgrounds, not just text and buttons",
+    "Overall impression: fun, energetic, wants to be clicked"
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "philosophy": "Typography leads. Color supports.",
+  "chromaHint": "low",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "4xl-6xl",
+      "weight": "bold (700)",
+      "color": "foreground",
+      "tracking": "tighter"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-3xl",
+      "weight": "semibold (600)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Section labels",
+      "size": "xs-sm",
+      "weight": "medium (500)",
+      "color": "muted-foreground",
+      "tracking": "widest, uppercase"
+    },
+    {
+      "element": "Body text",
+      "size": "base-lg",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal, serif preferred"
+    },
+    {
+      "element": "Pull quotes",
+      "size": "xl-2xl",
+      "weight": "normal (400)",
+      "color": "muted-foreground",
+      "tracking": "tight, italic serif"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "100-150ms",
+      "easing": "ease"
+    },
+    {
+      "type": "Hover states",
+      "duration": "200ms",
+      "easing": "ease"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "250ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "300-400ms",
+      "easing": "ease-in-out"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "500-600ms",
+      "easing": "ease-out"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "64-96px (4-6rem)",
+    "cardPadding": "24-32px (1.5-2rem)",
+    "rhythm": "Print-inspired. Wide margins. Narrow content column (max-w-prose). Vertical rhythm via consistent leading."
+  },
+  "interactions": [
+    "Hover: underline or color shift only, no transform",
+    "Press: opacity 0.8, quick return",
+    "Focus: ring-1 ring-ring, minimal",
+    "Cards: border-bottom highlight or subtle background shift"
+  ],
+  "allowed": [
+    "Serif fonts for body text and headings",
+    "Mixed font families (serif body + sans headings or vice versa)",
+    "Pull quotes with italic serif at large sizes",
+    "Narrow content columns (max-w-prose)",
+    "High-contrast black-on-white or reverse",
+    "Subtle separator lines between sections",
+    "Uppercase small labels with wide tracking"
+  ],
+  "notAllowed": [
+    "Bounce or spring animations",
+    "Colorful gradient backgrounds",
+    "Rounded corners beyond moderate (0.5rem)",
+    "Shadow profiles heavier than subtle",
+    "Wide content layouts (full-width text columns)",
+    "Decorative elements that don't serve content hierarchy",
+    "More than 3 colors beyond neutrals"
+  ],
+  "checklist": [
+    "Body text uses a serif font (or heading/body are mixed serif+sans)",
+    "Content column is constrained to max-w-prose or similar",
+    "At least one pull-quote or large typographic moment exists",
+    "Color usage is restrained — mainly foreground/muted-foreground",
+    "Section labels use uppercase + wide tracking",
+    "Vertical rhythm is consistent (same leading/spacing throughout)",
+    "No animation uses bounce or spring easing",
+    "Overall impression: magazine-quality, typography-driven, restrained"
+  ]
+}

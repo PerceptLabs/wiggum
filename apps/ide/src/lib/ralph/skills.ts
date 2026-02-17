@@ -16,7 +16,6 @@ import frontendDesignSkill from '../../skills/frontend-design/SKILL.md?raw'
 
 // Consolidated skills
 import codeQualitySkill from '../../skills/code-quality/SKILL.md?raw'
-import creativitySkill from '../../skills/creativity/SKILL.md?raw'
 import themingSkill from '../../skills/theming/SKILL.md?raw'
 import gumdropsSkill from '../../skills/gumdrops/SKILL.md?raw'
 import extendedLibrariesSkill from '../../skills/extended-libraries/SKILL.md?raw'
@@ -24,6 +23,12 @@ import extendedLibrariesSkill from '../../skills/extended-libraries/SKILL.md?raw
 // Glob import for individual gumdrop recipe files (populated in B2/B3)
 const gumdropRecipes = import.meta.glob<string>(
   '../../skills/gumdrops/{marketing,app,content,interactive,api}/*.md',
+  { query: '?raw', import: 'default', eager: true }
+)
+
+// Glob import for personality template JSON files
+const personalityTemplates = import.meta.glob<string>(
+  '../../skills/theming/personalities/*.json',
   { query: '?raw', import: 'default', eager: true }
 )
 
@@ -37,7 +42,6 @@ import { parseSkillFile } from '../skills/parser'
  * 3. Theming skill - CSS variables, animations, design philosophy
  * 4. Gumdrops - Compositional recipes for sections, pages, data flows
  * 5. Extended libraries - npm packages beyond stack, with when-to-use guidance
- * 6. Creativity - Redirects to gumdrops
  */
 const SKILLS = [
   { id: 'frontend-design', content: frontendDesignSkill, priority: 0 },
@@ -46,7 +50,6 @@ const SKILLS = [
   { id: 'theming', content: themingSkill, priority: 3 },
   { id: 'gumdrops', content: gumdropsSkill, priority: 4 },
   { id: 'extended-libraries', content: extendedLibrariesSkill, priority: 5 },
-  { id: 'creativity', content: creativitySkill, priority: 6 },
 ]
 
 /**
@@ -59,6 +62,13 @@ export function getSkillsRaw(): Array<{ id: string; content: string }> {
     const match = filePath.match(/\/([^/]+)\.md$/)
     if (match) {
       base.push({ id: `gumdrop-${match[1]}`, content })
+    }
+  }
+  // Add personality templates for .skills/ directory
+  for (const [filePath, content] of Object.entries(personalityTemplates)) {
+    const match = filePath.match(/\/([^/]+)\.json$/)
+    if (match) {
+      base.push({ id: `personalities/${match[1]}`, content })
     }
   }
   return base
@@ -85,7 +95,6 @@ Available knowledge bases you can search:
 | theming | CSS variables, colors, animations, dark mode |
 | gumdrops | Compositional recipes: marketing, app, content, interactive patterns |
 | extended-libraries | Available npm packages, when-to-use, import patterns |
-| creativity | → See gumdrops for layout patterns and design variety |
 
 ## How to Use
 

@@ -1,0 +1,108 @@
+{
+  "philosophy": "Flowing shapes. Nothing has hard edges.",
+  "chromaHint": "medium",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "3xl-5xl",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-2xl",
+      "weight": "medium (500)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Section labels",
+      "size": "sm",
+      "weight": "medium (500)",
+      "color": "muted-foreground",
+      "tracking": "wide"
+    },
+    {
+      "element": "Body text",
+      "size": "base",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "relaxed (leading-7)"
+    },
+    {
+      "element": "Quotes",
+      "size": "lg",
+      "weight": "normal (400)",
+      "color": "muted-foreground",
+      "tracking": "normal, italic"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "150-200ms",
+      "easing": "cubic-bezier(0.4, 0, 0.2, 1) (ease-in-out)"
+    },
+    {
+      "type": "Hover states",
+      "duration": "300-400ms",
+      "easing": "cubic-bezier(0.4, 0, 0.2, 1) (ease-in-out)"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "400ms",
+      "easing": "cubic-bezier(0.25, 1, 0.5, 1) (easeOutQuart)"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "500-600ms",
+      "easing": "cubic-bezier(0.25, 1, 0.5, 1) (easeOutQuart)"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "600-1000ms",
+      "easing": "cubic-bezier(0.25, 1, 0.5, 1) (easeOutQuart)"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "80-120px (5-7.5rem)",
+    "cardPadding": "28-36px (1.75-2.25rem)",
+    "rhythm": "Generous, unhurried. Content flows like water between wide margins."
+  },
+  "interactions": [
+    "Hover: slight scale(1.01) + opacity shift, slow ease-in-out",
+    "Press: scale(0.98), slow return (300ms)",
+    "Focus: ring-2 ring-ring, soft glow (box-shadow blur 8px)",
+    "Cards: subtle lift (translateY -2px) + shadow-moderate, 400ms"
+  ],
+  "allowed": [
+    "Rounded corners (0.75rem+) on all elements",
+    "Slow, gentle easing (ease-in-out, easeOutQuart)",
+    "Warm, earthy color tones",
+    "Generous line-height (leading-7 or leading-8)",
+    "Subtle shadow profiles (subtle or moderate)",
+    "Soft gradient backgrounds",
+    "Humanist or rounded sans-serif fonts"
+  ],
+  "notAllowed": [
+    "Sharp corners (radius < 0.5rem)",
+    "Linear easing or instant transitions",
+    "Harsh shadows or high-contrast hard edges",
+    "Monospace fonts for body text",
+    "Neon or electric accent colors",
+    "Dense, tight spacing between elements",
+    "Animations faster than 150ms"
+  ],
+  "checklist": [
+    "All corners are rounded (0.5rem minimum)",
+    "No animation uses linear easing",
+    "Line-height for body text is at least 1.75 (leading-7)",
+    "Color palette feels warm and natural",
+    "Section spacing is 5rem or more",
+    "Hover transitions are 300ms or longer",
+    "Typography uses a humanist or rounded font",
+    "Overall impression: calm, natural, flowing"
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "philosophy": "Numbers are heroes, labels are whispers.",
+  "chromaHint": "medium",
+  "typography": [
+    {
+      "element": "Hero numbers",
+      "size": "3xl-6xl",
+      "weight": "light (300)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Page titles",
+      "size": "lg-xl",
+      "weight": "light (300)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Section labels",
+      "size": "xs",
+      "weight": "medium (500)",
+      "color": "muted-foreground",
+      "tracking": "widest, uppercase"
+    },
+    {
+      "element": "Body text",
+      "size": "sm",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Accents",
+      "size": "sm",
+      "weight": "semibold (600)",
+      "color": "primary",
+      "tracking": "wide"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "100-150ms",
+      "easing": "ease"
+    },
+    {
+      "type": "Hover states",
+      "duration": "200-300ms",
+      "easing": "cubic-bezier(0.34, 1.56, 0.64, 1) (spring)"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "300ms",
+      "easing": "cubic-bezier(0.33, 1, 0.68, 1) (easeOutCubic)"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "400-500ms",
+      "easing": "cubic-bezier(0.76, 0, 0.24, 1) (easeInOutQuart)"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "500-800ms",
+      "easing": "cubic-bezier(0.25, 1, 0.5, 1) (easeOutQuart)"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "80-120px (5-7.5rem)",
+    "cardPadding": "32-40px (2-2.5rem)",
+    "rhythm": "Generous padding. Sections breathe. Cards have internal luxury spacing."
+  },
+  "interactions": [
+    "Hover: translateY(-2px) + shadow elevation increase, spring easing",
+    "Press: scale(0.97), 100ms ease",
+    "Focus: ring-2 ring-primary with glow (box-shadow)",
+    "Cards: lift + shadow-dramatic on hover, 300ms transition"
+  ],
+  "allowed": [
+    "Light font weights (300) at large sizes for elegance",
+    "Spring easing on hover interactions",
+    "Dramatic shadow profiles for card elevation",
+    "Gradient accents on CTAs and hero sections",
+    "Background blur / glassmorphism effects",
+    "Staggered entrance animations",
+    "Rich layering with card-on-card compositions"
+  ],
+  "notAllowed": [
+    "Bold weights (700+) at hero sizes — looks heavy, not premium",
+    "Flat design with zero shadows — premium needs depth",
+    "Neon or saturated accent colors — keep chroma controlled",
+    "Harsh shadows — use dramatic (diffused), never harsh (hard-edge)",
+    "Tight spacing between cards — premium needs room",
+    "More than 3 font weights total"
+  ],
+  "checklist": [
+    "Hero text uses light weight (300) and looks effortless at 3xl+",
+    "Section labels are uppercase, xs, wide tracking — whisper level",
+    "Cards elevate on hover with smooth spring animation",
+    "Shadow profile is dramatic (diffused) or moderate, never harsh",
+    "At least one section uses gradient or glassmorphism accent",
+    "Spacing between major sections is 5rem+",
+    "Color palette feels rich but restrained — no neon",
+    "Interactive elements have satisfying spring-back feedback",
+    "Overall impression: expensive, considered, unhurried"
+  ]
+}

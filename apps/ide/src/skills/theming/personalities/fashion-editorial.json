@@ -1,0 +1,106 @@
+{
+  "philosophy": "The runway on screen. Drama through restraint and scale.",
+  "chromaHint": "low",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "6xl-9xl",
+      "weight": "extralight (200-300)",
+      "color": "foreground",
+      "tracking": "wide"
+    },
+    {
+      "element": "Page titles",
+      "size": "2xl-4xl",
+      "weight": "light (300)",
+      "color": "foreground",
+      "tracking": "wide"
+    },
+    {
+      "element": "Section labels",
+      "size": "xs",
+      "weight": "medium (500)",
+      "color": "muted-foreground",
+      "tracking": "widest, uppercase"
+    },
+    {
+      "element": "Body text",
+      "size": "base-lg",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal, sans-serif"
+    },
+    {
+      "element": "Captions",
+      "size": "xs-sm",
+      "weight": "normal (400)",
+      "color": "muted-foreground",
+      "tracking": "wide"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "150-200ms",
+      "easing": "ease"
+    },
+    {
+      "type": "Hover states",
+      "duration": "200-300ms",
+      "easing": "ease, subtle opacity shifts"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "400-500ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "500-700ms",
+      "easing": "ease-in-out"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "600-900ms",
+      "easing": "ease-out, theatrical"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "96-160px (6-10rem)",
+    "cardPadding": "32-48px (2-3rem)",
+    "rhythm": "DRAMATIC section gaps. Content breathes like a Vogue spread. Scale IS the statement."
+  },
+  "interactions": [
+    "Hover: subtle opacity shift (0.7-0.9), no transforms",
+    "Press: opacity 0.6, quick return",
+    "Focus: ring-1 ring-foreground, minimal",
+    "Cards: no lift, border or opacity change only"
+  ],
+  "allowed": [
+    "Full-bleed imagery placeholders",
+    "Asymmetric layouts",
+    "Overlapping type on background elements",
+    "Extreme scale contrast between hero and body text",
+    "Deconstructed typography (split words across lines)",
+    "Max 2 colors beyond black/white/neutral"
+  ],
+  "notAllowed": [
+    "Rounded corners of any kind (radius: 0 always)",
+    "Bounce or spring animations",
+    "More than 2 accent colors beyond neutrals",
+    "Busy or cluttered layouts",
+    "Small hero text (must be 6xl+)",
+    "Heavy font weights at display sizes"
+  ],
+  "checklist": [
+    "Hero text is 6xl+ at light weight (200-300)",
+    "Zero border-radius throughout the entire design",
+    "Section spacing is 6rem+ between major blocks",
+    "No more than 2 accent colors beyond black/white",
+    "Typography does the heavy lifting — minimal iconography",
+    "Body text is sans-serif, clean and modern",
+    "Scroll reveals are slow and theatrical (600ms+)",
+    "Overall impression: high-fashion editorial spread, dramatic restraint"
+  ]
+}

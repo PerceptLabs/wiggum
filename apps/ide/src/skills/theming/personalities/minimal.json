@@ -1,0 +1,106 @@
+{
+  "philosophy": "Let content breathe. Every element earns its place.",
+  "chromaHint": "low",
+  "typography": [
+    {
+      "element": "Hero numbers",
+      "size": "4xl-6xl",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-2xl",
+      "weight": "medium (500)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Section labels",
+      "size": "xs-sm",
+      "weight": "medium (500)",
+      "color": "muted-foreground",
+      "tracking": "wide, uppercase"
+    },
+    {
+      "element": "Body text",
+      "size": "sm-base",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Captions",
+      "size": "xs",
+      "weight": "normal (400)",
+      "color": "muted-foreground",
+      "tracking": "normal"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "100-150ms",
+      "easing": "ease"
+    },
+    {
+      "type": "Hover states",
+      "duration": "150-200ms",
+      "easing": "ease"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "200ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "300ms",
+      "easing": "ease-in-out"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "400ms",
+      "easing": "ease-out"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "64-96px (4-6rem)",
+    "cardPadding": "24px (1.5rem)",
+    "rhythm": "Multiples of 4px. Generous gaps between sections. Dense within components."
+  },
+  "interactions": [
+    "Hover: subtle opacity change (0.8), no transform",
+    "Press: scale(0.98), 100ms",
+    "Focus: ring-2 ring-ring, no glow",
+    "Cards: no lift on hover, border-muted highlight only"
+  ],
+  "allowed": [
+    "Monochromatic or analogous palettes",
+    "Ample whitespace between sections",
+    "Single font family throughout",
+    "Subtle fade-in animations only",
+    "Flat design — no shadows heavier than subtle",
+    "Icons: outline style, consistent stroke width"
+  ],
+  "notAllowed": [
+    "Bounce, spring, or elastic easing",
+    "Gradients on backgrounds",
+    "More than 2 accent colors",
+    "Decorative illustrations or ornamental elements",
+    "Shadow profiles heavier than subtle",
+    "Border-radius larger than moderate (0.5rem)"
+  ],
+  "checklist": [
+    "Every visible element serves a purpose — no decoration",
+    "Text hierarchy uses max 3 sizes on any given page",
+    "Whitespace between sections is at least 4rem",
+    "No animation exceeds 400ms duration",
+    "Color palette uses at most 2 hues plus neutrals",
+    "All interactive elements have visible focus states",
+    "Icons are consistent style (all outline or all filled, never mixed)",
+    "No element competes with content for attention"
+  ]
+}

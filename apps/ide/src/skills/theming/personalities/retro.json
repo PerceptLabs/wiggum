@@ -1,0 +1,108 @@
+{
+  "philosophy": "Warmth with intention. Nostalgia refined, not replicated.",
+  "chromaHint": "high",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "3xl-5xl",
+      "weight": "bold (700)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-2xl",
+      "weight": "semibold (600)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Section labels",
+      "size": "sm",
+      "weight": "semibold (600)",
+      "color": "muted-foreground",
+      "tracking": "wide"
+    },
+    {
+      "element": "Body text",
+      "size": "base",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal, warm and readable"
+    },
+    {
+      "element": "Display accents",
+      "size": "lg-xl",
+      "weight": "bold (700)",
+      "color": "primary",
+      "tracking": "normal, rounded sans or slab"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "100-150ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Hover states",
+      "duration": "200-300ms",
+      "easing": "ease-out, scale + shadow lift"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "250-350ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "300-400ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "400-500ms",
+      "easing": "ease-out"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "64-96px (4-6rem)",
+    "cardPadding": "24-32px (1.5-2rem)",
+    "rhythm": "Comfortable, slightly generous. Not tight, not airy. Cozy."
+  },
+  "interactions": [
+    "Hover: scale(1.02) + shadow lift, ease-out 250ms",
+    "Press: scale(0.97), quick return",
+    "Focus: ring-2 ring-primary, warm glow",
+    "Cards: shadow increase + slight lift on hover"
+  ],
+  "allowed": [
+    "Warm color palettes (amber, ochre, cream, brown)",
+    "Rounded corners (moderate to rounded)",
+    "Visible shadows for depth and tactile feel",
+    "Texture hints in backgrounds",
+    "Mixed font families (slab/serif + rounded sans)",
+    "Vintage-inspired but not dated aesthetic",
+    "Warm hue range (20-80)"
+  ],
+  "notAllowed": [
+    "Neon or electric colors",
+    "Harsh or hard-edge shadows",
+    "Minimal/flat design (needs some depth)",
+    "Cold blue palettes",
+    "Extremely light font weights (below 400)",
+    "Brutalist aesthetics",
+    "Spring or bounce easing (use ease-out)"
+  ],
+  "checklist": [
+    "Color palette feels warm (hue range 20-80)",
+    "Border-radius is moderate to rounded throughout",
+    "At least one shadow layer provides tactile depth",
+    "Fonts have personality but remain readable",
+    "Hover states use scale + shadow lift (ease-out, not spring)",
+    "Transitions are 200-400ms with ease-out easing",
+    "Mixed typography adds character without chaos",
+    "Overall impression: inviting, warm, tactile, nostalgic-but-modern"
+  ]
+}

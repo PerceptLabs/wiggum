@@ -1,0 +1,108 @@
+{
+  "philosophy": "Clarity serves confidence. Systems enable trust.",
+  "chromaHint": "medium",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "3xl-4xl",
+      "weight": "semibold (600)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-2xl",
+      "weight": "semibold (600)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Section labels",
+      "size": "xs-sm",
+      "weight": "medium (500)",
+      "color": "muted-foreground",
+      "tracking": "wide, uppercase"
+    },
+    {
+      "element": "Body text",
+      "size": "base-lg",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal, neo-grotesque sans"
+    },
+    {
+      "element": "Data/metrics",
+      "size": "sm",
+      "weight": "medium (500)",
+      "color": "foreground",
+      "tracking": "normal"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "100-150ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Hover states",
+      "duration": "150-200ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "200-250ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "200-300ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "250-300ms",
+      "easing": "ease-out"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "64-96px (4-6rem)",
+    "cardPadding": "24-32px (1.5-2rem)",
+    "rhythm": "Moderate, systematic. Grid-based. Consistent 4px rhythm. Nothing extreme."
+  },
+  "interactions": [
+    "Hover: background-color shift, subtle border highlight",
+    "Press: scale(0.98), 100ms ease-out",
+    "Focus: ring-2 ring-primary, standard outline",
+    "Cards: subtle shadow increase on hover, 200ms"
+  ],
+  "allowed": [
+    "Blue-gray color palettes",
+    "Structured grid layouts",
+    "Data-visualization-friendly design",
+    "Clear information hierarchy",
+    "Professional iconography (outline style)",
+    "Card-based layouts with consistent spacing",
+    "Single font family (neo-grotesque sans)"
+  ],
+  "notAllowed": [
+    "Decorative or display fonts",
+    "Spring or bounce easing",
+    "Shadow profiles heavier than moderate",
+    "Gradients on backgrounds",
+    "Playful elements or animations",
+    "Asymmetric layouts",
+    "Animation durations exceeding 300ms"
+  ],
+  "checklist": [
+    "Single font family throughout (sans-serif, no serif)",
+    "Shadow profile: subtle or moderate only",
+    "Information hierarchy is clear within 2 seconds",
+    "Layout is grid-aligned with consistent spacing",
+    "Color palette is cool and professional (blue-gray)",
+    "No animation exceeds 300ms duration",
+    "Typography uses neo-grotesque sans (Inter, Helvetica Neue, etc.)",
+    "Overall impression: trustworthy, systematic, confident, clear"
+  ]
+}

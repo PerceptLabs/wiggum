@@ -1,0 +1,108 @@
+{
+  "philosophy": "Raw structure. No pretense. The code is the design.",
+  "chromaHint": "low",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "3xl-6xl",
+      "weight": "bold (800-900)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-2xl",
+      "weight": "bold (700-800)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Section labels",
+      "size": "xs-sm",
+      "weight": "bold (700)",
+      "color": "foreground",
+      "tracking": "widest, uppercase"
+    },
+    {
+      "element": "Body text",
+      "size": "sm-base",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal, monospace"
+    },
+    {
+      "element": "Code/data",
+      "size": "sm",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal, monospace"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "50ms",
+      "easing": "linear"
+    },
+    {
+      "type": "Hover states",
+      "duration": "50-100ms",
+      "easing": "linear"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "100ms",
+      "easing": "linear"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "100ms",
+      "easing": "linear"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "50-100ms",
+      "easing": "linear (instant appearance preferred)"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "32-48px (2-3rem)",
+    "cardPadding": "12-20px (0.75-1.25rem)",
+    "rhythm": "Dense. Tight grid. No luxury whitespace — information density is the point."
+  },
+  "interactions": [
+    "Hover: background-color snap change, instant",
+    "Press: invert colors (bg-foreground text-background), instant",
+    "Focus: ring-1 ring-foreground, hard outline",
+    "Cards: border highlight only, no elevation, no shadow"
+  ],
+  "allowed": [
+    "Monospace fonts everywhere",
+    "Visible grid lines and borders",
+    "High-contrast black/white",
+    "Raw unprocessed aesthetic",
+    "System fonts as fallback",
+    "Exposed structure (visible padding, explicit borders)",
+    "All-caps section labels"
+  ],
+  "notAllowed": [
+    "Gradients of any kind",
+    "Shadows of any kind",
+    "Smooth easing curves (ease, ease-in-out)",
+    "Serif fonts",
+    "Rounded corners of any kind",
+    "Decorative elements or images as decoration",
+    "Colors beyond black/white + one accent max"
+  ],
+  "checklist": [
+    "Uses monospace or heavy grotesque sans throughout",
+    "Shadow profile: none — zero shadows anywhere",
+    "Radius: none — zero rounded corners anywhere",
+    "At least one section has visible border-grid structure",
+    "Colors: max 2 (typically black + one accent)",
+    "No easing curves other than linear",
+    "Animation durations under 100ms or instant",
+    "Overall impression: raw, honest, structural, exposed"
+  ]
+}

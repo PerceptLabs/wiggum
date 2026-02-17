@@ -1,0 +1,110 @@
+{
+  "philosophy": "Raw structure. Exposed grid. No decoration.",
+  "chromaHint": "low",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "3xl-5xl",
+      "weight": "bold (700)",
+      "color": "foreground",
+      "tracking": "tighter"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-2xl",
+      "weight": "semibold (600)",
+      "color": "foreground",
+      "tracking": "tight"
+    },
+    {
+      "element": "Section labels",
+      "size": "xs",
+      "weight": "bold (700)",
+      "color": "muted-foreground",
+      "tracking": "widest, uppercase"
+    },
+    {
+      "element": "Body text",
+      "size": "sm",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Code/data",
+      "size": "sm",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal, monospace"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "50-100ms",
+      "easing": "linear"
+    },
+    {
+      "type": "Hover states",
+      "duration": "100-150ms",
+      "easing": "linear"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "150ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "200ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "300ms",
+      "easing": "ease-out"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "48-64px (3-4rem)",
+    "cardPadding": "16-24px (1-1.5rem)",
+    "rhythm": "Dense, utilitarian. Grid-aligned. No wasted space."
+  },
+  "interactions": [
+    "Hover: background-color snap change, no transform",
+    "Press: invert colors (bg-foreground text-background), instant",
+    "Focus: ring-1 ring-foreground, sharp outline",
+    "Cards: border highlight only, no elevation, no shadow"
+  ],
+  "allowed": [
+    "Monospace or grotesque sans-serif fonts",
+    "High contrast: near-black on near-white or vice versa",
+    "Visible grid lines and structural borders",
+    "All-caps labels with widest tracking",
+    "Flat design — zero shadows",
+    "Sharp corners only (radius 0-4px / 0-0.25rem)",
+    "Linear easing or instant transitions"
+  ],
+  "notAllowed": [
+    "Border-radius greater than 4px (0.25rem)",
+    "Spring, bounce, or elastic animations",
+    "Gradient backgrounds",
+    "Decorative elements or illustrations",
+    "Shadow profiles heavier than none",
+    "Rounded or pill-shaped buttons",
+    "Serif or display fonts",
+    "Pastel or soft colors"
+  ],
+  "checklist": [
+    "No border-radius exceeds 4px (0.25rem) anywhere",
+    "No shadow is applied to any element",
+    "All animations complete in under 200ms",
+    "At least one monospace font is used (headings or data)",
+    "Color palette is high-contrast with minimal hues",
+    "Labels use uppercase + wide tracking",
+    "Layout feels grid-exposed and structural",
+    "No decorative element exists that doesn't convey information",
+    "Overall impression: raw, honest, engineered"
+  ]
+}

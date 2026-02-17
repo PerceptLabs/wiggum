@@ -290,17 +290,24 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
 
 /**
  * Write bundled skills to .skills/ directory
- * Enables `cat .skills/creativity.md` to work
+ * Enables `cat .skills/theming.md` and `cat .skills/personalities/minimal.json` to work
  */
 async function initSkillsFiles(fs: JSRuntimeFS, cwd: string): Promise<void> {
   const skillsDir = path.join(cwd, '.skills')
   await fs.mkdir(skillsDir, { recursive: true }).catch(() => {})
 
   for (const skill of getSkillsRaw()) {
-    await fs.writeFile(
-      path.join(skillsDir, `${skill.id}.md`),
-      skill.content
-    )
+    // Personality templates are .json, everything else is .md
+    const ext = skill.id.startsWith('personalities/') ? '.json' : '.md'
+    const filePath = path.join(skillsDir, `${skill.id}${ext}`)
+
+    // Create parent directory for nested IDs (e.g. personalities/minimal)
+    if (skill.id.includes('/')) {
+      const parentDir = path.dirname(filePath)
+      await fs.mkdir(parentDir, { recursive: true }).catch(() => {})
+    }
+
+    await fs.writeFile(filePath, skill.content)
   }
 }
 

@@ -1,0 +1,108 @@
+{
+  "philosophy": "Whisper, don't shout. Exclusivity through absence.",
+  "chromaHint": "low",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "4xl-7xl",
+      "weight": "thin (200-300)",
+      "color": "foreground",
+      "tracking": "widest"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-3xl",
+      "weight": "light (300)",
+      "color": "foreground",
+      "tracking": "wide"
+    },
+    {
+      "element": "Section labels",
+      "size": "xs",
+      "weight": "medium (500)",
+      "color": "muted-foreground",
+      "tracking": "widest, uppercase"
+    },
+    {
+      "element": "Body text",
+      "size": "sm-base",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Display serif",
+      "size": "2xl-4xl",
+      "weight": "light (300)",
+      "color": "foreground",
+      "tracking": "wide, serif"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "150ms",
+      "easing": "cubic-bezier(0.25, 0.1, 0.25, 1) (silk-smooth)"
+    },
+    {
+      "type": "Hover states",
+      "duration": "300-400ms",
+      "easing": "cubic-bezier(0.25, 0.1, 0.25, 1)"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "400-500ms",
+      "easing": "cubic-bezier(0.25, 0.1, 0.25, 1)"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "500-700ms",
+      "easing": "cubic-bezier(0.25, 0.1, 0.25, 1)"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "700-1000ms",
+      "easing": "cubic-bezier(0.25, 0.1, 0.25, 1) (glacial)"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "100-160px (6.25-10rem)",
+    "cardPadding": "40-56px (2.5-3.5rem)",
+    "rhythm": "Opulent spacing. Everything has room to breathe. More extreme than premium."
+  },
+  "interactions": [
+    "Hover: opacity shift (0.8) + subtle shadow elevation, slow",
+    "Press: opacity 0.7, glacial return (400ms)",
+    "Focus: ring-1 ring-ring, refined",
+    "Cards: shadow-dramatic elevation on hover, 400ms silk transition"
+  ],
+  "allowed": [
+    "Dark backgrounds with light text (inverted sections)",
+    "Gold/champagne accent tones",
+    "Dramatic shadow profiles (diffused, for elevation)",
+    "Thin horizontal rules as dividers",
+    "Serif + thin sans pairing",
+    "Letter-spacing as a design tool",
+    "Wide tracking on labels and hero text"
+  ],
+  "notAllowed": [
+    "Bold weights above 500 at display sizes",
+    "More than 2 colors excluding neutrals",
+    "Playful or rounded elements",
+    "Dense layouts",
+    "Casual typography",
+    "Visible borders (shadows for separation instead)",
+    "Fast or bouncy animations"
+  ],
+  "checklist": [
+    "Display text weight is 300 or thinner",
+    "Letter-spacing is wide on hero text and labels",
+    "At least one dark-background inverted section exists",
+    "Shadow profile is dramatic (diffused, for elevation)",
+    "Section spacing is 6rem+ between major blocks",
+    "Max 2 colors beyond neutrals in the entire design",
+    "Serif font used for at least one display element",
+    "Overall impression: exclusive, refined, unhurried, effortless"
+  ]
+}

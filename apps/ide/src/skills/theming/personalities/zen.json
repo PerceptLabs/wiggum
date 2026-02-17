@@ -1,0 +1,108 @@
+{
+  "philosophy": "Emptiness is form. Let space speak.",
+  "chromaHint": "low",
+  "typography": [
+    {
+      "element": "Hero text",
+      "size": "3xl-4xl",
+      "weight": "light (300)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Page titles",
+      "size": "xl-2xl",
+      "weight": "light (300-400)",
+      "color": "foreground",
+      "tracking": "normal"
+    },
+    {
+      "element": "Section labels",
+      "size": "sm",
+      "weight": "normal (400)",
+      "color": "muted-foreground",
+      "tracking": "wide"
+    },
+    {
+      "element": "Body text",
+      "size": "base",
+      "weight": "normal (400)",
+      "color": "foreground",
+      "tracking": "relaxed, serif"
+    },
+    {
+      "element": "Captions",
+      "size": "xs-sm",
+      "weight": "light (300)",
+      "color": "muted-foreground",
+      "tracking": "normal"
+    }
+  ],
+  "animation": [
+    {
+      "type": "Micro-interactions",
+      "duration": "200-300ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Hover states",
+      "duration": "400-500ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Card transitions",
+      "duration": "500-600ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Page transitions",
+      "duration": "600-800ms",
+      "easing": "ease-out"
+    },
+    {
+      "type": "Scroll reveals",
+      "duration": "800-1200ms",
+      "easing": "ease-out, gentle fade"
+    }
+  ],
+  "spacing": {
+    "base": "4px (0.25rem)",
+    "section": "120-200px (7.5-12.5rem)",
+    "cardPadding": "40-56px (2.5-3.5rem)",
+    "rhythm": "MAXIMUM whitespace. Expansive rhythm. Let emptiness define the form."
+  },
+  "interactions": [
+    "Hover: opacity shift (0.7), very slow transition (400ms+)",
+    "Press: opacity 0.5, slow return",
+    "Focus: ring-1 ring-ring, subtle",
+    "Cards: subtle border-bottom separator, no elevation"
+  ],
+  "allowed": [
+    "Single accent color (earth tones preferred)",
+    "Extreme whitespace between all elements",
+    "Contemplative pacing in all transitions",
+    "Subtle border-bottom separators",
+    "Natural imagery placeholders",
+    "Organic shapes (if any decoration exists)",
+    "Serif body text for unhurried reading"
+  ],
+  "notAllowed": [
+    "Bold weights above 500",
+    "More than 1 accent color",
+    "Shadows heavier than subtle",
+    "Fast animations under 400ms",
+    "Dense layouts of any kind",
+    "Uppercase text (too aggressive)",
+    "Decorative flourishes or ornament"
+  ],
+  "checklist": [
+    "Section spacing is 8rem+ between major blocks",
+    "Max font weight used anywhere is 500",
+    "No animation duration is under 400ms",
+    "Color palette uses earth tones or cool neutrals",
+    "Body text uses serif font for contemplative reading",
+    "Whitespace is the dominant visual element",
+    "No element feels urgent or demanding",
+    "Overall impression: calm, spacious, contemplative, still"
+  ]
+}
