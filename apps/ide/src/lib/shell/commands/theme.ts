@@ -30,6 +30,7 @@ import { parseOklch, formatOklch, contrastRatio, clampToGamut } from '../../them
 import { validateFileWrite, formatValidationError } from '../write-guard'
 import { resolvePath } from './utils'
 import { handleExtend, readExtendedEntriesFromTokens, regenerateExtendedColors } from './theme-extend'
+import { serializeThemeJsx, createPlanSkeleton, replaceThemeBlock } from '../../build/plan-writer'
 
 /** Semantic pattern aliases — two-dimensional: pattern + chroma hint */
 interface PatternAlias {
@@ -137,6 +138,14 @@ export class ThemeCommand implements ShellCommand {
       )
       await options.fs.writeFile(tokensPath, JSON.stringify(dtcg, null, 2))
 
+      // Write <Theme> block to plan.tsx
+      const planFile = await writePlanTsx(options.fs, options.cwd, {
+        mood: name,
+        font: result.meta?.font,
+        shadowProfile: result.meta?.shadowStyle,
+        radius: result.meta?.radius,
+      })
+
       // Regenerate extended colors with new theme's chroma
       const extraFiles = await regenerateExtendedColors(savedExtended, options)
 
@@ -144,11 +153,12 @@ export class ThemeCommand implements ShellCommand {
       const extInfo = Object.keys(savedExtended).length > 0
         ? ` + ${Object.keys(savedExtended).length} extended colors regenerated`
         : ''
+      const planInfo = planFile ? ' + plan.tsx' : ''
       return {
         exitCode: 0,
-        stdout: `Applied preset "${name}" to src/index.css (${varCount} vars, :root + .dark) + design brief (${resolvedMood}) + tokens.json${extInfo}\n`,
+        stdout: `Applied preset "${name}" to src/index.css (${varCount} vars, :root + .dark) + design brief (${resolvedMood}) + tokens.json${planInfo}${extInfo}\n`,
         stderr: '',
-        filesChanged: [...new Set([filePath, briefPath, tokensPath, ...extraFiles])],
+        filesChanged: [...new Set([filePath, briefPath, tokensPath, ...(planFile ? [planFile] : []), ...extraFiles])],
       }
     }
 
@@ -253,6 +263,16 @@ export class ThemeCommand implements ShellCommand {
         )
         await options.fs.writeFile(tokensPath, JSON.stringify(dtcg, null, 2))
 
+        // Write <Theme> block to plan.tsx
+        const planFile = await writePlanTsx(options.fs, options.cwd, {
+          mood: resolvedMood,
+          seed,
+          pattern,
+          font,
+          shadowProfile,
+          radius,
+        })
+
         // Regenerate extended colors with new theme's chroma
         const extraFiles = await regenerateExtendedColors(savedExtended, options)
 
@@ -263,7 +283,8 @@ export class ThemeCommand implements ShellCommand {
         const extInfo = Object.keys(savedExtended).length > 0
           ? ` + ${Object.keys(savedExtended).length} extended colors regenerated`
           : ''
-        let stdout = `Applied generated theme to src/index.css (seed=${seed}, pattern=${pattern}, ${varCount} vars) + design brief (${moodInfo}) + tokens.json${extInfo}\n`
+        const planInfo = planFile ? ' + plan.tsx' : ''
+        let stdout = `Applied generated theme to src/index.css (seed=${seed}, pattern=${pattern}, ${varCount} vars) + design brief (${moodInfo}) + tokens.json${planInfo}${extInfo}\n`
         if (customPersonality && resolvedMood) {
           stdout += `Note: --personality overrides --mood for design brief. Mood "${resolvedMood}" recorded in metadata.\n`
         }
@@ -271,7 +292,7 @@ export class ThemeCommand implements ShellCommand {
           exitCode: 0,
           stdout,
           stderr: '',
-          filesChanged: [...new Set([filePath, briefPath, tokensPath, ...extraFiles])],
+          filesChanged: [...new Set([filePath, briefPath, tokensPath, ...(planFile ? [planFile] : []), ...extraFiles])],
         }
       }
 
@@ -467,6 +488,34 @@ export class ThemeCommand implements ShellCommand {
 
 After applying a theme, use 'tokens' to inspect generated design tokens.`
   }
+}
+
+/** Write <Theme> block to .ralph/plan.tsx (create skeleton or replace existing) */
+async function writePlanTsx(
+  fs: ShellOptions['fs'],
+  cwd: string,
+  themeProps: { mood?: string; seed?: number; pattern?: string; font?: string;
+                shadowProfile?: string; radius?: string },
+): Promise<string | null> {
+  const themeJsx = serializeThemeJsx(themeProps)
+  const planPath = resolvePath(cwd, '.ralph/plan.tsx')
+
+  let existing: string | null = null
+  try {
+    existing = await fs.readFile(planPath, { encoding: 'utf8' }) as string
+  } catch { /* plan.tsx doesn't exist yet */ }
+
+  let content: string
+  if (existing && existing.trim()) {
+    const replaced = replaceThemeBlock(existing, themeJsx)
+    if (!replaced) return null // No <Theme> found in existing plan
+    content = replaced
+  } else {
+    content = createPlanSkeleton(themeJsx)
+  }
+
+  await fs.writeFile(planPath, content)
+  return planPath
 }
 
 /** Chroma cascade: explicit > alias hint > mood's hint > default (undefined = 1.0x) */
