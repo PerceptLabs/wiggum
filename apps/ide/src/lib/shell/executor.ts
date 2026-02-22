@@ -7,6 +7,7 @@ import type { ParsedChain } from './parser'
 import type { ParsedCommand, ShellCommand, ShellOptions, ShellResult } from './types'
 import { resolvePath, dirname } from './commands/utils'
 import { validateFileWrite, validateFileContent, formatValidationError } from './write-guard'
+import { structuredError } from './structured-errors'
 import { fsEvents } from '../fs/fs-events'
 
 /**
@@ -334,8 +335,21 @@ export class ShellExecutor {
       preview: this.previewContext,
     }
 
+    // Schema validation branch — validate before execute if command has argsSchema
+    let execArgs: any = normalizedArgs
+    if (command.argsSchema) {
+      const raw = command.parseCliArgs
+        ? command.parseCliArgs(normalizedArgs)
+        : normalizedArgs
+      const parseResult = command.argsSchema.safeParse(raw)
+      if (!parseResult.success) {
+        return structuredError(command, parseResult)
+      }
+      execArgs = parseResult.data
+    }
+
     try {
-      let result = await command.execute(normalizedArgs, options)
+      let result = await command.execute(execArgs, options)
 
       // Emit FS events for commands that report changed files
       if (result.filesChanged) {

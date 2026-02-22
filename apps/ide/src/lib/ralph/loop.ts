@@ -9,9 +9,12 @@
  */
 import type { JSRuntimeFS } from '../fs/types'
 import type { Git } from '../git'
-import type { LLMProvider, Message, Tool } from '../llm/client'
+import type { LLMProvider, Message } from '../llm/client'
 import { chat } from '../llm/client'
 import type { ShellExecutor } from '../shell/executor'
+import type { ShellOptions } from '../shell/types'
+import { structuredError } from '../shell/structured-errors'
+import { buildRalphTools, buildShellDescription } from './tool-builder'
 import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration } from './state'
 import { getSkillsContent } from './skills'
 import { runQualityGates, generateGateFeedback, type GatesResult } from './gates'
@@ -280,88 +283,9 @@ const MAX_ITERATIONS = 20
 const MAX_TOOL_CALLS_PER_ITERATION = 50
 const MAX_CONSECUTIVE_GATE_FAILURES = 5
 
-const SHELL_TOOL: Tool = {
-  type: 'function',
-  function: {
-    name: 'shell',
-    description: `Your interface to the world. Every file read, write, search, and build flows through this tool. One tool. Total control.
-
-**Commands:**
-- File I/O: cat, tac, echo, touch, mkdir, rm, rmdir, cp, mv
-- Navigation: ls, pwd, tree, find, basename, dirname
-- Text processing: grep, head, tail, wc, sort, uniq, diff, sed, cut, tr
-- Search/replace: grep, find, replace
-- VCS: git
-- System: date, env, whoami, which, true, false, clear, paths
-- Preview: console, preview, build
-- Design: theme, tokens
-- Modules: modules, cache-stats, build-cache
-
-**Quick reference:**
-- replace = exact literal string swap (no escaping needed)
-- sed = regex patterns, line operations, stream editing
-- paths = show where you can write files and which extensions are allowed
-- preview = build project and render static HTML snapshot
-- build = compile-only check (no preview or gates)
-- theme = OKLCH theme generator (preset/generate/modify/extend/list). --mood required for generate --apply. --chroma low|medium|high controls saturation. --personality <file> for custom briefs. Use --apply to write directly to src/index.css. Use 'theme extend --name <name> --hue <deg>' for content-specific colors beyond the semantic palette.
-- cat @wiggum/stack = list available components and hooks
-- modules = manage ESM module cache (list/status/warm/clear)
-- cache-stats = show Cache Storage statistics
-- build-cache = manage build output cache (status/clear/list)
-- tokens = read design token data from .ralph/tokens.json (palette/contrast/font/shadow/mood)
-
-**Operators:**
-- Pipe: cmd1 | cmd2 (stdout → stdin)
-- Chain: cmd1 && cmd2 (run cmd2 if cmd1 succeeds)
-- Fallback: cmd1 || cmd2 (run cmd2 if cmd1 fails)
-- Redirect: cmd > file (overwrite), cmd >> file (append)
-- Heredoc: cat > file << 'EOF'\\ncontent\\nEOF
-
-**Flags:**
-- cat -q: Quiet mode (no error on missing file, for use with ||)
-- replace -w: Whitespace-tolerant matching
-- sed -i: In-place edit, -n: Suppress output, -w: Whitespace-tolerant
-- grep -E: Extended regex (| for alternation), -l: Files-with-matches only
-- find -exec: Execute command on matched files (terminate with \\; or +)
-
-**grep modes:**
-- grep skill "<query>" - Semantic skill search
-- grep package "<query>" - Package registry search
-- grep code "<query>" - Project code search
-- grep "<pattern>" <file> - Exact regex match
-
-**sed usage:**
-  sed 's/old/new/g' file          Regex substitute
-  sed -i 's/old/new/g' file       In-place edit
-  sed -n '5,10p' file             Print line range
-  sed '3d' file                   Delete line 3
-  sed '/pattern/d' file           Delete matching lines
-  sed code 's/old/new/g' "query"  Semantic file discovery + transform
-  sed -w 's/old/new/g' file       Whitespace-tolerant matching
-
-**Examples:**
-- cat -q .ralph/feedback.md || echo "(no feedback)"
-- cat src/App.tsx | grep "import"
-- replace src/App.tsx "oldText" "newText"  (exact swap, no escaping)
-- sed -i 's/pattern/replacement/g' file   (regex, use for pattern matching)
-- echo "hello" | tr '[:lower:]' '[:upper:]'
-- basename src/sections/Hero.tsx .tsx
-- tac src/App.tsx | head -10
-
-No bash, sh, npm, node, python, curl.`,
-    parameters: {
-      type: 'object',
-      properties: {
-        command: { type: 'string', description: 'The command to run' },
-        _status: {
-          type: 'string',
-          description: 'Optional: Brief reasoning/intent (1 sentence max). Omit if self-explanatory.',
-        },
-      },
-      required: ['command'],
-    },
-  },
-}
+// SHELL_TOOL has been replaced by buildRalphTools() + buildShellDescription()
+// from ./tool-builder.ts. The shell description and tool definitions are now
+// generated dynamically from the command registry at loop start.
 
 export interface RalphCallbacks {
   onIterationStart?: (iteration: number) => void
@@ -629,6 +553,13 @@ export async function runRalphLoop(
     const systemPrompt = buildSystemPrompt(skillsContent)
     console.log('[Ralph] System prompt built, skills loaded:', skillsContent.length > 0 ? 'yes' : 'no')
 
+    // 0b. Build tool list from command registry (shell + discrete tools)
+    const toolkit = buildRalphTools(
+      shell.listCommands(),
+      buildShellDescription(shell.listCommands())
+    )
+    console.log('[Ralph] Toolkit built:', toolkit.tools.length, 'tools,', toolkit.promotedCommands.size, 'promoted')
+
     // 1. Initialize .ralph/ directory
     await initRalphDir(fs, cwd, task)
     await gitCommit(git, 'ralph: initialized')
@@ -725,7 +656,7 @@ ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
         console.log('[Ralph] Calling LLM, iteration:', iteration, 'toolCalls:', toolCalls)
         console.log('[Ralph] Provider:', { name: provider.name, model: provider.model, baseUrl: provider.baseUrl })
 
-        const response = await chat(provider, messages, [SHELL_TOOL], callbacks?.signal)
+        const response = await chat(provider, messages, toolkit.tools, callbacks?.signal)
 
         console.log('[Ralph] LLM Response received, tool_calls:', response.tool_calls?.length ?? 0, 'finish_reason:', response.finish_reason)
         messages.push(response)
@@ -760,66 +691,125 @@ ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
         }
 
         for (const tc of response.tool_calls) {
-          let args: { command: string; _status?: string }
+          // Parse tool arguments (shared across all tool types)
+          let args: Record<string, unknown>
           try {
-            args = JSON.parse(tc.function.arguments || '{}') as { command: string; _status?: string }
-            if (!args.command || typeof args.command !== 'string') {
-              messages.push({ role: 'tool', content: 'Error: malformed tool call — no command string. Try again.', tool_call_id: tc.id })
-              toolCalls++
-              continue
-            }
+            args = JSON.parse(tc.function.arguments || '{}') as Record<string, unknown>
           } catch {
             messages.push({ role: 'tool', content: 'Error: could not parse tool arguments. Ensure valid JSON.', tool_call_id: tc.id })
             toolCalls++
             continue
           }
 
-          // 1. Emit status to UI if present (before execution)
-          if (args._status) {
-            callbacks?.onStatus?.(args._status)
-          }
+          // Route by tool name
+          if (tc.function.name === 'shell') {
+            // === SHELL PATH (string command) ===
+            const command = args.command as string
+            if (!command || typeof command !== 'string') {
+              messages.push({ role: 'tool', content: 'Error: malformed tool call \u2014 no command string. Try again.', tool_call_id: tc.id })
+              toolCalls++
+              continue
+            }
 
-          // 2. Emit compact action echo (truncate heredocs)
-          const displayCmd = args.command?.includes('<<')
-            ? args.command.split('<<')[0].trim() + ' << ...'
-            : (args.command ?? '')
-          callbacks?.onAction?.(`▸ shell: ${displayCmd}`)
+            // 1. Emit status to UI if present (before execution)
+            if (args._status) {
+              callbacks?.onStatus?.(String(args._status))
+            }
 
-          console.log('[Ralph] Executing tool:', tc.function.name, 'command:', args.command)
-          const result = await shell.execute(args.command, cwd)
-          const output = result.stdout + (result.stderr ? `\nSTDERR: ${result.stderr}` : '')
-          console.log('[Ralph] Tool result (truncated):', output.slice(0, 200))
-          callbacks?.onToolCall?.(args.command, output)
+            // 2. Emit compact action echo (truncate heredocs)
+            const displayCmd = command.includes('<<')
+              ? command.split('<<')[0].trim() + ' << ...'
+              : command
+            callbacks?.onAction?.(`\u25b8 shell: ${displayCmd}`)
 
-          // Track command attempt for observability
-          const parsedCmd = parseCommandString(args.command)
-          const isSuccess = result.exitCode === 0
-          commandAttempts.push({
-            command: parsedCmd.command,
-            args: parsedCmd.args,
-            success: isSuccess,
-            error: isSuccess ? undefined : result.stderr,
-            timestamp: Date.now(),
-          })
+            console.log('[Ralph] Executing tool:', tc.function.name, 'command:', command)
+            const result = await shell.execute(command, cwd)
+            const output = result.stdout + (result.stderr ? `\nSTDERR: ${result.stderr}` : '')
+            console.log('[Ralph] Tool result (truncated):', output.slice(0, 200))
+            callbacks?.onToolCall?.(command, output)
 
-          // Record gap if command not found and tracking is enabled
-          if (config?.observability?.trackGaps && result.exitCode === 127 && isCommandNotFoundError(result.stderr)) {
-            await recordGap(fs, cwd, {
+            // Track command attempt for observability
+            const parsedCmd = parseCommandString(command)
+            const isSuccess = result.exitCode === 0
+            commandAttempts.push({
               command: parsedCmd.command,
               args: parsedCmd.args,
-              error: result.stderr,
-              context: task.slice(0, 200),
-              reasoning: args._status,
-              taskId: `iteration-${iteration}`,
+              success: isSuccess,
+              error: isSuccess ? undefined : result.stderr,
+              timestamp: Date.now(),
             })
-            callbacks?.onGapRecorded?.(parsedCmd.command)
+
+            // Record gap if command not found and tracking is enabled
+            if (config?.observability?.trackGaps && result.exitCode === 127 && isCommandNotFoundError(result.stderr)) {
+              await recordGap(fs, cwd, {
+                command: parsedCmd.command,
+                args: parsedCmd.args,
+                error: result.stderr,
+                context: task.slice(0, 200),
+                reasoning: String(args._status ?? ''),
+                taskId: `iteration-${iteration}`,
+              })
+              callbacks?.onGapRecorded?.(parsedCmd.command)
+            }
+
+            // Strip _status from tool call before storing in context
+            tc.function.arguments = JSON.stringify({ command })
+
+            messages.push({ role: 'tool', content: output, tool_call_id: tc.id })
+
+          } else if (toolkit.promotedCommands.has(tc.function.name)) {
+            // === DISCRETE TOOL PATH (typed args) ===
+            const cmd = shell.getCommand(tc.function.name)
+            if (!cmd?.argsSchema) {
+              messages.push({ role: 'tool', content: `Error: ${tc.function.name} is not a valid discrete tool.`, tool_call_id: tc.id })
+              toolCalls++
+              continue
+            }
+
+            // Action echo
+            const argsSummary = Object.entries(args)
+              .slice(0, 3)
+              .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+              .join(' ')
+            callbacks?.onAction?.(`\u25b8 ${tc.function.name}: ${argsSummary.slice(0, 80)}`)
+
+            console.log('[Ralph] Executing discrete tool:', tc.function.name, 'args:', JSON.stringify(args).slice(0, 200))
+
+            // Validate via schema
+            const parseResult = cmd.argsSchema.safeParse(args)
+            if (!parseResult.success) {
+              const errResult = structuredError(cmd, parseResult)
+              const output = errResult.stderr
+              console.log('[Ralph] Schema validation failed:', output.slice(0, 200))
+              callbacks?.onToolCall?.(tc.function.name, output)
+              messages.push({ role: 'tool', content: output, tool_call_id: tc.id })
+              toolCalls++
+              continue
+            }
+
+            // Execute with validated args
+            const shellOptions: ShellOptions = { cwd, fs, git, preview: shell.previewContext }
+            const result = await cmd.execute(parseResult.data, shellOptions)
+            const output = result.stdout + (result.stderr ? `\nSTDERR: ${result.stderr}` : '')
+            console.log('[Ralph] Discrete tool result (truncated):', output.slice(0, 200))
+            callbacks?.onToolCall?.(tc.function.name, output)
+
+            // Track command attempt
+            commandAttempts.push({
+              command: tc.function.name,
+              args: Object.keys(args),
+              success: result.exitCode === 0,
+              error: result.exitCode === 0 ? undefined : result.stderr,
+              timestamp: Date.now(),
+            })
+
+            messages.push({ role: 'tool', content: output, tool_call_id: tc.id })
+
+          } else {
+            // === UNKNOWN TOOL ===
+            messages.push({ role: 'tool', content: `Error: unknown tool "${tc.function.name}". Use "shell" for command execution.`, tool_call_id: tc.id })
           }
 
-          // 3. Strip _status from tool call before storing in context
-          // We need to modify the response before it goes into messages
-          tc.function.arguments = JSON.stringify({ command: args.command })
-
-          messages.push({ role: 'tool', content: output, tool_call_id: tc.id })
           toolCalls++
 
           // Early exit if Ralph marked complete mid-batch

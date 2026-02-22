@@ -2,10 +2,35 @@ import type { JSRuntimeFS } from '../fs/types'
 import type { Git } from '../git'
 import type { IframeProbeResult } from '../preview/snapshot'
 
-export interface ShellCommand {
+// ============================================================================
+// ARGUMENT SCHEMA TYPES (structural — satisfied by Zod schemas)
+// ============================================================================
+
+/** Structural type for argument schema (satisfied by Zod schemas) */
+export interface ArgsSchema<T> {
+  parse(data: unknown): T
+  safeParse(data: unknown): SafeParseResult<T>
+  toJSONSchema(): Record<string, unknown>
+}
+
+export type SafeParseResult<T> =
+  | { readonly success: true; readonly data: T }
+  | { readonly success: false; readonly error: { readonly issues: ReadonlyArray<{ path: (string | number)[]; code: string; message: string }> } }
+
+// ============================================================================
+// SHELL COMMAND INTERFACE
+// ============================================================================
+
+export interface ShellCommand<T = string[]> {
   name: string
   description: string
-  execute(args: string[], options: ShellOptions): Promise<ShellResult>
+  /** Zod schema for typed arguments. Enables dual-mode dispatch. */
+  argsSchema?: ArgsSchema<T>
+  /** Examples for LLM guidance (shown in tool descriptions) */
+  examples?: string[]
+  /** Convert raw CLI args to typed shape for schema validation */
+  parseCliArgs?(args: string[]): unknown
+  execute(args: T, options: ShellOptions): Promise<ShellResult>
 }
 
 export interface ShellOptions {
@@ -41,6 +66,6 @@ export interface ParsedCommand {
 }
 
 export interface ShellExecutor {
-  registerCommand(command: ShellCommand): void
+  registerCommand(command: ShellCommand<any>): void
   execute(commandLine: string, options: ShellOptions): Promise<ShellResult>
 }
