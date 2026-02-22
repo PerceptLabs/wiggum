@@ -19,6 +19,7 @@ import codeQualitySkill from '../../skills/code-quality/SKILL.md?raw'
 import themingSkill from '../../skills/theming/SKILL.md?raw'
 import gumdropsSkill from '../../skills/gumdrops/SKILL.md?raw'
 import extendedLibrariesSkill from '../../skills/extended-libraries/SKILL.md?raw'
+import planningSkill from '../../skills/planning/SKILL.md?raw'
 
 // Glob import for individual gumdrop recipe files (populated in B2/B3)
 const gumdropRecipes = import.meta.glob<string>(
@@ -42,6 +43,7 @@ import { parseSkillFile } from '../skills/parser'
  * 3. Theming skill - Theme command, presets, OKLCH, animations, tokens, smart merge
  * 4. Gumdrops - Compositional recipes for sections, pages, data flows
  * 5. Extended libraries - npm packages beyond stack, with when-to-use guidance
+ * 6. Planning - plan.tsx component API, constrained props, examples
  */
 const SKILLS = [
   { id: 'frontend-design', content: frontendDesignSkill, priority: 0 },
@@ -50,6 +52,7 @@ const SKILLS = [
   { id: 'theming', content: themingSkill, priority: 3 },
   { id: 'gumdrops', content: gumdropsSkill, priority: 4 },
   { id: 'extended-libraries', content: extendedLibrariesSkill, priority: 5 },
+  { id: 'planning', content: planningSkill, priority: 6 },
 ]
 
 /**
@@ -95,6 +98,7 @@ Available knowledge bases you can search:
 | theming | Theme command, 12 presets, sacred geometry, OKLCH colors, animations, dark mode, tokens, smart merge |
 | gumdrops | Compositional recipes: marketing, app, content, interactive patterns |
 | extended-libraries | Available npm packages, when-to-use, import patterns, cache management |
+| planning | plan.tsx component API, constrained props, screen/section structure, examples |
 
 ## How to Use
 

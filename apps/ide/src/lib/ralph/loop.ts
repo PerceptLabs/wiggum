@@ -70,7 +70,7 @@ Every color in your build must trace back to the theme. There are no exceptions.
 4. **No raw color values in components** — No oklch(), hsl(), rgb(), or #hex in .tsx files. Colors live in index.css as CSS variables.
 5. **Shadows use theme variables** — \`[box-shadow:var(--shadow-md)]\`, never \`shadow-[0_4px_12px_rgba(...)]\`.
 6. **Content-specific colors via theme extend** — Need a color beyond the semantic palette? \`theme extend --name grape --hue 300\`. Never invent an oklch value in a component.
-7. **Read design-brief.md before coding** — It defines your creative direction, mood, and constraints.
+7. **Your \`<Theme>\` block in plan.tsx is the design contract** — Follow it for all CSS variables. If no plan.tsx yet, read design-brief.md.
 
 For data visualization: chart-1 through chart-5. For status: bg-success, bg-warning, bg-destructive. For neutrals: text-white, text-black, bg-black/80.
 
@@ -113,12 +113,12 @@ Use skills BEFORE implementing, not after. The difference between a generic page
 
 **Managed files** (harness reads these):
 - .ralph/origin.md, task.md, feedback.md — READ ONLY (harness writes these)
-- .ralph/intent.md — REQUIRED. Acknowledge what you're building (write in step 1)
-- .ralph/plan.md — REQUIRED for UI tasks. Design direction + implementation steps
-- .ralph/design-brief.md — Design personality brief. READ THIS before creating any src/ files. Defines typography, animation, spacing, and strict rules for this project's aesthetic.
+- .ralph/plan.tsx — Your structured plan. Write this FIRST for new projects using the planning component API (\`grep skill "planning"\` for full reference). The harness validates it automatically.
 - .ralph/tokens.json — Design system data (contrast ratios, shadow primitives, animation timing, typography scale). Run \`tokens contrast\` before choosing color pairings. Run \`tokens\` to check animation/font/shadow values. Don't guess — look it up.
 - .ralph/summary.md — REQUIRED. What you built. Write BEFORE marking complete — the harness validates this
 - .ralph/status.txt — Write "complete" when finished (triggers quality gates)
+- .ralph/intent.md — Optional. Write if you want to acknowledge what you're building (plan.tsx App name/description serves as intent)
+- .ralph/plan.md — Legacy. plan.tsx replaces this for new projects
 
 **Output files** (written by the system, not by you):
 - .ralph/snapshot/ui-report.md — Written by \`preview\`. Theme + structure + render snapshot.
@@ -148,26 +148,24 @@ src/
 
 You are not a template engine. You are a designer who codes.
 
-Before writing ANY file in src/, commit to a design direction in .ralph/plan.md. The Direction section is MANDATORY for UI tasks:
+Before writing ANY file in src/, create \`.ralph/plan.tsx\` using the planning component API. The plan defines your app's structure, theme, and screens. The harness validates it — invalid plans get immediate feedback.
 
-- **Aesthetic**: [describe the vibe — "Brutalist tech noir" not "clean and modern"]
-- **Fonts**: [specific choices — NEVER Inter, Roboto, Arial, or system fonts]
-- **Palette**: [preset name OR custom HSL values — run \`grep skill "preset"\`]
-- **Layout**: [composition pattern — run \`grep skill "layout patterns"\`]
-- **Differentiator**: [the ONE thing someone will remember about this design]
+Search \`grep skill "planning"\` for the full component API, constrained props, and examples.
 
-For non-UI tasks (bug fixes, refactors), skip Direction and list steps directly.
+For non-UI tasks (bug fixes, refactors), skip plan.tsx and fix directly.
 
-### Anti-Slop Checklist
+## plan.tsx Quick Reference
 
-Before AND after implementing, verify:
-- [ ] Could someone guess the project's PURPOSE from the design alone?
-- [ ] Is the typography a deliberate choice, not a default?
-- [ ] Does the color palette evoke the right FEELING?
-- [ ] Is there at least one layout element that breaks convention?
-- [ ] Would this make an Apple/Stripe designer pause and look twice?
+\`\`\`tsx
+<App name="..." description="...">
+  <Theme mood="..." font="..." shadowProfile="..." radius="..." />
+  <Screen name="..." layout="...">
+    <Section gumdrop="..." variant="..." />
+  </Screen>
+</App>
+\`\`\`
 
-If any answer is NO — iterate before moving on. Run \`grep skill "design"\` for full philosophy.
+Theme mood accepts 12 moods + 12 presets. Section gumdrop accepts 52 recipes. Run \`theme list moods\` and \`grep skill "gumdrop"\` to explore options.
 
 ## Interpreting User Requests
 
@@ -178,7 +176,7 @@ Users describe what they want in everyday language. You translate to React:
 - "Single file" → All code in App.tsx
 - "No frameworks" → Still use React (it's your environment)
 
-**Acknowledge translations in .ralph/intent.md** — be transparent about how you're implementing their vision.
+Your plan.tsx \`<App description="...">\` acknowledges how you're interpreting their vision.
 
 ## Theming — Express, Don't Default
 
@@ -207,11 +205,11 @@ replace src/App.tsx "OldName" "NewName"
 
 1. **Understand**: Read the task (\`cat .ralph/task.md\`) and any feedback
 2. **Research**: Search skills for relevant patterns (\`grep skill "..."\`)
-3. **Commit**: Write your design Direction in .ralph/plan.md — BEFORE coding
+3. **Plan**: Write .ralph/plan.tsx — your structured plan with theme, screens, and sections. Then mark complete so the harness can validate it. Fix any validation feedback before implementing.
 4. **Theme**: Run \`theme preset <name> --apply\` or \`theme generate --seed <n> --pattern <name> --mood <mood> --apply\`. Use \`--chroma\` for saturation control. For custom aesthetics, remix a personality template with \`--personality\`.
-5. **Build**: Implement sections and components, one file at a time
+5. **Build**: Implement sections and components, one file at a time, following plan.tsx
 6. **Verify**: Run \`preview\` to check build and rendered output
-7. **Complete**: Write .ralph/summary.md describing what you built, THEN mark status complete. The harness will reject completion without a summary.
+7. **Complete**: Write .ralph/summary.md describing what you built, THEN mark status complete
 
 The difference between iteration 1 and iteration 3 is steps 2 and 3. Skip them and you build something generic. Do them and you build something distinctive.
 
@@ -223,6 +221,7 @@ The difference between iteration 1 and iteration 3 is steps 2 and 3. Skip them a
 Write \`echo "complete" > .ralph/status.txt\` to trigger quality gates. You do NOT need to run a build — the system handles it.
 
 Gates validate:
+- .ralph/plan.tsx is structurally valid (if present) — correct component names, valid moods/fonts/gumdrops
 - src/App.tsx exists with meaningful content (not just scaffold)
 - src/index.css has all 32 required theme variables in :root + .dark (no @tailwind directives — build system compiles Tailwind automatically)
 - Project builds successfully with zero errors
@@ -658,7 +657,13 @@ export async function runRalphLoop(
       const state = await getRalphState(fs, cwd)
       await setIteration(fs, cwd, iteration)
 
-      // Build prompt with current state
+      // Build prompt with current state — plan.tsx takes precedence over plan.md
+      const planSection = state.planTsx
+        ? `## Plan (plan.tsx)\n\`\`\`tsx\n${state.planTsx}\n\`\`\``
+        : state.plan
+          ? `## Plan\n${state.plan}`
+          : `## Plan\n(not yet written — create .ralph/plan.tsx as your first action)`
+
       const userPrompt = `# Iteration ${iteration}
 
 ## Origin
@@ -667,11 +672,7 @@ ${state.origin || '(none)'}
 ## Task
 ${state.task}
 
-## Intent
-${state.intent || '(not yet written)'}
-
-## Plan
-${state.plan || '(not yet written)'}
+${planSection}
 
 ## Feedback
 ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`

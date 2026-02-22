@@ -213,6 +213,7 @@ export interface RalphState {
   origin: string
   intent: string
   plan: string
+  planTsx: string
   summary: string
   feedback: string
   iteration: number
@@ -224,6 +225,7 @@ const FILES = {
   origin: `${RALPH_DIR}/origin.md`,
   intent: `${RALPH_DIR}/intent.md`,
   plan: `${RALPH_DIR}/plan.md`,
+  planTsx: `${RALPH_DIR}/plan.tsx`,
   summary: `${RALPH_DIR}/summary.md`,
   feedback: `${RALPH_DIR}/feedback.md`,
   iteration: `${RALPH_DIR}/iteration.txt`,
@@ -330,6 +332,7 @@ export async function getRalphState(fs: JSRuntimeFS, cwd: string): Promise<Ralph
     origin: await readFile(fs, path.join(cwd, FILES.origin), ''),
     intent: await readFile(fs, path.join(cwd, FILES.intent), ''),
     plan: await readFile(fs, path.join(cwd, FILES.plan), ''),
+    planTsx: await readFile(fs, path.join(cwd, FILES.planTsx), ''),
     summary: await readFile(fs, path.join(cwd, FILES.summary), ''),
     feedback: await readFile(fs, path.join(cwd, FILES.feedback), ''),
     iteration: parseInt(await readFile(fs, path.join(cwd, FILES.iteration), '0'), 10),
