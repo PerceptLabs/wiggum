@@ -135,8 +135,21 @@ function stripFdRedirects(tokens: ReturnType<typeof parse>): ReturnType<typeof p
   return result
 }
 
+/**
+ * Strip fd redirects from raw command string before shell-quote tokenization.
+ * shell-quote splits `2>/dev/null` into three tokens ("2", {op:">"}, "/dev/null")
+ * which the redirect handler interprets as a file write. Pre-strip avoids this.
+ */
+export function stripFdRedirectsFromRaw(raw: string): string {
+  return raw
+    .replace(/\s+2>\s*\/dev\/null/g, '')
+    .replace(/\s+2>&1/g, '')
+    .replace(/\s+1>\s*\/dev\/null/g, '')
+}
+
 function parseSingleCommand(input: string): ParsedCommand[] {
-  const tokens = stripFdRedirects(parse(input))
+  const cleaned = stripFdRedirectsFromRaw(input)
+  const tokens = stripFdRedirects(parse(cleaned))
 
   if (tokens.length === 0) {
     return []

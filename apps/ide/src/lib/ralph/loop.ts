@@ -116,6 +116,16 @@ Use skills BEFORE implementing, not after. The difference between a generic page
 - .ralph/summary.md — REQUIRED. What you built. Write BEFORE marking complete — the harness validates this
 - .ralph/status.txt — Write "complete" when finished (triggers quality gates)
 
+**Output files** (written by the system, not by you):
+- .ralph/snapshot/ui-report.md — Written by \`preview\`. Theme + structure + render snapshot.
+- .ralph/build-errors.md — Written by gates. Build compilation errors.
+- .ralph/errors.md — Written by gates. Runtime JS errors.
+- .ralph/console.md — Written by gates. Console output (log, warn, error).
+
+Use \`cat .ralph/snapshot/ui-report.md\` after \`preview\` to inspect rendered output.
+Read .ralph/build-errors.md and .ralph/errors.md after gate failures for diagnostics.
+Do NOT invent filenames — only these files exist.
+
 **Scratch space** — create any files you need:
 - .ralph/notes.md, .ralph/debug.txt, .ralph/check.md — anything goes
 - No extension restrictions in .ralph/
@@ -214,7 +224,7 @@ Gates validate:
 - Project builds successfully with zero errors
 - .ralph/summary.md exists with meaningful content
 
-If gates fail, feedback appears in .ralph/feedback.md. Read it, fix the issues, mark complete again. You have 3 attempts.
+If gates fail, feedback appears in .ralph/feedback.md. Read it, fix the issues, mark complete again. You have 5 attempts.
 
 **STOP ITERATING.** The goal is functional completion, not pixel perfection. After gates pass, do ONE polish check: run \`cat .ralph/snapshot/ui-report.md\` and \`tokens contrast\`, fix any FAIL contrast pairs or clearly broken layout, then mark complete. If you find yourself making the same type of change twice, STOP and mark complete immediately. Small visual tweaks can be done later.
 
@@ -268,7 +278,7 @@ function buildSystemPrompt(skillsContent: string): string {
 
 const MAX_ITERATIONS = 20
 const MAX_TOOL_CALLS_PER_ITERATION = 50
-const MAX_CONSECUTIVE_GATE_FAILURES = 3
+const MAX_CONSECUTIVE_GATE_FAILURES = 5
 
 const SHELL_TOOL: Tool = {
   type: 'function',
@@ -283,7 +293,7 @@ const SHELL_TOOL: Tool = {
 - Search/replace: grep, find, replace
 - VCS: git
 - System: date, env, whoami, which, true, false, clear, paths
-- Preview: console, preview
+- Preview: console, preview, build
 - Design: theme, tokens
 - Modules: modules, cache-stats, build-cache
 
@@ -292,6 +302,7 @@ const SHELL_TOOL: Tool = {
 - sed = regex patterns, line operations, stream editing
 - paths = show where you can write files and which extensions are allowed
 - preview = build project and render static HTML snapshot
+- build = compile-only check (no preview or gates)
 - theme = OKLCH theme generator (preset/generate/modify/extend/list). --mood required for generate --apply. --chroma low|medium|high controls saturation. --personality <file> for custom briefs. Use --apply to write directly to src/index.css. Use 'theme extend --name <name> --hue <deg>' for content-specific colors beyond the semantic palette.
 - cat @wiggum/stack = list available components and hooks
 - modules = manage ESM module cache (list/status/warm/clear)
@@ -502,6 +513,19 @@ RIGHT (what you must do):
 Remember: Your text responses should ONLY contain brief reasoning. ALL actions happen through tool calls.`
 
 /**
+ * Check whether Ralph has written meaningful content to src/.
+ * Used to avoid counting gate failures during the orientation phase.
+ */
+async function hasWrittenSrcFiles(fs: JSRuntimeFS, cwd: string): Promise<boolean> {
+  try {
+    const appContent = await fs.readFile(`${cwd}/src/App.tsx`, { encoding: 'utf8' }) as string
+    return appContent.length > 200
+  } catch {
+    return false
+  }
+}
+
+/**
  * Handle gate results with unified logic — replaces 3 duplicate blocks.
  * Returns 'success' (gates passed), 'retry' (gates failed, continue), or 'abort' (too many failures).
  */
@@ -518,6 +542,16 @@ async function handleGateResult(
 
   if (gateResults.passed) {
     return { action: 'success', failures: 0 }
+  }
+
+  // Don't count failures before Ralph has done real work (orientation phase)
+  const hasWorked = await hasWrittenSrcFiles(fs, cwd)
+  if (!hasWorked) {
+    const feedback = generateGateFeedback(gateResults.results)
+    await fs.writeFile(`${cwd}/.ralph/feedback.md`, feedback, { encoding: 'utf8' })
+    await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running', { encoding: 'utf8' })
+    callbacks?.onStatus?.('Quality gates checked (pre-work — not counting as failure)')
+    return { action: 'retry', failures: consecutiveGateFailures }
   }
 
   const newCount = consecutiveGateFailures + 1

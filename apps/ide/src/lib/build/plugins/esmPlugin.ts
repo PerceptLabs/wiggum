@@ -174,6 +174,11 @@ export function createESMPlugin(options: ESMPluginOptions = {}): Plugin {
 
       // Handle bare module specifiers that weren't resolved by fsPlugin
       build.onResolve({ filter: /^[^./]/ }, (args) => {
+        // Don't intercept data: or blob: URIs — valid browser-native resources
+        if (args.path.startsWith('data:') || args.path.startsWith('blob:')) {
+          return { external: true }
+        }
+
         // Skip if already in http namespace (relative imports from CDN)
         if (args.namespace === HTTP_NAMESPACE) {
           const resolvedUrl = resolveUrl(args.path, args.importer)

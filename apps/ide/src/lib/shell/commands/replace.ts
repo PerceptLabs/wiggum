@@ -130,6 +130,12 @@ function escapeRegex(str: string): string {
 /**
  * Format a helpful no-match error with fuzzy suggestions
  */
+/** Truncate long strings for error display */
+function truncate(str: string, maxLen = 80): string {
+  if (str.length <= maxLen) return str
+  return str.slice(0, maxLen - 3) + '...'
+}
+
 function formatNoMatchError(
   fileContent: string,
   searchStr: string,
@@ -137,7 +143,16 @@ function formatNoMatchError(
   wasWhitespace: boolean
 ): string {
   const wsNote = wasWhitespace ? ' (even with whitespace tolerance)' : ''
-  const lines: string[] = [`⚠ No match found for "${searchStr}" in ${fileName}${wsNote}`]
+  const display = truncate(searchStr.replace(/\n/g, '\\n'))
+  const lines: string[] = [`⚠ No match found for "${display}" in ${fileName}${wsNote}`]
+
+  // Priority: detect multi-line search strings
+  if (searchStr.includes('\n')) {
+    lines.push('')
+    lines.push('Note: The search string contains newlines. `replace` works best with single-line strings.')
+    lines.push(`To rewrite a section, use: cat > ${fileName} << 'EOF'`)
+    return lines.join('\n')
+  }
 
   // Find fuzzy suggestions
   const suggestions = findFuzzySuggestions(fileContent, searchStr)
