@@ -10,6 +10,8 @@ import { buildProject } from '../build'
 import type { GateContext } from '../types/observability'
 import { formatRuntimeErrors } from '../preview/error-collector'
 import { noHardcodedColorsGate } from './color-gate'
+import { parsePlanTsx } from '../build/plan-parser'
+import { validatePlan } from '@wiggum/planning/validate'
 
 // ============================================================================
 // TYPES
@@ -251,6 +253,40 @@ export const QUALITY_GATES: QualityGate[] = [
         pass: exists,
         feedback: exists ? undefined : 'Missing src/App.tsx - create your main App component',
       }
+    },
+  },
+
+  {
+    name: 'plan-valid',
+    description: 'Plan file must be structurally valid if present',
+    check: async (fs, cwd) => {
+      const content = await readFile(fs, `${cwd}/.ralph/plan.tsx`)
+      if (!content) return { pass: true } // No plan yet — backward compat
+
+      const { root, errors } = await parsePlanTsx(content)
+      if (errors.length > 0) {
+        return { pass: false, feedback: `plan.tsx has syntax errors:\n${errors.join('\n')}` }
+      }
+
+      const result = validatePlan(root)
+
+      if (result.failures.length > 0) {
+        const lines = result.failures.map(f => `FAIL [${f.id}]: ${f.message}`)
+        if (result.warnings.length > 0) {
+          lines.push('', ...result.warnings.map(w => `WARN [${w.id}]: ${w.message}`))
+        }
+        return { pass: false, feedback: lines.join('\n') }
+      }
+
+      if (result.warnings.length > 0) {
+        return {
+          pass: true,
+          feedback: 'Plan valid. Warnings:\n' +
+            result.warnings.map(w => `WARN [${w.id}]: ${w.message}`).join('\n'),
+        }
+      }
+
+      return { pass: true }
     },
   },
 

@@ -51,6 +51,9 @@ importers:
       '@types/prismjs':
         specifier: ^1.26.5
         version: 1.26.5
+      '@wiggum/planning':
+        specifier: workspace:*
+        version: link:../../packages/planning
       '@wiggum/stack':
         specifier: workspace:*
         version: link:../../packages/stack
