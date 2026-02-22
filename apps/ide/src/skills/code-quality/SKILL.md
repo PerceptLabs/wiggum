@@ -33,18 +33,43 @@ Rules you MUST follow. Use `grep skill "<topic>"` for details.
 
 ## Dark Mode / Theming (CRITICAL)
 
-Native form elements ignore CSS variables. Always add to src/index.css:
+CSS variables contain full OKLCH color values. Use `var(--name)` directly — never wrap in `hsl()` or `oklch()`.
+
+```css
+/* CORRECT — variables contain complete color values */
+background-color: var(--background);
+color: var(--foreground);
+border-color: var(--border);
+
+/* WRONG — double-wrapping breaks the color */
+background-color: hsl(var(--background));    /* ❌ */
+background-color: oklch(var(--background));  /* ❌ */
+```
+
+Native form elements ignore CSS variables in dark mode. Always add to src/index.css (after the theme zone):
 
 ```css
 select, input, textarea {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background-color: var(--background);
+  color: var(--foreground);
+  border-color: var(--border);
 }
 
 select option {
-  background-color: hsl(var(--popover));
-  color: hsl(var(--popover-foreground));
+  background-color: var(--popover);
+  color: var(--popover-foreground);
 }
+```
+
+**Opacity with Tailwind v4:** Use native opacity modifiers — they work with OKLCH:
+```
+bg-primary/30        /* 30% opacity — Tailwind v4 handles this natively */
+text-foreground/70   /* 70% opacity */
+```
+
+For CSS (not Tailwind), use `color-mix`:
+```css
+color-mix(in oklch, var(--primary), transparent 60%)  /* 40% primary */
 ```
 
 ## Overlays & Modals (CRITICAL)

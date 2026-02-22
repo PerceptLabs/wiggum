@@ -6,7 +6,7 @@ when_to_use: Building any UI, forms, layouts, or user-facing components
 
 # @wiggum/stack
 
-Theme-agnostic React component library with 53 components built on Radix primitives.
+Theme-agnostic React component library with 60+ components built on Radix primitives.
 
 ## RULES (Non-Negotiable)
 
@@ -59,11 +59,12 @@ Theme-agnostic React component library with 53 components built on Radix primiti
 | Tooltip | `Tooltip` | `<Tooltip>...</Tooltip>` |
 | Loading | `Spinner` | `<Spinner />` |
 
-## Required Skills
+## Related Skills
 
-Before writing UI code, you MUST also follow:
-- `react-best-practices` - Performance patterns (waterfalls, bundle size)
-- `web-design-guidelines` - Accessibility & UX rules
+Search for implementation guidance:
+- `grep skill "accessibility"` — a11y rules, focus states, labels
+- `grep skill "dark mode"` — theming, form contrast
+- `grep skill "layout patterns"` — composition, sequencing rules
 
 ## Import Pattern
 
@@ -92,7 +93,7 @@ src/
 └── pages/               # Route pages (if multi-page)
 ```
 
-## Available Components (53)
+## Available Components (60+)
 
 ### Layout
 | Component | Parts |

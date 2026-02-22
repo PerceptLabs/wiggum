@@ -8,8 +8,8 @@
  * instead of being dumped into every prompt (~800 lines → ~30 lines).
  */
 
-// Stack's authoritative skill (source of truth)
-import stackSkill from '../../../../../packages/stack/SKILL.md?raw'
+// Component library skill
+import stackSkill from '../../skills/stack/SKILL.md?raw'
 
 // Master design skill (read first)
 import frontendDesignSkill from '../../skills/frontend-design/SKILL.md?raw'
@@ -38,8 +38,8 @@ import { parseSkillFile } from '../skills/parser'
  * Skills in priority order:
  * 0. Frontend design - Design thinking, aesthetic direction, anti-slop philosophy
  * 1. Stack skill - authoritative rules and component documentation
- * 2. Code quality - React patterns, accessibility, dark mode, overlays
- * 3. Theming skill - CSS variables, animations, design philosophy
+ * 2. Code quality - React patterns, accessibility, OKLCH theming, overlays
+ * 3. Theming skill - Theme command, presets, OKLCH, animations, tokens, smart merge
  * 4. Gumdrops - Compositional recipes for sections, pages, data flows
  * 5. Extended libraries - npm packages beyond stack, with when-to-use guidance
  */
@@ -89,12 +89,12 @@ Available knowledge bases you can search:
 
 | Skill | Topics |
 |-------|--------|
-| frontend-design | Design thinking, aesthetic direction, anti-slop philosophy |
-| stack | Components, imports, project structure |
-| code-quality | React patterns, accessibility, form contrast, overlays |
-| theming | CSS variables, colors, animations, dark mode |
+| frontend-design | Design thinking, aesthetic direction, anti-slop philosophy, design briefs |
+| stack | 60+ components, imports, project structure |
+| code-quality | React patterns, accessibility, OKLCH theming, form contrast, overlays |
+| theming | Theme command, 12 presets, sacred geometry, OKLCH colors, animations, dark mode, tokens, smart merge |
 | gumdrops | Compositional recipes: marketing, app, content, interactive patterns |
-| extended-libraries | Available npm packages, when-to-use, import patterns |
+| extended-libraries | Available npm packages, when-to-use, import patterns, cache management |
 
 ## How to Use
 

@@ -21,6 +21,8 @@ For every project, answer these before coding:
    - Don't pick from this list literally — let the PROJECT drive the aesthetic
 3. **Differentiation** — What's the one thing someone will remember about this?
 
+**Design Briefs:** When the `theme` command runs with `--mood`, it generates `.ralph/design-brief.md` — a personality brief with typography hierarchy, animation timing, spacing rhythm, and strict rules. Read it before writing any code in src/. It's your creative director for this project.
+
 **Bold maximalism and refined minimalism both work.** The key is intentionality, not intensity. Match complexity to the vision — maximalist designs need elaborate animations, minimal designs need precision and restraint.
 
 ## Typography
@@ -131,15 +133,16 @@ This skill defines philosophy. For implementation details, grep these:
 
 | Skill | What It Covers |
 |-------|---------------|
-| `stack` | Components, imports, project structure |
-| `theming` | CSS variables, dark mode, animation library |
+| `stack` | 60+ components, imports, project structure |
+| `theming` | Theme command, presets, OKLCH colors, animations, dark mode |
 | `gumdrops` | Compositional recipes, page templates, anti-slop |
 | `code-quality` | React patterns, accessibility, form contrast |
+| `extended-libraries` | npm packages beyond stack, when-to-use guidance |
 
 ```bash
-grep skill "<topic>"      # Search all skills
-cat .skills/theming.md    # Read full skill
-cat .skills/gumdrops.md   # Read full skill
+grep skill "<topic>"           # Search all skills by keyword
+grep skill "layout patterns"   # Find layout recipes
+grep skill "animation"         # Find animation guidance
 ```
 
 ## No Two Projects Should Look The Same

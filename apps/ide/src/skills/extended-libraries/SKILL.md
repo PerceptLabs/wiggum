@@ -10,6 +10,8 @@ Available npm packages beyond `@wiggum/stack`. All are ESM-verified and cached v
 
 **Discovery:** Use `grep package "<query>"` to find the right package for a use case.
 
+**Cache management:** Use `modules list` to see cached packages, `modules status` for cache stats, `modules warm <pkg>` to pre-cache, `modules clear` to reset.
+
 ## Behavior
 
 ### motion (Framer Motion)

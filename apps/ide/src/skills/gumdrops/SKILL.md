@@ -81,7 +81,7 @@ Every page with 5+ sections MUST include at least one section that breaks the ex
 
 ## Component Reach Map
 
-The "you have 53 components but use 8" problem. Three tiers:
+The "you have 60+ components but use 8" problem. Three tiers:
 
 | Intent | Basic (Ralph default) | Better | Best |
 |--------|----------------------|--------|------|
@@ -119,6 +119,7 @@ The "you have 53 components but use 8" problem. Three tiers:
 | ContextMenu | Right-click menus | File browsers, kanban cards, table rows |
 | Kbd | Keyboard shortcut display | Command palette footer, nav hints, tooltips |
 | Progress | Visual completion indicator | File upload, onboarding, multi-step wizards |
+| Carousel | Embla-powered accessible carousel | Testimonials, image gallery, feature showcase |
 
 ---
 
