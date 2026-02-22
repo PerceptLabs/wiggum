@@ -12,6 +12,9 @@
       "import": "./src/index.ts"
     }
   },
+  "scripts": {
+    "generate-types": "npx tsx scripts/generate-types.ts"
+  },
   "files": ["src"],
   "peerDependencies": {
     "react": ">=18.0.0"
