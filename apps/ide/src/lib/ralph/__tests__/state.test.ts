@@ -74,10 +74,10 @@ describe('initRalphDir', () => {
       expect(plan).toContain('Create Hero')
     })
 
-    it('preserves non-empty summary.md', async () => {
+    it('clears summary.md on continuation run', async () => {
       await initRalphDir(fs, '/project', 'Fix the colors')
       const summary = await fs.readFile('/project/.ralph/summary.md', { encoding: 'utf8' }) as string
-      expect(summary).toContain('Built hero section')
+      expect(summary).toBe('')
     })
 
     it('resets task.md to new prompt', async () => {

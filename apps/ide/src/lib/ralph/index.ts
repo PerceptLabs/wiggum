@@ -19,3 +19,12 @@ export {
   type RalphCallbacks,
   type RalphResult,
 } from './loop'
+
+export {
+  readTaskCounter,
+  writeTaskCounter,
+  readPreviousSummary,
+  appendTaskHistory,
+  createPreSnapshot,
+  createPostSnapshot,
+} from './task-lifecycle'

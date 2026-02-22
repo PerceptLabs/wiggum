@@ -5,6 +5,7 @@ import { LLMError } from '@/lib/llm'
 import { ShellExecutor } from '@/lib/shell'
 import { registerAllCommands } from '@/lib/shell/commands'
 import { runRalphLoop, type RalphCallbacks } from '@/lib/ralph'
+import { readTaskCounter, writeTaskCounter, readPreviousSummary, appendTaskHistory, createPreSnapshot } from '@/lib/ralph/task-lifecycle'
 import { Git } from '@/lib/git'
 import { getSearchDb } from '@/lib/search'
 import { createErrorCollector } from '@/lib/preview/error-collector'
@@ -190,6 +191,24 @@ export function useAIChat(options: UseChatOptions = {}) {
       // Create abort controller
       abortRef.current = new AbortController()
 
+      // === Task lifecycle: pre-task snapshot ===
+      let taskNumber = 1
+      try {
+        const currentCounter = await readTaskCounter(fs, cwd)
+        taskNumber = currentCounter + 1
+
+        if (currentCounter > 0 && git) {
+          // Not first task — snapshot previous state + record history
+          const previousSummary = await readPreviousSummary(fs, cwd)
+          await appendTaskHistory(fs, cwd, currentCounter, previousSummary)
+          await createPreSnapshot(git, taskNumber)
+        }
+
+        await writeTaskCounter(fs, cwd, taskNumber)
+      } catch (err) {
+        console.error('[useAIChat] Pre-task snapshot failed (non-fatal):', err)
+      }
+
       // Add user message to UI
       const userMessage: AIMessage = { role: 'user', content }
       setState((s) => ({ ...s, messages: [...s.messages, userMessage] }))
@@ -294,7 +313,8 @@ export function useAIChat(options: UseChatOptions = {}) {
               captureReflection: true,
               minIterationsForReflection: 1,
             },
-            gateContext: { errorCollector, fullBuild: options.fullBuild, probeIframe: options.probeIframe as GateContext['probeIframe'] }
+            gateContext: { errorCollector, fullBuild: options.fullBuild, probeIframe: options.probeIframe as GateContext['probeIframe'] },
+            taskCounter: taskNumber,
           }
         )
 

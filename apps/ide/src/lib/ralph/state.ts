@@ -271,8 +271,9 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
 
   // 3. Initialize ephemeral state files (reset each loop)
   await fs.writeFile(path.join(cwd, FILES.task), `# Task\n\n${task}\n`)
-  // Preserve plan/intent/summary from prior runs (continuation support)
-  for (const file of [FILES.intent, FILES.plan, FILES.summary]) {
+  // Preserve plan/intent from prior runs (continuation support)
+  // Summary is always cleared — it belongs to the previous task
+  for (const file of [FILES.intent, FILES.plan]) {
     const filePath = path.join(cwd, file)
     let hasContent = false
     try {
@@ -285,6 +286,7 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
       await fs.writeFile(filePath, '')
     }
   }
+  await fs.writeFile(path.join(cwd, FILES.summary), '')
   await fs.writeFile(path.join(cwd, FILES.feedback), '')
   await fs.writeFile(path.join(cwd, FILES.iteration), '0')
   await fs.writeFile(path.join(cwd, FILES.status), 'running')

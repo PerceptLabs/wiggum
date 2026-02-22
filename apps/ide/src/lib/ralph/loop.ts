@@ -21,6 +21,7 @@ import { runQualityGates, generateGateFeedback, type GatesResult } from './gates
 import type { ObservabilityConfig, GateContext, CommandAttempt, HarnessReflection } from '../types/observability'
 import { recordGap, isCommandNotFoundError, parseCommandString } from './gaps'
 import { buildReflectionPrompt, parseReflectionResponse, saveReflection } from './reflection'
+import { createPostSnapshot } from './task-lifecycle'
 import { getLogBuffer } from '../logger'
 import { buildProject } from '../build'
 
@@ -320,6 +321,8 @@ export interface RalphLoopConfig {
   observability?: ObservabilityConfig
   /** Gate context for quality gates (e.g., error collector) */
   gateContext?: GateContext
+  /** Task counter for automatic post-task snapshots */
+  taskCounter?: number
 }
 
 export interface RalphResult {
@@ -335,6 +338,42 @@ async function gitCommit(git: Git, message: string): Promise<void> {
   } catch {
     // Ignore commit errors (e.g., nothing to commit)
   }
+}
+
+/**
+ * Handle successful task completion — summary, reflection, post-snapshot, callbacks
+ * Extracted from 3 identical success blocks to reduce duplication.
+ */
+async function handleTaskSuccess(
+  provider: LLMProvider,
+  fs: JSRuntimeFS,
+  git: Git,
+  cwd: string,
+  task: string,
+  iteration: number,
+  commandAttempts: CommandAttempt[],
+  config: RalphLoopConfig | undefined,
+  gateContext: GateContext,
+  callbacks?: RalphCallbacks
+): Promise<RalphResult> {
+  const finalState = await getRalphState(fs, cwd)
+  if (finalState.summary) callbacks?.onSummary?.(finalState.summary.trim())
+
+  if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
+    await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
+  }
+
+  // Post-task snapshot
+  if (config?.taskCounter) {
+    try {
+      await createPostSnapshot(git, config.taskCounter)
+    } catch (err) {
+      console.error('[Ralph] Post-task snapshot failed (non-fatal):', err)
+    }
+  }
+
+  callbacks?.onComplete?.(iteration)
+  return { success: true, iterations: iteration }
 }
 
 /**
@@ -828,13 +867,7 @@ ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
         consecutiveGateFailures = gateOutcome.failures
 
         if (gateOutcome.action === 'success') {
-          const finalState = await getRalphState(fs, cwd)
-          if (finalState.summary) callbacks?.onSummary?.(finalState.summary.trim())
-          if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
-            await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
-          }
-          callbacks?.onComplete?.(iteration)
-          return { success: true, iterations: iteration }
+          return await handleTaskSuccess(provider, fs, git, cwd, task, iteration, commandAttempts, config, gateContext, callbacks)
         } else if (gateOutcome.action === 'abort') {
           const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
           return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
@@ -863,13 +896,7 @@ ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
         consecutiveGateFailures = gateOutcome.failures
 
         if (gateOutcome.action === 'success') {
-          const finalState = await getRalphState(fs, cwd)
-          if (finalState.summary) callbacks?.onSummary?.(finalState.summary.trim())
-          if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
-            await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
-          }
-          callbacks?.onComplete?.(iteration)
-          return { success: true, iterations: iteration }
+          return await handleTaskSuccess(provider, fs, git, cwd, task, iteration, commandAttempts, config, gateContext, callbacks)
         } else if (gateOutcome.action === 'abort') {
           const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
           return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
@@ -885,13 +912,7 @@ ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
         consecutiveGateFailures = gateOutcome.failures
 
         if (gateOutcome.action === 'success') {
-          const finalState = await getRalphState(fs, cwd)
-          if (finalState.summary) callbacks?.onSummary?.(finalState.summary.trim())
-          if (config?.observability?.captureReflection && iteration >= (config.observability.minIterationsForReflection || 2)) {
-            await captureReflection(provider, fs, cwd, task, iteration, commandAttempts, gateContext, callbacks)
-          }
-          callbacks?.onComplete?.(iteration)
-          return { success: true, iterations: iteration }
+          return await handleTaskSuccess(provider, fs, git, cwd, task, iteration, commandAttempts, config, gateContext, callbacks)
         } else if (gateOutcome.action === 'abort') {
           const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
           return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
