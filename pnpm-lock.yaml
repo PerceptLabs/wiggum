@@ -203,6 +203,19 @@ importers:
         specifier: ^7.4.0
         version: 7.4.0
 
+  packages/planning:
+    dependencies:
+      react:
+        specifier: '>=18.0.0'
+        version: 19.2.3
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.5
+        version: 19.2.9
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
+
   packages/stack:
     dependencies:
       '@hookform/resolvers':
