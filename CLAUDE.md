@@ -56,7 +56,17 @@ The spec docs were written without your view of the codebase. Your job in the pl
 
 ### After Approval
 
-Execute phase by phase. Test between phases. Stop after each phase and confirm it works before proceeding to the next.
+Execute phase by phase. Test between phases. **Before declaring a phase complete, re-read your approved plan and confirm every item was implemented as described — not a simplified version, not a workaround, not "equivalent."** Stop after each phase and confirm it works before proceeding to the next.
+
+### During Execution
+
+If you hit a point where the approved plan doesn't work as expected, or you see a reason to do something differently:
+
+1. **Say so immediately.** Don't implement the deviation and explain later.
+2. State what the plan said, what you want to do instead, and why.
+3. Wait for approval before continuing.
+
+The worst outcome is not a blocked implementation — it's a silent substitution discovered three phases later.
 
 ### After Completing a Phase
 
@@ -84,6 +94,25 @@ As the last action of every completed run, update the "Current Phase" block at t
 3. **One concern per session.** Don't start new initiatives outside the current phase. **Do fix necessary dependencies** to complete the current phase safely. Note unrelated issues, don't act on them.
 
 4. **Never declare "done" after minimal work.** If the spec describes a multi-phase system and you only changed one file, you're probably not done. Verify every item in the phase spec's checklist. Run type check and tests.
+
+5. **No silent downgrades.** If the approved plan says "use library X," use library X — don't hand-roll a simplified version. If the plan says "implement parser," don't substitute regex. If during implementation you discover a reason to simplify, STOP and explain before proceeding. A shortcut that passes today's test becomes a refactor when tomorrow's feature needs the real thing.
+
+   **The test:** Would someone reading only the plan expect the implementation you actually wrote? If no, you've silently downgraded.
+
+6. **Verify, don't assume.** After creating, moving, or deleting files, confirm the result before reporting success. After a build, check for errors in the output. After running tests, read the results. "It should have worked" is not verification. If a command produces no output and no error, that's ambiguous — check the filesystem.
+
+---
+
+## After Compaction
+
+If context was compacted during this session:
+
+1. Re-read this file (`CLAUDE.md`) before continuing work
+2. Re-read the spec doc for the current phase
+3. Check `.claude/settings.json` and any active skill files
+4. Do NOT continue from memory of what the plan "probably said"
+
+Compaction loses nuance. The rules that feel obvious pre-compaction are the ones most likely to be silently dropped post-compaction.
 
 ---
 
@@ -410,6 +439,19 @@ When something goes wrong, check in this order:
 1. Check `skills.ts` — is there BOTH a `?raw` import AND an entry in the `SKILLS` array?
 2. Check the YAML frontmatter — `triggers` array must contain searchable terms
 3. Check Orama indexing — `getSearchDb()` builds the index lazily on first search
+
+### Shortcut Patterns to Watch For
+
+Known failure modes where the implementation looks right but is silently simplified:
+
+| Planned | Shortcut | Why It Breaks Later |
+|---------|----------|-------------------|
+| Import established library | Hand-roll simplified version | Missing edge cases, no maintenance, breaks on real input |
+| Proper AST parser | Regex extraction | Fails on nested structures, comments, multiline |
+| Full error handling with recovery | try/catch that swallows or generics | Root cause hidden, debugging impossible |
+| Integration test against real system | Mock that returns happy path | Passes today, misses API changes and edge cases |
+| Configurable with options | Hardcoded values that "work for now" | Every caller needs the same config until someone doesn't |
+| Use existing utility from codebase | Write new local helper | Divergent behavior, duplicated maintenance |
 
 ### Write Guard Blocking Valid Path
 
