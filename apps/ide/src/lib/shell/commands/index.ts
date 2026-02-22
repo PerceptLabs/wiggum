@@ -48,6 +48,7 @@ import { CacheStatsCommand } from './cache-stats'
 import { BuildCacheCommand } from './build-cache'
 import { TokensCommand } from './tokens'
 import { BuildCommand } from './build'
+import { SnapshotCommand } from './snapshot'
 
 /**
  * Register all built-in shell commands with the executor
@@ -99,6 +100,7 @@ export function registerAllCommands(executor: ShellExecutor): void {
   executor.registerCommand(new BuildCacheCommand())
   executor.registerCommand(new TokensCommand())
   executor.registerCommand(new BuildCommand())
+  executor.registerCommand(new SnapshotCommand())
 
   // which must be registered last — needs the full command list
   const allCommandNames = [
@@ -106,7 +108,7 @@ export function registerAllCommands(executor: ShellExecutor): void {
     'pwd', 'find', 'touch', 'sort', 'uniq', 'git', 'tree', 'replace', 'rmdir', 'diff',
     'console', 'true', 'false', 'basename', 'dirname', 'tac', 'stat', 'sed', 'cut',
     'tr', 'date', 'env', 'whoami', 'clear', 'paths', 'preview', 'theme',
-    'modules', 'cache-stats', 'build-cache', 'tokens', 'build', 'which',
+    'modules', 'cache-stats', 'build-cache', 'tokens', 'build', 'snapshot', 'which',
   ]
   executor.registerCommand(new WhichCommand(allCommandNames))
 }
@@ -154,6 +156,7 @@ export { CacheStatsCommand } from './cache-stats'
 export { BuildCacheCommand } from './build-cache'
 export { TokensCommand } from './tokens'
 export { BuildCommand } from './build'
+export { SnapshotCommand } from './snapshot'
 
 // Export utilities
 export { resolvePath, normalizePath, basename, dirname } from './utils'

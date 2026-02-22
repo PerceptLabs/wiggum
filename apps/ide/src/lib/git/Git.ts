@@ -376,18 +376,26 @@ export class Git {
       dir: this.dir,
       trees,
       map: async (filepath, [A, B]) => {
-        if (filepath === '.') return null
+        // isomorphic-git walk: returning falsy for a directory skips its children.
+        // Return a truthy non-DiffEntry for directories so they get traversed.
+        if (filepath === '.') return 'root'
 
         // Filter by filepath if specified
         if (options?.filepath && !filepath.startsWith(options.filepath)) {
-          return null
+          return 'skip'
         }
+
+        // Skip directory entries — only report file-level diffs.
+        // Directories must return truthy to allow child traversal.
+        const aType = A ? await A.type() : undefined
+        const bType = B ? await B.type() : undefined
+        if (aType === 'tree' || bType === 'tree') return 'dir'
 
         const aOid = A ? await A.oid() : undefined
         const bOid = B ? await B.oid() : undefined
 
         if (aOid === bOid) {
-          return null // No change
+          return 'equal'
         }
 
         let type: DiffEntry['type']
@@ -401,9 +409,9 @@ export class Git {
 
         return { filepath, type }
       },
-    })) as (DiffEntry | null)[]
+    })) as (DiffEntry | string)[]
 
-    return results.filter((r): r is DiffEntry => r !== null)
+    return results.filter((r): r is DiffEntry => typeof r === 'object' && r !== null)
   }
 
   /**
@@ -600,6 +608,28 @@ export class Git {
     const stashes = await this.stashList()
     if (stashes.length === 0) return 0
     return Math.max(...stashes.map((s) => s.index)) + 1
+  }
+
+  /**
+   * List all tags in the repository
+   */
+  async listTags(): Promise<string[]> {
+    return git.listTags({
+      fs: this.rawFs,
+      dir: this.dir,
+    })
+  }
+
+  /**
+   * Create a lightweight tag at HEAD (or specified oid)
+   */
+  async tag(ref: string, object?: string): Promise<void> {
+    await git.tag({
+      fs: this.rawFs,
+      dir: this.dir,
+      ref,
+      object,
+    })
   }
 
   /**

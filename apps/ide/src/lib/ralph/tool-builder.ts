@@ -128,7 +128,7 @@ const SHELL_DESCRIPTION_APPENDIX = `**Commands:**
 - Search/replace: grep, find, replace
 - VCS: git
 - System: date, env, whoami, which, true, false, clear, paths
-- Preview: console, preview, build
+- Preview: console, preview, build, snapshot
 - Design: theme, tokens
 - Modules: modules, cache-stats, build-cache
 
@@ -144,6 +144,7 @@ const SHELL_DESCRIPTION_APPENDIX = `**Commands:**
 - cache-stats = show Cache Storage statistics
 - build-cache = manage build output cache (status/clear/list)
 - tokens = read design token data from .ralph/tokens.json (palette/contrast/font/shadow/mood)
+- snapshot = git-based save points with task-aware tagging (save/list/rollback/diff/status)
 
 **Operators:**
 - Pipe: cmd1 | cmd2 (stdout \u2192 stdin)
