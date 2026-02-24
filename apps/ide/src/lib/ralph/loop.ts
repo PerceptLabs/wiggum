@@ -200,8 +200,9 @@ For small fixes (typos, renames, one-line changes), use \`replace\` instead of r
 \`\`\`bash
 replace src/App.tsx "consloe.log" "console.log"
 replace src/App.tsx "OldName" "NewName"
+replace src/App.tsx --line 42 "new content"          # By line number (safe for template literals)
 \`\`\`
-**replace** = exact literal string swap. **sed** = regex patterns, line operations. Use the right tool.
+**replace** = exact literal string swap. **replace --line N** = bypass escaping entirely. **sed** = regex patterns, line operations. Use the right tool.
 
 ## Workflow — How Experts Build
 

@@ -11,8 +11,9 @@ import { validateFileWrite } from '../write-guard'
 
 const ReplaceArgsSchema = z.object({
   file: z.string().min(1).describe('File path'),
-  old: z.string().min(1).describe('String to find'),
+  old: z.string().min(1).optional().describe('String to find (not needed with --line)'),
   new: z.string().describe('Replacement string'),
+  line: z.number().int().positive().optional().describe('Replace entire line N (1-indexed)'),
   whitespaceTolerant: z.boolean().optional().describe('Collapse whitespace during matching'),
 })
 
@@ -30,18 +31,32 @@ export class ReplaceCommand implements ShellCommand<ReplaceArgs> {
 
   examples = [
     'replace src/App.tsx "oldText" "newText"',
+    'replace src/App.tsx --line 42 "new line content"',
     'replace -w src/App.tsx "spaced  text" "clean text"',
   ]
 
   parseCliArgs(args: string[]): unknown {
     let whitespaceTolerant = false
+    let lineNumber: number | undefined
     const positionalArgs: string[] = []
 
-    for (const arg of args) {
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i]
       if (arg === '-w' || arg === '--whitespace-tolerant') {
         whitespaceTolerant = true
+      } else if (arg === '--line') {
+        lineNumber = parseInt(args[++i], 10)
       } else {
         positionalArgs.push(arg)
+      }
+    }
+
+    if (lineNumber !== undefined) {
+      // Line mode: replace <file> --line N "new content"
+      return {
+        file: positionalArgs[0] ?? '',
+        new: positionalArgs[1] ?? '',
+        line: lineNumber,
       }
     }
 
@@ -55,18 +70,70 @@ export class ReplaceCommand implements ShellCommand<ReplaceArgs> {
 
   async execute(args: ReplaceArgs, options: ShellOptions): Promise<ShellResult> {
     const { fs, cwd } = options
-
     const file = args.file
-    const oldStr = args.old
+
+    // Line-number mode — bypass pattern matching entirely
+    if (args.line !== undefined) {
+      const lineNum = args.line
+      const newStr = args.new
+
+      if (!file) {
+        return { exitCode: 2, stdout: '', stderr: 'Usage: replace <file> --line N "new content"' }
+      }
+
+      const filePath = resolvePath(cwd, file)
+      if (!filePath.startsWith(cwd)) {
+        return { exitCode: 1, stdout: '', stderr: 'replace: cannot access paths outside project' }
+      }
+      const lineValidation = validateFileWrite(filePath, cwd)
+      if (!lineValidation.allowed) {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `replace: ${lineValidation.reason}${lineValidation.suggestion ? '\n' + lineValidation.suggestion : ''}`,
+        }
+      }
+
+      try {
+        const content = await fs.readFile(filePath, { encoding: 'utf8' })
+        const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
+        const lines = text.split('\n')
+
+        if (lineNum < 1 || lineNum > lines.length) {
+          return { exitCode: 1, stdout: '', stderr: `replace: line ${lineNum} out of range (file has ${lines.length} lines)` }
+        }
+
+        lines[lineNum - 1] = newStr
+        const newContent = lines.join('\n')
+        await fs.writeFile(filePath, newContent)
+
+        const diffOutput = createPatch(file, text, newContent, '', '', { context: 3 })
+        const diffLines = diffOutput.split('\n')
+        const patchStart = diffLines.findIndex((l) => l.startsWith('---'))
+        const cleanDiff = patchStart >= 0 ? diffLines.slice(patchStart).join('\n') : diffOutput
+
+        return {
+          exitCode: 0,
+          stdout: `Replaced line ${lineNum} in ${file}\n\n${cleanDiff}`,
+          stderr: '',
+          filesChanged: [filePath],
+        }
+      } catch {
+        return { exitCode: 1, stdout: '', stderr: `replace: ${file}: No such file` }
+      }
+    }
+
+    // String mode — pattern matching
+    const oldStr = args.old ?? ''
     const newStr = args.new
     const whitespaceTolerant = args.whitespaceTolerant ?? false
 
-    if (!file || !oldStr) {
+    if (!file || !args.old) {
       return {
         exitCode: 2,
         stdout: '',
         stderr:
-          'Usage: replace [-w] <file> "<old>" "<new>"\n  -w  Whitespace-tolerant matching (collapses whitespace)\nExample: replace src/App.tsx "oldText" "newText"',
+          'Usage: replace [-w] <file> "<old>" "<new>"\n       replace <file> --line N "new content"\n  -w  Whitespace-tolerant matching (collapses whitespace)\nExample: replace src/App.tsx "oldText" "newText"',
       }
     }
 
