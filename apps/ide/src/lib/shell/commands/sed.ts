@@ -1,7 +1,33 @@
+import { z } from 'zod'
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import { resolvePath } from './utils'
 import { getSearchDb, semanticSearch } from '../../search'
 import { validateFileWrite } from '../write-guard'
+
+// ============================================================================
+// SCHEMAS (flat — no discriminated unions, models can't fill them)
+// ============================================================================
+
+/** Flat schema for discrete sed tool (regex substitution) */
+export const SedSubstituteSchema = z.object({
+  file: z.string().min(1).describe('File path'),
+  pattern: z.string().min(1).describe('Regex pattern to match'),
+  replacement: z.string().describe('Replacement string (use $1, $2 for groups)'),
+  flags: z.string().optional().describe('Regex flags: g=global, i=case-insensitive'),
+  inPlace: z.boolean().optional().default(true).describe('Modify file in place'),
+})
+
+/** Flat schema for discrete sed_line tool (line-number operations) */
+export const SedLineSchema = z.object({
+  file: z.string().min(1).describe('File path'),
+  lineNumber: z.number().int().positive().describe('Line number (1-indexed)'),
+  action: z.enum(['delete', 'replace', 'insert-before', 'insert-after']).describe('Line operation'),
+  content: z.string().optional().describe('New content (for replace/insert)'),
+})
+
+type SedSubstituteArgs = z.infer<typeof SedSubstituteSchema>
+type SedLineArgs = z.infer<typeof SedLineSchema>
+type SedArgs = string[] | SedSubstituteArgs | SedLineArgs
 
 /**
  * sed - Stream editor with three layers:
@@ -12,11 +38,42 @@ import { validateFileWrite } from '../write-guard'
  * Usage: sed [-i] [-n] [-w] [-e EXPR] 'EXPRESSION' [file...]
  *        sed code [-w] 'EXPRESSION' "query"
  */
-export class SedCommand implements ShellCommand {
+export class SedCommand implements ShellCommand<SedArgs> {
   name = 'sed'
   description = 'Stream editor for filtering and transforming text'
 
-  async execute(args: string[], options: ShellOptions): Promise<ShellResult> {
+  examples = [
+    "sed -i 's/old/new/g' src/App.tsx",
+    "sed -n '5,10p' src/App.tsx",
+  ]
+
+  additionalTools = [
+    {
+      name: 'sed',
+      description: 'Regex substitution in a file (typed — no escaping needed)',
+      argsSchema: SedSubstituteSchema,
+      examples: ['sed({ file: "src/App.tsx", pattern: "oldFunc", replacement: "newFunc", flags: "g" })'],
+    },
+    {
+      name: 'sed_line',
+      description: 'Line-number operations: delete, replace, or insert lines',
+      argsSchema: SedLineSchema,
+      examples: ['sed_line({ file: "src/App.tsx", lineNumber: 42, action: "delete" })'],
+    },
+  ]
+
+  async execute(args: SedArgs, options: ShellOptions): Promise<ShellResult> {
+    // Discrete tool: substitute mode
+    if (!Array.isArray(args) && 'pattern' in args && 'replacement' in args) {
+      return this.executeSubstitute(args as SedSubstituteArgs, options)
+    }
+    // Discrete tool: line mode
+    if (!Array.isArray(args) && 'lineNumber' in args) {
+      return this.executeLine(args as SedLineArgs, options)
+    }
+
+    // CLI path: string[]
+    const cliArgs = args as string[]
     const { fs, cwd, stdin } = options
 
     // Parse flags and arguments
@@ -27,8 +84,8 @@ export class SedCommand implements ShellCommand {
     const expressions: string[] = []
     const positional: string[] = []
 
-    for (let i = 0; i < args.length; i++) {
-      const arg = args[i]
+    for (let i = 0; i < cliArgs.length; i++) {
+      const arg = cliArgs[i]
       if (arg === 'code' && i === 0) {
         codeMode = true
       } else if (arg === '-i') {
@@ -37,8 +94,8 @@ export class SedCommand implements ShellCommand {
         suppress = true
       } else if (arg === '-w') {
         whitespaceTolerant = true
-      } else if (arg === '-e' && i + 1 < args.length) {
-        expressions.push(args[++i])
+      } else if (arg === '-e' && i + 1 < cliArgs.length) {
+        expressions.push(cliArgs[++i])
       } else if (arg === '-iw' || arg === '-wi') {
         inPlace = true
         whitespaceTolerant = true
@@ -198,6 +255,118 @@ export class SedCommand implements ShellCommand {
       }
     } catch {
       return { exitCode: 1, stdout: '', stderr: 'sed code: search index not available' }
+    }
+  }
+
+  /**
+   * Discrete tool: regex substitution with pre-parsed args (no expression parsing)
+   */
+  private async executeSubstitute(args: SedSubstituteArgs, options: ShellOptions): Promise<ShellResult> {
+    const { fs, cwd } = options
+    const filePath = resolvePath(cwd, args.file)
+
+    if (!filePath.startsWith(cwd)) {
+      return { exitCode: 1, stdout: '', stderr: 'sed: cannot access paths outside project' }
+    }
+
+    const inPlace = args.inPlace !== false // default true
+
+    if (inPlace) {
+      const validation = validateFileWrite(filePath, cwd)
+      if (!validation.allowed) {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `sed: ${validation.reason}${validation.suggestion ? '\n' + validation.suggestion : ''}`,
+        }
+      }
+    }
+
+    try {
+      const data = await fs.readFile(filePath, { encoding: 'utf8' })
+      const text = typeof data === 'string' ? data : new TextDecoder().decode(data)
+
+      // Build regex — extract 'g' for global, rest are regex flags
+      const flagStr = args.flags ?? ''
+      const isGlobal = flagStr.includes('g')
+      const regexFlags = flagStr.replace(/g/g, '')
+      const pattern = new RegExp(args.pattern, regexFlags)
+
+      const op: SedOperation = {
+        type: 'substitute',
+        pattern,
+        replacement: args.replacement,
+        global: isGlobal,
+      }
+
+      const result = applySedOperations(text, [op], false, false)
+
+      if (result === text) {
+        return { exitCode: 0, stdout: 'sed: no changes made\n', stderr: '' }
+      }
+
+      if (inPlace) {
+        await fs.writeFile(filePath, result, { encoding: 'utf8' })
+        return { exitCode: 0, stdout: '', stderr: '', filesChanged: [filePath] }
+      }
+
+      return { exitCode: 0, stdout: result, stderr: '' }
+    } catch {
+      return { exitCode: 1, stdout: '', stderr: `sed: ${args.file}: No such file or directory` }
+    }
+  }
+
+  /**
+   * Discrete tool: line-number operations (delete, replace, insert)
+   */
+  private async executeLine(args: SedLineArgs, options: ShellOptions): Promise<ShellResult> {
+    const { fs, cwd } = options
+    const filePath = resolvePath(cwd, args.file)
+
+    if (!filePath.startsWith(cwd)) {
+      return { exitCode: 1, stdout: '', stderr: 'sed: cannot access paths outside project' }
+    }
+
+    const validation = validateFileWrite(filePath, cwd)
+    if (!validation.allowed) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `sed: ${validation.reason}${validation.suggestion ? '\n' + validation.suggestion : ''}`,
+      }
+    }
+
+    try {
+      const data = await fs.readFile(filePath, { encoding: 'utf8' })
+      const text = typeof data === 'string' ? data : new TextDecoder().decode(data)
+      const lines = text.split('\n')
+
+      if (args.lineNumber < 1 || args.lineNumber > lines.length) {
+        return { exitCode: 1, stdout: '', stderr: `sed: line ${args.lineNumber} out of range (file has ${lines.length} lines)` }
+      }
+
+      const idx = args.lineNumber - 1
+
+      switch (args.action) {
+        case 'delete':
+          lines.splice(idx, 1)
+          break
+        case 'replace':
+          lines[idx] = args.content ?? ''
+          break
+        case 'insert-before':
+          lines.splice(idx, 0, args.content ?? '')
+          break
+        case 'insert-after':
+          lines.splice(idx + 1, 0, args.content ?? '')
+          break
+      }
+
+      const newContent = lines.join('\n')
+      await fs.writeFile(filePath, newContent, { encoding: 'utf8' })
+      return { exitCode: 0, stdout: '', stderr: '', filesChanged: [filePath] }
+    } catch {
+      return { exitCode: 1, stdout: '', stderr: `sed: ${args.file}: No such file or directory` }
     }
   }
 }

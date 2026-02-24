@@ -9,6 +9,8 @@ import { describe, it, expect } from 'vitest'
 import { GrepCommand, GrepRegexSchema, SearchSchema } from '../commands/grep'
 import { ReplaceCommand } from '../commands/replace'
 import { PreviewCommand } from '../commands/preview'
+import { SedCommand, SedSubstituteSchema, SedLineSchema } from '../commands/sed'
+import { FindCommand, FindSchema } from '../commands/find'
 
 // ============================================================================
 // GREP (regex — flat schema via additionalTools)
@@ -210,6 +212,126 @@ describe('PreviewCommand dual-mode', () => {
     it('generates JSON schema', () => {
       const schema = cmd.argsSchema!.toJSONSchema()
       expect(schema).toBeDefined()
+    })
+  })
+})
+
+// ============================================================================
+// SED (substitute + line — flat schemas via additionalTools)
+// ============================================================================
+
+describe('SedCommand dual-mode', () => {
+  const cmd = new SedCommand()
+
+  describe('SedSubstituteSchema (flat)', () => {
+    it('validates file + pattern + replacement', () => {
+      const result = SedSubstituteSchema.safeParse({ file: 'src/App.tsx', pattern: 'old', replacement: 'new' })
+      expect(result.success).toBe(true)
+      if (result.success) expect(result.data.inPlace).toBe(true) // default
+    })
+
+    it('validates with explicit flags and inPlace', () => {
+      const result = SedSubstituteSchema.safeParse({ file: 'f.ts', pattern: 'a', replacement: 'b', flags: 'gi', inPlace: false })
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects empty pattern', () => {
+      const result = SedSubstituteSchema.safeParse({ file: 'f.ts', pattern: '', replacement: 'x' })
+      expect(result.success).toBe(false)
+    })
+
+    it('rejects empty file', () => {
+      const result = SedSubstituteSchema.safeParse({ file: '', pattern: 'x', replacement: 'y' })
+      expect(result.success).toBe(false)
+    })
+
+    it('generates flat JSON schema (no anyOf/oneOf)', () => {
+      const schema = SedSubstituteSchema.toJSONSchema()
+      expect(schema).toBeDefined()
+      expect(schema.anyOf).toBeUndefined()
+      expect(schema.oneOf).toBeUndefined()
+    })
+  })
+
+  describe('SedLineSchema (flat)', () => {
+    it('validates file + lineNumber + action', () => {
+      const result = SedLineSchema.safeParse({ file: 'src/App.tsx', lineNumber: 5, action: 'delete' })
+      expect(result.success).toBe(true)
+    })
+
+    it('validates with content for replace', () => {
+      const result = SedLineSchema.safeParse({ file: 'f.ts', lineNumber: 1, action: 'replace', content: 'new line' })
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects invalid action', () => {
+      const result = SedLineSchema.safeParse({ file: 'f.ts', lineNumber: 1, action: 'append' })
+      expect(result.success).toBe(false)
+    })
+
+    it('rejects line number 0', () => {
+      const result = SedLineSchema.safeParse({ file: 'f.ts', lineNumber: 0, action: 'delete' })
+      expect(result.success).toBe(false)
+    })
+
+    it('generates flat JSON schema (no anyOf/oneOf)', () => {
+      const schema = SedLineSchema.toJSONSchema()
+      expect(schema).toBeDefined()
+      expect(schema.anyOf).toBeUndefined()
+      expect(schema.oneOf).toBeUndefined()
+    })
+  })
+
+  describe('additionalTools', () => {
+    it('registers sed and sed_line tools', () => {
+      expect(cmd.additionalTools).toHaveLength(2)
+      expect(cmd.additionalTools![0].name).toBe('sed')
+      expect(cmd.additionalTools![1].name).toBe('sed_line')
+    })
+  })
+})
+
+// ============================================================================
+// FIND (flat schema via additionalTools)
+// ============================================================================
+
+describe('FindCommand dual-mode', () => {
+  const cmd = new FindCommand()
+
+  describe('FindSchema (flat)', () => {
+    it('validates path + name + type', () => {
+      const result = FindSchema.safeParse({ path: 'src', name: '*.tsx', type: 'f' })
+      expect(result.success).toBe(true)
+    })
+
+    it('validates empty object (all optional, path defaults to ".")', () => {
+      const result = FindSchema.safeParse({})
+      expect(result.success).toBe(true)
+      if (result.success) expect(result.data.path).toBe('.')
+    })
+
+    it('validates name only', () => {
+      const result = FindSchema.safeParse({ name: '*.css' })
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects invalid type', () => {
+      const result = FindSchema.safeParse({ type: 'x' })
+      expect(result.success).toBe(false)
+    })
+
+    it('generates flat JSON schema (no anyOf/oneOf)', () => {
+      const schema = FindSchema.toJSONSchema()
+      expect(schema).toBeDefined()
+      expect(schema.anyOf).toBeUndefined()
+      expect(schema.oneOf).toBeUndefined()
+    })
+  })
+
+  describe('additionalTools', () => {
+    it('registers find tool', () => {
+      expect(cmd.additionalTools).toHaveLength(1)
+      expect(cmd.additionalTools![0].name).toBe('find')
     })
   })
 })

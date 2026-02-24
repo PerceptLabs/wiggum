@@ -15,7 +15,7 @@ export interface ArgsSchema<T> {
 
 export type SafeParseResult<T> =
   | { readonly success: true; readonly data: T }
-  | { readonly success: false; readonly error: { readonly issues: ReadonlyArray<{ path: (string | number)[]; code: string; message: string }> } }
+  | { readonly success: false; readonly error: { readonly issues: ReadonlyArray<{ path: PropertyKey[]; code: string; message: string }> } }
 
 // ============================================================================
 // SHELL COMMAND INTERFACE

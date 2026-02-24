@@ -1,16 +1,52 @@
+import { z } from 'zod'
 import picomatch from 'picomatch'
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import { resolvePath, basename } from './utils'
 
+// ============================================================================
+// SCHEMA (flat — skip -exec, models fall back to shell for that)
+// ============================================================================
+
+/** Flat schema for discrete find tool */
+export const FindSchema = z.object({
+  path: z.string().optional().default('.').describe('Search directory'),
+  name: z.string().optional().describe('Glob pattern for file names'),
+  type: z.enum(['f', 'd']).optional().describe('f=files only, d=directories only'),
+})
+
+type FindArgs = z.infer<typeof FindSchema>
+type FindExecArgs = string[] | FindArgs
+
 /**
  * find - Find files by name pattern
- * Supports -name pattern
+ * Supports -name pattern, -type f/d, -exec
  */
-export class FindCommand implements ShellCommand {
+export class FindCommand implements ShellCommand<FindExecArgs> {
   name = 'find'
   description = 'Search for files in a directory hierarchy'
 
-  async execute(args: string[], options: ShellOptions): Promise<ShellResult> {
+  examples = [
+    'find src -name "*.tsx" -type f',
+    'find . -name "*.css"',
+  ]
+
+  additionalTools = [
+    {
+      name: 'find',
+      description: 'Find files by name pattern and type (typed — no escaping needed)',
+      argsSchema: FindSchema,
+      examples: ['find({ path: "src", name: "*.tsx", type: "f" })'],
+    },
+  ]
+
+  async execute(args: FindExecArgs, options: ShellOptions): Promise<ShellResult> {
+    // Discrete find tool: typed args
+    if (!Array.isArray(args)) {
+      return this.executeTyped(args as FindArgs, options)
+    }
+
+    // CLI path: string[]
+    const cliArgs = args as string[]
     const { fs, cwd } = options
 
     // Parse arguments
@@ -20,24 +56,24 @@ export class FindCommand implements ShellCommand {
     let execTemplate: string[] | null = null
     let execBatch = false // true for +, false for \;
 
-    for (let i = 0; i < args.length; i++) {
-      const arg = args[i]
-      if (arg === '-name' && i + 1 < args.length) {
-        namePattern = args[i + 1]
+    for (let i = 0; i < cliArgs.length; i++) {
+      const arg = cliArgs[i]
+      if (arg === '-name' && i + 1 < cliArgs.length) {
+        namePattern = cliArgs[i + 1]
         i++
-      } else if (arg === '-type' && i + 1 < args.length) {
-        const t = args[i + 1]
+      } else if (arg === '-type' && i + 1 < cliArgs.length) {
+        const t = cliArgs[i + 1]
         if (t === 'f' || t === 'd') {
           typeFilter = t
         }
         i++
-      } else if (arg === '-exec' && i + 1 < args.length) {
+      } else if (arg === '-exec' && i + 1 < cliArgs.length) {
         // Collect everything until \; or ; or +
         execTemplate = []
         i++
         let foundTerminator = false
-        while (i < args.length) {
-          const execArg = args[i]
+        while (i < cliArgs.length) {
+          const execArg = cliArgs[i]
           if (execArg === ';' || execArg === '\\;') {
             execBatch = false
             foundTerminator = true
@@ -108,6 +144,28 @@ export class FindCommand implements ShellCommand {
       exitCode: errors.length > 0 && matches.length === 0 ? 1 : 0,
       stdout: matches.join('\n') + (matches.length > 0 ? '\n' : ''),
       stderr: errors.join('\n'),
+    }
+  }
+
+  /**
+   * Discrete find tool: typed args (no -exec support — use shell for that)
+   */
+  private async executeTyped(args: FindArgs, options: ShellOptions): Promise<ShellResult> {
+    const { fs, cwd } = options
+    const searchPath = args.path ?? '.'
+    const startPath = resolvePath(cwd, searchPath)
+    const matches: string[] = []
+
+    try {
+      await findRecursive(fs, startPath, searchPath, args.name ?? null, args.type ?? null, matches)
+    } catch {
+      return { exitCode: 1, stdout: '', stderr: `find: '${searchPath}': No such file or directory` }
+    }
+
+    return {
+      exitCode: 0,
+      stdout: matches.join('\n') + (matches.length > 0 ? '\n' : ''),
+      stderr: '',
     }
   }
 }

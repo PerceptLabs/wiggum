@@ -210,7 +210,7 @@ replace src/App.tsx --line 42 "new content"          # By line number (safe for 
 2. **Research**: Search skills for relevant patterns (\`grep skill "..."\`)
 3. **Plan**: Write .ralph/plan.tsx — your structured plan with theme, screens, and sections. Then mark complete so the harness can validate it. Fix any validation feedback before implementing.
 4. **Theme**: Run \`theme preset <name> --apply\` or \`theme generate --seed <n> --pattern <name> --mood <mood> --apply\`. Use \`--chroma\` for saturation control. For custom aesthetics, remix a personality template with \`--personality\`.
-5. **Build**: Implement sections and components, one file at a time, following plan.tsx
+5. **Build**: For each Section in plan.tsx, run \`grep skill "<gumdrop-name>"\` to load its recipe, then implement following the recipe's component list and layout. One file per section.
 6. **Verify**: Run \`preview\` to check build and rendered output
 7. **Complete**: Write .ralph/summary.md describing what you built, THEN mark status complete
 
