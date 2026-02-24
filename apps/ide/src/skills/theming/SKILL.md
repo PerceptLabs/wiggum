@@ -338,6 +338,31 @@ Extended colors are auto-registered with `@theme inline` at build time. They reg
 
 ---
 
+## Dynamic Colors (Data Viz, Timelines, Tags)
+
+For elements that need distinct colors from a set (chart bars, timeline events,
+category tags), use the chart variables:
+
+| Variable | Use for |
+|----------|---------|
+| `var(--chart-1)` through `var(--chart-5)` | Data series, categories, tags |
+| `bg-chart-1` through `bg-chart-5` | Tailwind background utilities |
+| `text-chart-1` through `text-chart-5` | Tailwind text utilities |
+
+Pattern for dynamic color assignment:
+```tsx
+const COLORS = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5']
+items.map((item, i) => <Tag className={COLORS[i % COLORS.length]}>{item.label}</Tag>)
+```
+
+For more than 5 colors, use `theme extend --name <n> --hue <N>` to add custom
+colors to the palette, then reference via `bg-<n>` / `text-<n>`.
+
+NEVER use raw oklch(), hsl(), or hex values in components. Every color traces to a
+CSS variable.
+
+---
+
 ## Design Philosophy
 
 ### Dynamic by Default

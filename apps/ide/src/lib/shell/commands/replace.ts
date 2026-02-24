@@ -1,25 +1,39 @@
+import { z } from 'zod'
 import { createPatch } from 'diff'
 import { distance } from 'fastest-levenshtein'
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import { resolvePath } from './utils'
 import { validateFileWrite } from '../write-guard'
 
-/**
- * replace - Replace all occurrences of a string in a file
- * Usage: replace [-w] <file> "<old>" "<new>"
- * -w: Whitespace-tolerant matching (collapses whitespace)
- *
- * On success: shows unified diff of changes
- * On no match: shows fuzzy suggestions from file content
- */
-export class ReplaceCommand implements ShellCommand {
+// ============================================================================
+// SCHEMA (Toolkit 2.0 dual-mode)
+// ============================================================================
+
+const ReplaceArgsSchema = z.object({
+  file: z.string().min(1).describe('File path'),
+  old: z.string().min(1).describe('String to find'),
+  new: z.string().describe('Replacement string'),
+  whitespaceTolerant: z.boolean().optional().describe('Collapse whitespace during matching'),
+})
+
+type ReplaceArgs = z.infer<typeof ReplaceArgsSchema>
+
+// ============================================================================
+// COMMAND
+// ============================================================================
+
+export class ReplaceCommand implements ShellCommand<ReplaceArgs> {
   name = 'replace'
   description = 'Replace all occurrences of a string in a file'
 
-  async execute(args: string[], options: ShellOptions): Promise<ShellResult> {
-    const { fs, cwd } = options
+  argsSchema = ReplaceArgsSchema
 
-    // Parse flags
+  examples = [
+    'replace src/App.tsx "oldText" "newText"',
+    'replace -w src/App.tsx "spaced  text" "clean text"',
+  ]
+
+  parseCliArgs(args: string[]): unknown {
     let whitespaceTolerant = false
     const positionalArgs: string[] = []
 
@@ -31,7 +45,23 @@ export class ReplaceCommand implements ShellCommand {
       }
     }
 
-    if (positionalArgs.length < 3) {
+    return {
+      file: positionalArgs[0] ?? '',
+      old: positionalArgs[1] ?? '',
+      new: positionalArgs[2] ?? '',
+      whitespaceTolerant: whitespaceTolerant || undefined,
+    }
+  }
+
+  async execute(args: ReplaceArgs, options: ShellOptions): Promise<ShellResult> {
+    const { fs, cwd } = options
+
+    const file = args.file
+    const oldStr = args.old
+    const newStr = args.new
+    const whitespaceTolerant = args.whitespaceTolerant ?? false
+
+    if (!file || !oldStr) {
       return {
         exitCode: 2,
         stdout: '',
@@ -40,7 +70,6 @@ export class ReplaceCommand implements ShellCommand {
       }
     }
 
-    const [file, oldStr, newStr] = positionalArgs
     const filePath = resolvePath(cwd, file)
 
     // Security: must be within cwd

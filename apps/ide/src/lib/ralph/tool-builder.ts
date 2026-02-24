@@ -9,18 +9,25 @@
  * (operators, flags, modes, examples) that aren't per-command.
  */
 
+// Promoted schemas must be flat — no discriminated unions (models can't fill them)
+
 import type { Tool } from '../llm/client'
-import type { ShellCommand } from '../shell/types'
-import { toolFromCommand } from '../shell/tool-adapter'
+import type { ArgsSchema, ShellCommand } from '../shell/types'
+import { toolFromCommand, toolFromEntry } from '../shell/tool-adapter'
 
 // ============================================================================
 // RALPH TOOLKIT
 // ============================================================================
 
+export interface PromotionEntry {
+  commandName: string
+  schema: ArgsSchema<any>
+}
+
 export interface RalphToolkit {
   tools: Tool[]
-  /** Names of commands promoted to discrete tools */
-  promotedCommands: Set<string>
+  /** Map from tool name → { commandName, schema } for discrete tool dispatch */
+  promotedCommands: Map<string, PromotionEntry>
 }
 
 /**
@@ -28,15 +35,15 @@ export interface RalphToolkit {
  *
  * Returns:
  * - tools[0]: shell tool (always present, catch-all for pipes/chaining/redirects)
- * - tools[1..N]: discrete typed tools from schema-enabled commands
- * - promotedCommands: set of command names that have discrete tools
+ * - tools[1..N]: discrete typed tools from schema-enabled commands + additionalTools
+ * - promotedCommands: map from tool name to command name + schema
  */
 export function buildRalphTools(
   commands: ShellCommand<any>[],
   shellDescription: string
 ): RalphToolkit {
   const tools: Tool[] = []
-  const promotedCommands = new Set<string>()
+  const promotedCommands = new Map<string, PromotionEntry>()
 
   // 1. Shell tool — always first
   tools.push({
@@ -58,11 +65,17 @@ export function buildRalphTools(
     },
   })
 
-  // 2. Discrete tools — from schema-enabled commands
+  // 2. Discrete tools — primary argsSchema + additionalTools
   for (const cmd of commands) {
     if (cmd.argsSchema) {
       tools.push(toolFromCommand(cmd))
-      promotedCommands.add(cmd.name)
+      promotedCommands.set(cmd.name, { commandName: cmd.name, schema: cmd.argsSchema })
+    }
+    if (cmd.additionalTools) {
+      for (const entry of cmd.additionalTools) {
+        tools.push(toolFromEntry(entry))
+        promotedCommands.set(entry.name, { commandName: cmd.name, schema: entry.argsSchema })
+      }
     }
   }
 
@@ -86,16 +99,24 @@ export function buildRalphTools(
  */
 export function buildShellDescription(commands: ShellCommand<any>[]): string {
   const schemaCommands = commands.filter(c => c.argsSchema)
+  const extraTools = commands.flatMap(c => c.additionalTools ?? [])
 
   let desc = 'Your interface to the world. Every file read, write, search, and build flows through this tool. One tool. Total control.\n\n'
 
-  // Schema'd commands get detailed entries above the appendix
-  if (schemaCommands.length > 0) {
+  // Schema'd commands + additionalTools get detailed entries above the appendix
+  if (schemaCommands.length > 0 || extraTools.length > 0) {
     desc += '**Commands with typed tools (also callable directly):**\n'
     for (const cmd of schemaCommands.sort((a, b) => a.name.localeCompare(b.name))) {
       desc += `- **${cmd.name}**: ${cmd.description}`
       if (cmd.examples?.length) {
         desc += ` \u2014 e.g. ${cmd.examples.slice(0, 2).map(e => `\`${e}\``).join(', ')}`
+      }
+      desc += '\n'
+    }
+    for (const entry of extraTools.sort((a, b) => a.name.localeCompare(b.name))) {
+      desc += `- **${entry.name}**: ${entry.description}`
+      if (entry.examples?.length) {
+        desc += ` \u2014 e.g. ${entry.examples.slice(0, 2).map(e => `\`${e}\``).join(', ')}`
       }
       desc += '\n'
     }
@@ -117,34 +138,31 @@ export function buildShellDescription(commands: ShellCommand<any>[]): string {
  * Contains all command groupings, quick reference, operators, flags, modes,
  * sed usage, examples, and prohibitions.
  *
- * Phase 2+: As commands gain schemas with examples, their entries in the
- * "Quick reference" and "Flags" sections become redundant and can be trimmed.
+ * Phase 2: grep/replace/theme/preview promoted — their entries removed.
+ * Remaining commands still described here until their Phase 3+ promotion.
  * Phase 4: Fully replaced by auto-generated content.
  */
 const SHELL_DESCRIPTION_APPENDIX = `**Commands:**
 - File I/O: cat, tac, echo, touch, mkdir, rm, rmdir, cp, mv
 - Navigation: ls, pwd, tree, find, basename, dirname
-- Text processing: grep, head, tail, wc, sort, uniq, diff, sed, cut, tr
-- Search/replace: grep, find, replace
+- Text processing: head, tail, wc, sort, uniq, diff, sed, cut, tr
+- Search: find
 - VCS: git
 - System: date, env, whoami, which, true, false, clear, paths
-- Preview: console, preview, build, snapshot
+- Preview: console, build
 - Design: theme, tokens
 - Modules: modules, cache-stats, build-cache
 
 **Quick reference:**
-- replace = exact literal string swap (no escaping needed)
 - sed = regex patterns, line operations, stream editing
 - paths = show where you can write files and which extensions are allowed
-- preview = build project and render static HTML snapshot
 - build = compile-only check (no preview or gates)
-- theme = OKLCH theme generator (preset/generate/modify/extend/list). --mood required for generate --apply. --chroma low|medium|high controls saturation. --personality <file> for custom briefs. Use --apply to write directly to src/index.css. Use 'theme extend --name <name> --hue <deg>' for content-specific colors beyond the semantic palette.
 - cat @wiggum/stack = list available components and hooks
 - modules = manage ESM module cache (list/status/warm/clear)
 - cache-stats = show Cache Storage statistics
 - build-cache = manage build output cache (status/clear/list)
+- theme = OKLCH theme generator (preset/generate/modify/list/extend)
 - tokens = read design token data from .ralph/tokens.json (palette/contrast/font/shadow/mood)
-- snapshot = git-based save points with task-aware tagging (save/list/rollback/diff/status)
 
 **Operators:**
 - Pipe: cmd1 | cmd2 (stdout \u2192 stdin)
@@ -155,16 +173,8 @@ const SHELL_DESCRIPTION_APPENDIX = `**Commands:**
 
 **Flags:**
 - cat -q: Quiet mode (no error on missing file, for use with ||)
-- replace -w: Whitespace-tolerant matching
 - sed -i: In-place edit, -n: Suppress output, -w: Whitespace-tolerant
-- grep -E: Extended regex (| for alternation), -l: Files-with-matches only
 - find -exec: Execute command on matched files (terminate with \\; or +)
-
-**grep modes:**
-- grep skill "<query>" - Semantic skill search
-- grep package "<query>" - Package registry search
-- grep code "<query>" - Project code search
-- grep "<pattern>" <file> - Exact regex match
 
 **sed usage:**
   sed 's/old/new/g' file          Regex substitute
@@ -177,8 +187,6 @@ const SHELL_DESCRIPTION_APPENDIX = `**Commands:**
 
 **Examples:**
 - cat -q .ralph/feedback.md || echo "(no feedback)"
-- cat src/App.tsx | grep "import"
-- replace src/App.tsx "oldText" "newText"  (exact swap, no escaping)
 - sed -i 's/pattern/replacement/g' file   (regex, use for pattern matching)
 - echo "hello" | tr '[:lower:]' '[:upper:]'
 - basename src/sections/Hero.tsx .tsx

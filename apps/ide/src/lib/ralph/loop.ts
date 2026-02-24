@@ -22,6 +22,8 @@ import type { ObservabilityConfig, GateContext, CommandAttempt, HarnessReflectio
 import { recordGap, isCommandNotFoundError, parseCommandString } from './gaps'
 import { buildReflectionPrompt, parseReflectionResponse, saveReflection } from './reflection'
 import { createPostSnapshot } from './task-lifecycle'
+import { formatStructuredTask, type StructuredTask } from './task-types'
+import { formatMutationContext } from './plan-mutator'
 import { getLogBuffer } from '../logger'
 import { buildProject } from '../build'
 
@@ -322,6 +324,8 @@ export interface RalphLoopConfig {
   gateContext?: GateContext
   /** Task counter for automatic post-task snapshots */
   taskCounter?: number
+  /** Structured task from pre-loop parser */
+  structuredTask?: StructuredTask
 }
 
 export interface RalphResult {
@@ -588,8 +592,19 @@ export async function runRalphLoop(
   try {
     // 0. Load skills ONCE at loop start (bundled at build time)
     const skillsContent = getSkillsContent()
-    const systemPrompt = buildSystemPrompt(skillsContent)
+    let systemPrompt = buildSystemPrompt(skillsContent)
     console.log('[Ralph] System prompt built, skills loaded:', skillsContent.length > 0 ? 'yes' : 'no')
+
+    // Append mutation context for plan update tasks
+    if (config?.structuredTask?.type === 'mutation') {
+      try {
+        const planContent = await fs.readFile(
+          `${cwd}/.ralph/plan.tsx`, { encoding: 'utf8' },
+        ) as string
+        const mutCtx = await formatMutationContext(config.structuredTask, planContent)
+        systemPrompt += '\n\n' + mutCtx
+      } catch { /* plan.tsx doesn't exist or parse failed — skip */ }
+    }
 
     // 0b. Build tool list from command registry (shell + discrete tools)
     const toolkit = buildRalphTools(
@@ -599,7 +614,10 @@ export async function runRalphLoop(
     console.log('[Ralph] Toolkit built:', toolkit.tools.length, 'tools,', toolkit.promotedCommands.size, 'promoted')
 
     // 1. Initialize .ralph/ directory
-    await initRalphDir(fs, cwd, task)
+    const taskText = config?.structuredTask
+      ? formatStructuredTask(config.structuredTask)
+      : task
+    await initRalphDir(fs, cwd, taskText)
     await gitCommit(git, 'ralph: initialized')
 
     // Track consecutive gate failures for harness-controlled completion
@@ -608,8 +626,8 @@ export async function runRalphLoop(
     // Track command attempts for observability (if enabled)
     const commandAttempts: CommandAttempt[] = []
 
-    // Build gate context from config
-    const gateContext: GateContext = config?.gateContext || {}
+    // Build gate context from config — inject git for scope-aware gates
+    const gateContext: GateContext = { ...(config?.gateContext || {}), git }
 
     // Wire preview context so `preview` shell command works inside the loop
     if (gateContext.errorCollector) {
@@ -799,8 +817,9 @@ ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
 
           } else if (toolkit.promotedCommands.has(tc.function.name)) {
             // === DISCRETE TOOL PATH (typed args) ===
-            const cmd = shell.getCommand(tc.function.name)
-            if (!cmd?.argsSchema) {
+            const entry = toolkit.promotedCommands.get(tc.function.name)!
+            const cmd = shell.getCommand(entry.commandName)
+            if (!cmd) {
               messages.push({ role: 'tool', content: `Error: ${tc.function.name} is not a valid discrete tool.`, tool_call_id: tc.id })
               toolCalls++
               continue
@@ -815,8 +834,8 @@ ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
 
             console.log('[Ralph] Executing discrete tool:', tc.function.name, 'args:', JSON.stringify(args).slice(0, 200))
 
-            // Validate via schema
-            const parseResult = cmd.argsSchema.safeParse(args)
+            // Validate via entry's schema (not cmd.argsSchema — tool may differ from command)
+            const parseResult = entry.schema.safeParse(args)
             if (!parseResult.success) {
               const errResult = structuredError(cmd, parseResult)
               const output = errResult.stderr

@@ -1,17 +1,37 @@
+import { z } from 'zod'
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import { extractBuildMeta, generateSnapshot } from '../../preview/snapshot'
 
-/**
- * preview - Build project and capture rendered output
- *
- * Triggers an on-demand build, reports errors/warnings,
- * and generates a layered snapshot for visual feedback.
- */
-export class PreviewCommand implements ShellCommand {
+// ============================================================================
+// SCHEMA (Toolkit 2.0 dual-mode)
+// ============================================================================
+
+const PreviewArgsSchema = z.object({
+  action: z.enum(['build']).default('build').describe('Preview action'),
+})
+
+type PreviewArgs = z.infer<typeof PreviewArgsSchema>
+
+// ============================================================================
+// COMMAND
+// ============================================================================
+
+export class PreviewCommand implements ShellCommand<PreviewArgs> {
   name = 'preview'
   description = 'Build project and capture rendered output'
 
-  async execute(args: string[], options: ShellOptions): Promise<ShellResult> {
+  argsSchema = PreviewArgsSchema
+
+  examples = [
+    'preview',
+    'preview build',
+  ]
+
+  parseCliArgs(args: string[]): unknown {
+    return { action: args[0] ?? 'build' }
+  }
+
+  async execute(args: PreviewArgs, options: ShellOptions): Promise<ShellResult> {
     const { fs, cwd, preview } = options
 
     if (!preview) {

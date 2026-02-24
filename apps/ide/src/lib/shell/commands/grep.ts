@@ -1,14 +1,31 @@
+import { z } from 'zod'
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import { resolvePath } from './utils'
 import { getSearchDb, semanticSearch } from '../../search'
 import { getPackageEntry } from '../../packages/registry'
 
-/**
- * grep - Search for patterns in files
- * Supports -i (ignore case), -r (recursive), -n (line numbers),
- * -E (extended regex), -l (files only), -A/-B/-C (context lines)
- */
-export class GrepCommand implements ShellCommand {
+// ============================================================================
+// SCHEMAS (flat — no discriminated unions, models can't fill them)
+// ============================================================================
+
+/** Flat schema for discrete grep tool (regex search) */
+export const GrepRegexSchema = z.object({
+  pattern: z.string().min(1).describe('Regex pattern to search for'),
+  path: z.string().optional().describe('File or directory to search'),
+  include: z.string().optional().describe('Glob to filter files (e.g. "*.tsx")'),
+})
+
+/** Flat schema for discrete search tool (skill/package/code) */
+export const SearchSchema = z.object({
+  query: z.string().min(1).describe('Semantic search query'),
+  scope: z.enum(['skill', 'package', 'code']).optional().describe('Search domain (default: skill)'),
+})
+
+// ============================================================================
+// COMMAND
+// ============================================================================
+
+export class GrepCommand implements ShellCommand<any> {
   name = 'grep'
   description = `Search files, skills, or packages. Modes:
   grep skill "<query>"   - Semantic search of skills (typo-tolerant)
@@ -16,29 +33,37 @@ export class GrepCommand implements ShellCommand {
   grep code "<query>"    - Semantic search of project (coming soon)
   grep "<pattern>" <file> - Exact regex match in file`
 
-  async execute(args: string[], options: ShellOptions): Promise<ShellResult> {
-    const { fs, cwd, stdin } = options
+  additionalTools = [
+    {
+      name: 'grep',
+      description: 'Regex search in project files',
+      argsSchema: GrepRegexSchema,
+      examples: ['grep({ pattern: "useState", path: "src/" })'],
+    },
+    {
+      name: 'search',
+      description: 'Semantic search for skills, packages, or code',
+      argsSchema: SearchSchema,
+      examples: ['search({ query: "form validation" })'],
+    },
+  ]
 
-    // Parse flags and arguments
+  parseCliArgs(args: string[]): unknown {
     let ignoreCase = false
     let recursive = false
-    let showLineNumbers = false
+    let lineNumbers = false
     let extendedRegex = false
     let filesOnly = false
-    let afterContext = 0
-    let beforeContext = 0
+    let afterContext: number | undefined
+    let beforeContext: number | undefined
     const positionalArgs: string[] = []
 
     for (let i = 0; i < args.length; i++) {
       const arg = args[i]
 
-      // Context flags that consume a numeric argument: -A <n>, -B <n>, -C <n>
+      // Context flags: -A <n>, -B <n>, -C <n>
       if (arg === '-A' || arg === '-B' || arg === '-C') {
-        const numArg = args[++i]
-        const num = parseInt(numArg, 10)
-        if (isNaN(num) || num < 0) {
-          return { exitCode: 2, stdout: '', stderr: `grep: invalid context length argument: ${numArg}` }
-        }
+        const num = parseInt(args[++i], 10)
         if (arg === '-A') afterContext = num
         else if (arg === '-B') beforeContext = num
         else { afterContext = num; beforeContext = num }
@@ -58,7 +83,7 @@ export class GrepCommand implements ShellCommand {
       if (arg.startsWith('-') && !arg.startsWith('--')) {
         if (arg.includes('i')) ignoreCase = true
         if (arg.includes('r') || arg.includes('R')) recursive = true
-        if (arg.includes('n')) showLineNumbers = true
+        if (arg.includes('n')) lineNumbers = true
         if (arg.includes('E')) extendedRegex = true
         if (arg.includes('l')) filesOnly = true
       } else if (arg === '--ignore-case') {
@@ -66,7 +91,7 @@ export class GrepCommand implements ShellCommand {
       } else if (arg === '--recursive') {
         recursive = true
       } else if (arg === '--line-number') {
-        showLineNumbers = true
+        lineNumbers = true
       } else if (arg === '--extended-regexp') {
         extendedRegex = true
       } else if (arg === '--files-with-matches') {
@@ -77,65 +102,100 @@ export class GrepCommand implements ShellCommand {
     }
 
     // Semantic search modes
-    const mode = positionalArgs[0]?.toLowerCase()
+    const modeStr = positionalArgs[0]?.toLowerCase()
 
-    if (mode === 'skill' || mode === 'skills') {
-      const query = positionalArgs.slice(1).join(' ')
-      if (!query) {
-        return { exitCode: 2, stdout: '', stderr: 'grep skill: missing query' }
-      }
-      return this.searchSkills(query)
+    if (modeStr === 'skill' || modeStr === 'skills') {
+      return { mode: 'skill', query: positionalArgs.slice(1).join(' ') }
+    }
+    if (modeStr === 'package' || modeStr === 'packages') {
+      return { mode: 'package', query: positionalArgs.slice(1).join(' ') }
+    }
+    if (modeStr === 'code') {
+      return { mode: 'code', query: positionalArgs.slice(1).join(' ') }
     }
 
-    if (mode === 'package' || mode === 'packages') {
-      const query = positionalArgs.slice(1).join(' ')
-      if (!query) {
-        return { exitCode: 2, stdout: '', stderr: 'grep package: missing query' }
-      }
-      return this.searchPackages(query)
+    return {
+      mode: 'regex',
+      pattern: positionalArgs[0] ?? '',
+      files: positionalArgs.length > 1 ? positionalArgs.slice(1) : undefined,
+      ignoreCase: ignoreCase || undefined,
+      recursive: recursive || undefined,
+      lineNumbers: lineNumbers || undefined,
+      extendedRegex: extendedRegex || undefined,
+      filesOnly: filesOnly || undefined,
+      afterContext,
+      beforeContext,
+    }
+  }
+
+  async execute(args: any, options: ShellOptions): Promise<ShellResult> {
+    // Discrete search tool: { query, scope? }
+    if ('query' in args && !('mode' in args)) {
+      const scope = args.scope ?? 'skill'
+      if (scope === 'skill') return this.searchSkills(args.query)
+      if (scope === 'package') return this.searchPackages(args.query)
+      return { exitCode: 1, stdout: '', stderr: 'search code: project indexing not yet implemented' }
     }
 
-    if (mode === 'code') {
-      return {
-        exitCode: 1,
-        stdout: '',
-        stderr: 'grep code: project indexing not yet implemented',
-      }
+    // Discrete grep tool: { pattern } (no mode field)
+    if ('pattern' in args && !('mode' in args)) {
+      return this.regexSearch({
+        mode: 'regex' as const, pattern: args.pattern,
+        files: args.path ? [args.path] : [],
+        recursive: true, lineNumbers: true,
+      }, options)
     }
 
-    if (positionalArgs.length === 0) {
-      return { exitCode: 2, stdout: '', stderr: 'grep: missing pattern' }
+    // Shell path (parseCliArgs output has mode field)
+    if (args.mode === 'skill') return this.searchSkills(args.query)
+    if (args.mode === 'package') return this.searchPackages(args.query)
+    if (args.mode === 'code') {
+      return { exitCode: 1, stdout: '', stderr: 'grep code: project indexing not yet implemented' }
     }
 
-    const rawPattern = positionalArgs[0]
-    const files = positionalArgs.slice(1)
+    return this.regexSearch(args, options)
+  }
+
+  private async regexSearch(
+    args: { pattern: string; files?: string[]; ignoreCase?: boolean; recursive?: boolean; lineNumbers?: boolean; extendedRegex?: boolean; filesOnly?: boolean; beforeContext?: number; afterContext?: number },
+    options: ShellOptions,
+  ): Promise<ShellResult> {
+    const { fs, cwd, stdin } = options
+    const { pattern, files = [], ignoreCase, recursive, lineNumbers, extendedRegex, filesOnly, beforeContext = 0, afterContext = 0 } = args
 
     // In basic mode, convert \| to | (POSIX basic regex alternation)
-    // In extended mode (-E), | is already literal alternation
-    const pattern = extendedRegex ? rawPattern : rawPattern.replace(/\\\|/g, '|')
-    const regex = new RegExp(pattern, ignoreCase ? 'gi' : 'g')
+    const resolved = extendedRegex ? pattern : pattern.replace(/\\\|/g, '|')
+    const regex = new RegExp(resolved, ignoreCase ? 'gi' : 'g')
 
     const matches: string[] = []
     const matchedFiles = new Set<string>()
     const errors: string[] = []
 
-    // If no files and stdin provided, search stdin
     if (files.length === 0 && stdin !== undefined) {
-      const stdinMatches = searchContent(stdin, regex, showLineNumbers, '', beforeContext, afterContext)
+      const stdinMatches = searchContent(stdin, regex, !!lineNumbers, '', beforeContext, afterContext)
       matches.push(...stdinMatches)
     } else if (files.length === 0) {
-      return { exitCode: 2, stdout: '', stderr: 'grep: no input files' }
+      return {
+        exitCode: 2,
+        stdout: '',
+        stderr: [
+          `grep: no input files`,
+          `Did you mean:  grep "${pattern}" src/          (search src/ recursively)`,
+          `               grep "${pattern}" src/**/*.tsx   (search .tsx files)`,
+          `               grep skill "${pattern}"          (search skills library)`,
+        ].join('\n'),
+      }
     } else {
       for (const file of files) {
         const filePath = resolvePath(cwd, file)
-        const showFileName = files.length > 1 || recursive
+        const showFileName = files.length > 1 || !!recursive
 
         try {
           const stat = await fs.stat(filePath)
 
           if (stat.isDirectory()) {
             if (recursive) {
-              await searchDirectory(fs, filePath, regex, showLineNumbers, matches, errors, beforeContext, afterContext)
+              await searchDirectory(fs, filePath, regex, !!lineNumbers, matches, errors, beforeContext, afterContext)
             } else {
               errors.push(`grep: ${file}: Is a directory`)
             }
@@ -143,12 +203,7 @@ export class GrepCommand implements ShellCommand {
             const content = await fs.readFile(filePath, { encoding: 'utf8' })
             const text = typeof content === 'string' ? content : new TextDecoder().decode(content)
             const fileMatches = searchContent(
-              text,
-              regex,
-              showLineNumbers,
-              showFileName ? file : '',
-              beforeContext,
-              afterContext
+              text, regex, !!lineNumbers, showFileName ? file : '', beforeContext, afterContext,
             )
             if (fileMatches.length > 0) {
               matchedFiles.add(file)
@@ -161,22 +216,15 @@ export class GrepCommand implements ShellCommand {
       }
     }
 
-    // -l: only output filenames that had matches
     if (filesOnly && matchedFiles.size > 0) {
-      return {
-        exitCode: 0,
-        stdout: [...matchedFiles].join('\n') + '\n',
-        stderr: errors.join('\n'),
-      }
+      return { exitCode: 0, stdout: [...matchedFiles].join('\n') + '\n', stderr: errors.join('\n') }
     }
 
-    // Helpful hint when files don't exist and nothing matched
     if (matches.length === 0 && errors.length > 0) {
       errors.push('\nHint: Use `find . -name "*.tsx"` or `ls <dir>` to verify file paths')
     }
 
     const exitCode = matches.length > 0 ? 0 : errors.length > 0 ? 2 : 1
-
     return {
       exitCode,
       stdout: matches.join('\n') + (matches.length > 0 ? '\n' : ''),

@@ -14,6 +14,10 @@
     "./validate": {
       "types": "./src/validate.ts",
       "import": "./src/validate.ts"
+    },
+    "./diff": {
+      "types": "./src/diff.ts",
+      "import": "./src/diff.ts"
     }
   },
   "scripts": {

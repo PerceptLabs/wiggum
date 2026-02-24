@@ -5,6 +5,7 @@
  */
 
 import type { BuildResult } from '../build/types'
+import type { Git } from '../git'
 import type { IframeProbeResult } from '../preview/snapshot'
 
 /**
@@ -152,4 +153,6 @@ export interface GateContext {
   fullBuild?: () => Promise<BuildResult | undefined>
   /** Probe the preview iframe for layout/theme data */
   probeIframe?: () => Promise<IframeProbeResult>
+  /** Git instance for scope-aware gates (tag comparison) */
+  git?: Git
 }

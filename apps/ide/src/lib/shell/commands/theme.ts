@@ -3,6 +3,7 @@
  * Font/shadow/radius validated against curated registries.
  */
 
+import { z } from 'zod'
 import type { ShellCommand, ShellOptions, ShellResult } from '../types'
 import type { FontCategory } from '../../theme-generator/types'
 import type { MoodName, PersonalityBrief } from '../../theme-generator/personalities'
@@ -62,34 +63,148 @@ const PRESET_MOOD_MAP: Record<string, MoodName> = {
   'catppuccin': 'minimal',
 }
 
-export class ThemeCommand implements ShellCommand {
+// ============================================================================
+// SCHEMA (Toolkit 2.0 dual-mode)
+// ============================================================================
+
+const ThemeArgsSchema = z.discriminatedUnion('subcommand', [
+  z.object({
+    subcommand: z.literal('preset'),
+    name: z.string().min(1).describe('Preset name (e.g. cyberpunk, mocha-mousse)'),
+    mood: z.string().optional().describe('Override mood for design brief'),
+    chroma: z.string().optional().describe('Saturation: low|medium|high or 0.0-2.0'),
+    apply: z.boolean().optional().describe('Write to src/index.css + tokens'),
+  }),
+  z.object({
+    subcommand: z.literal('generate'),
+    seed: z.number().describe('Hue seed 0-360'),
+    pattern: z.string().min(1).describe('Color pattern (e.g. triadic, analogous, complementary)'),
+    mood: z.string().optional().describe('Mood for design brief (required with --apply)'),
+    chroma: z.string().optional().describe('Saturation level'),
+    font: z.string().optional().describe('Font name from registry'),
+    shadowProfile: z.string().optional().describe('Shadow profile name'),
+    radius: z.string().optional().describe('Border radius stop'),
+    personality: z.string().optional().describe('Path to custom PersonalityBrief JSON'),
+    apply: z.boolean().optional().describe('Write to src/index.css + tokens'),
+  }),
+  z.object({
+    subcommand: z.literal('modify'),
+    shiftHue: z.number().describe('Degrees to shift hue (+/-)'),
+    scope: z.enum(['brand', 'surface', 'all']).optional().default('all'),
+    apply: z.boolean().optional().describe('Write modified CSS back to file'),
+  }),
+  z.object({
+    subcommand: z.literal('list'),
+    what: z.enum(['presets', 'patterns', 'fonts', 'shadows', 'radii', 'moods']).describe('What to list'),
+    category: z.string().optional().describe('Font category filter (for fonts)'),
+  }),
+  z.object({
+    subcommand: z.literal('extend'),
+    name: z.string().optional().describe('Color name for add/remove'),
+    hue: z.number().optional().describe('Hue 0-360 for new extended color'),
+    list: z.boolean().optional().describe('List extended colors'),
+    remove: z.string().optional().describe('Name of extended color to remove'),
+  }),
+])
+
+type ThemeArgs = z.infer<typeof ThemeArgsSchema>
+
+// ============================================================================
+// COMMAND
+// ============================================================================
+
+export class ThemeCommand implements ShellCommand<any> {
   name = 'theme'
   description = 'Generate OKLCH color themes with sacred geometry patterns'
 
-  async execute(args: string[], options: ShellOptions): Promise<ShellResult> {
-    if (args.length === 0) return { exitCode: 1, stdout: '', stderr: this.usage() }
-
+  parseCliArgs(args: string[]): unknown {
+    if (args.length === 0) return { subcommand: '' }
     const sub = args[0]
+    const rest = args.slice(1)
+    const flags = parseFlags(rest)
 
-    if (sub === 'help' || sub === '--help' || sub === '-h') {
-      return { exitCode: 0, stdout: this.usage(), stderr: '' }
+    if (sub === 'preset') {
+      const name = rest.find(a => !a.startsWith('--'))
+      return {
+        subcommand: 'preset',
+        name: name ?? '',
+        mood: flags['mood'],
+        chroma: flags['chroma'],
+        apply: flags['apply'] === 'true' || undefined,
+      }
     }
 
-    if (sub === 'preset') return this.handlePreset(args.slice(1), options)
-    if (sub === 'generate') return this.handleGenerate(args.slice(1), options)
-    if (sub === 'modify') return this.handleModify(args.slice(1), options)
-    if (sub === 'extend') return handleExtend(args.slice(1), options)
-    if (sub === 'list') return this.handleList(args.slice(1))
+    if (sub === 'generate') {
+      return {
+        subcommand: 'generate',
+        seed: parseFloat(flags['seed'] ?? ''),
+        pattern: flags['pattern'] ?? '',
+        mood: flags['mood'],
+        chroma: flags['chroma'],
+        font: flags['font'],
+        shadowProfile: flags['shadow-profile'],
+        radius: flags['radius'],
+        personality: flags['personality'],
+        apply: flags['apply'] === 'true' || undefined,
+      }
+    }
 
-    return { exitCode: 1, stdout: '', stderr: `theme: unknown subcommand "${sub}"\n${this.usage()}` }
+    if (sub === 'modify') {
+      return {
+        subcommand: 'modify',
+        shiftHue: parseFloat(flags['shift-hue'] ?? ''),
+        scope: flags['scope'],
+        apply: flags['apply'] === 'true' || undefined,
+      }
+    }
+
+    if (sub === 'list') {
+      const what = rest.find(a => !a.startsWith('--'))
+      return {
+        subcommand: 'list',
+        what: what ?? '',
+        category: flags['category'],
+      }
+    }
+
+    if (sub === 'extend') {
+      return {
+        subcommand: 'extend',
+        name: flags['name'],
+        hue: flags['hue'] ? parseFloat(flags['hue']) : undefined,
+        list: flags['list'] === 'true' || undefined,
+        remove: flags['remove'],
+      }
+    }
+
+    return { subcommand: sub }
   }
 
-  private async handlePreset(args: string[], options: ShellOptions): Promise<ShellResult> {
-    const flags = parseFlags(args)
-    const apply = flags['apply'] === 'true'
-    const moodFlag = flags['mood']
-    const chromaFlag = flags['chroma']
-    const name = args.find(a => !a.startsWith('--'))
+  async execute(args: ThemeArgs, options: ShellOptions): Promise<ShellResult> {
+    switch (args.subcommand) {
+      case 'preset': return this.handlePreset(args, options)
+      case 'generate': return this.handleGenerate(args, options)
+      case 'modify': return this.handleModify(args, options)
+      case 'list': return this.handleList(args)
+      case 'extend': {
+        // Reconstruct string[] for handleExtend (separate file, keeps string[] interface)
+        const extArgs: string[] = []
+        if (args.list) extArgs.push('--list')
+        if (args.remove) extArgs.push('--remove', args.remove)
+        if (args.name) extArgs.push('--name', args.name)
+        if (args.hue !== undefined) extArgs.push('--hue', String(args.hue))
+        return handleExtend(extArgs, options)
+      }
+      default:
+        return { exitCode: 1, stdout: '', stderr: `theme: unknown subcommand\n${this.usage()}` }
+    }
+  }
+
+  private async handlePreset(
+    args: Extract<ThemeArgs, { subcommand: 'preset' }>,
+    options: ShellOptions,
+  ): Promise<ShellResult> {
+    const { name, mood: moodFlag, chroma: chromaFlag, apply = false } = args
     if (!name) {
       const names = Object.keys(PRESETS).join(', ')
       return { exitCode: 1, stdout: '', stderr: `theme preset: missing name. Available: ${names}` }
@@ -165,27 +280,18 @@ export class ThemeCommand implements ShellCommand {
     return { exitCode: 0, stdout: result.output + '\n', stderr: '' }
   }
 
-  private async handleGenerate(args: string[], options: ShellOptions): Promise<ShellResult> {
-    const flags = parseFlags(args)
-    const apply = flags['apply'] === 'true'
-    const seed = parseFloat(flags['seed'] ?? '')
-    const rawPattern = flags['pattern'] ?? ''
-    const chromaFlag = flags['chroma']
-    const personalityFlag = flags['personality']
-    const moodFlag = flags['mood']
+  private async handleGenerate(
+    args: Extract<ThemeArgs, { subcommand: 'generate' }>,
+    options: ShellOptions,
+  ): Promise<ShellResult> {
+    const { seed, pattern: rawPattern, mood: moodFlag, chroma: chromaFlag, font, shadowProfile, radius, personality: personalityFlag, apply = false } = args
 
     // Resolve alias (two-dimensional: pattern + chromaHint)
     const alias = PATTERN_ALIASES[rawPattern]
     const pattern = alias ? alias.pattern : rawPattern
     const aliasChromaHint = alias ? alias.chromaHint : undefined
 
-    const mode = (flags['mode'] ?? 'both') as 'light' | 'dark' | 'both'
-    const font = flags['font']
-    const shadowProfile = flags['shadow-profile']
-    const radius = flags['radius']
-
-    if (isNaN(seed)) return { exitCode: 1, stdout: '', stderr: 'theme generate: --seed <0-360> is required' }
-    if (!pattern) return { exitCode: 1, stdout: '', stderr: 'theme generate: --pattern <name> is required' }
+    const mode = 'both' as 'light' | 'dark' | 'both'
     if (!PATTERNS[pattern]) {
       const names = Object.keys(PATTERNS).join(', ')
       const aliases = Object.entries(PATTERN_ALIASES).map(([k, v]) => k + '\u2192' + v.pattern).join(', ')
@@ -305,13 +411,11 @@ export class ThemeCommand implements ShellCommand {
     }
   }
 
-  private async handleModify(args: string[], options: ShellOptions): Promise<ShellResult> {
-    const flags = parseFlags(args)
-    const apply = flags['apply'] === 'true'
-    const shiftHue = parseFloat(flags['shift-hue'] ?? '')
-    const scope = (flags['scope'] ?? 'all') as 'brand' | 'surface' | 'all'
-
-    if (isNaN(shiftHue)) return { exitCode: 1, stdout: '', stderr: 'theme modify: --shift-hue <±degrees> is required' }
+  private async handleModify(
+    args: Extract<ThemeArgs, { subcommand: 'modify' }>,
+    options: ShellOptions,
+  ): Promise<ShellResult> {
+    const { shiftHue, scope = 'all', apply = false } = args
 
     const filePath = resolvePath(options.cwd, 'src/index.css')
 
@@ -386,8 +490,8 @@ export class ThemeCommand implements ShellCommand {
     return { exitCode: 0, stdout: result + '\n', stderr: '' }
   }
 
-  private handleList(args: string[]): ShellResult {
-    const what = args[0]
+  private handleList(args: Extract<ThemeArgs, { subcommand: 'list' }>): ShellResult {
+    const { what } = args
 
     if (what === 'presets') {
       const items = listPresets()
@@ -404,8 +508,7 @@ export class ThemeCommand implements ShellCommand {
     }
 
     if (what === 'fonts') {
-      const flags = parseFlags(args.slice(1))
-      const category = flags['category'] as FontCategory | undefined
+      const category = args.category as FontCategory | undefined
       const fonts = listFonts(category)
 
       if (category) {

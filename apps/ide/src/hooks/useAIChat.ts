@@ -6,6 +6,8 @@ import { ShellExecutor } from '@/lib/shell'
 import { registerAllCommands } from '@/lib/shell/commands'
 import { runRalphLoop, type RalphCallbacks } from '@/lib/ralph'
 import { readTaskCounter, writeTaskCounter, readPreviousSummary, appendTaskHistory, createPreSnapshot } from '@/lib/ralph/task-lifecycle'
+import { parseTask } from '@/lib/ralph/task-parser'
+import type { StructuredTask } from '@/lib/ralph/task-types'
 import { Git } from '@/lib/git'
 import { getSearchDb } from '@/lib/search'
 import { createErrorCollector } from '@/lib/preview/error-collector'
@@ -209,6 +211,27 @@ export function useAIChat(options: UseChatOptions = {}) {
         console.error('[useAIChat] Pre-task snapshot failed (non-fatal):', err)
       }
 
+      // === Task parser: structured decomposition ===
+      let structuredTask: StructuredTask | undefined
+      try {
+        const planPath = `${cwd}/.ralph/plan.tsx`
+        let planExists = false
+        try { await fs.stat(planPath); planExists = true } catch { /* plan.tsx doesn't exist yet */ }
+        const lastSummary = await readPreviousSummary(fs, cwd)
+        let fileList: string[] = []
+        try {
+          const entries = await fs.readdir(`${cwd}/src`, { withFileTypes: true })
+          fileList = (entries as { name: string }[]).map(e => `src/${e.name}`)
+        } catch { /* src/ doesn't exist yet */ }
+
+        structuredTask = await parseTask(
+          provider, content, { planExists, lastSummary, fileList },
+          taskNumber, abortRef.current?.signal,
+        )
+      } catch (err) {
+        console.error('[useAIChat] Task parser failed (non-fatal):', err)
+      }
+
       // Add user message to UI
       const userMessage: AIMessage = { role: 'user', content }
       setState((s) => ({ ...s, messages: [...s.messages, userMessage] }))
@@ -315,6 +338,7 @@ export function useAIChat(options: UseChatOptions = {}) {
             },
             gateContext: { errorCollector, fullBuild: options.fullBuild, probeIframe: options.probeIframe as GateContext['probeIframe'] },
             taskCounter: taskNumber,
+            structuredTask,
           }
         )
 

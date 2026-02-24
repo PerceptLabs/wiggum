@@ -335,13 +335,13 @@ export class ShellExecutor {
       preview: this.previewContext,
     }
 
-    // Schema validation branch — validate before execute if command has argsSchema
+    // Typed args: parseCliArgs converts string[] → typed shape, argsSchema validates
     let execArgs: any = normalizedArgs
+    if (command.parseCliArgs) {
+      execArgs = command.parseCliArgs(normalizedArgs)
+    }
     if (command.argsSchema) {
-      const raw = command.parseCliArgs
-        ? command.parseCliArgs(normalizedArgs)
-        : normalizedArgs
-      const parseResult = command.argsSchema.safeParse(raw)
+      const parseResult = command.argsSchema.safeParse(execArgs)
       if (!parseResult.success) {
         return structuredError(command, parseResult)
       }

@@ -199,6 +199,18 @@ export default (
 )
 ```
 
+## Assembly Sequence
+
+Build files in dependency order to avoid missing-import errors:
+
+1. **Data types** — `src/types.ts` or `src/shared/` schemas
+2. **Hooks** — `src/hooks/` custom React hooks that consume types
+3. **Components** — `src/components/` reusable UI pieces that use hooks + types
+4. **Sections** — `src/sections/` or gumdrop implementations that compose components
+5. **App.tsx** — imports and arranges sections into the final layout
+
+Write leaf dependencies first, then work upward. Writing App.tsx before its sections exist causes build failures that waste iterations.
+
 ## Anti-Patterns
 
 **Too vague** — Sections without context:

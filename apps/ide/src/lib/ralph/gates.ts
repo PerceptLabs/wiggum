@@ -12,6 +12,9 @@ import { formatRuntimeErrors } from '../preview/error-collector'
 import { noHardcodedColorsGate } from './color-gate'
 import { parsePlanTsx } from '../build/plan-parser'
 import { validatePlan } from '@wiggum/planning/validate'
+import { diffPlan, type DiffEntry } from '@wiggum/planning/diff'
+import { parseSourceTsx } from '../build/plan-parser'
+import { scopeValidationGate } from './scope-gates'
 
 // ============================================================================
 // TYPES
@@ -22,6 +25,8 @@ export interface GateResult {
   feedback?: string
   /** Auto-fix: if provided and gate has failed multiple times, harness can apply this fix directly */
   fix?: { file: string; content: string; description: string }
+  /** Plan-diff entries — returned by plan-diff gate, consumed by generateGateFeedback */
+  diffEntries?: DiffEntry[]
 }
 
 export interface QualityGate {
@@ -289,6 +294,42 @@ export const QUALITY_GATES: QualityGate[] = [
       return { pass: true }
     },
   },
+
+  {
+    name: 'plan-diff',
+    description: 'Compare plan.tsx against implementation (informational)',
+    check: async (fs, cwd) => {
+      const planContent = await readFile(fs, `${cwd}/.ralph/plan.tsx`)
+      if (!planContent) return { pass: true }
+
+      const { root } = await parsePlanTsx(planContent)
+      if (!root) return { pass: true }
+
+      const result = await diffPlan(root, fs, cwd, parseSourceTsx)
+
+      try {
+        await fs.mkdir(`${cwd}/.ralph`, { recursive: true })
+        await fs.writeFile(`${cwd}/.ralph/plan-diff.md`, result.report, { encoding: 'utf8' })
+      } catch {
+        // Write failures are non-fatal
+      }
+
+      const missing = result.entries.filter(e => e.status === 'missing')
+      const deviations = result.entries.filter(e => e.status === 'deviation')
+
+      if (missing.length > 0 || deviations.length > 0) {
+        return {
+          pass: true,
+          feedback: `Plan diff: ${missing.length} missing, ${deviations.length} deviations. See .ralph/plan-diff.md`,
+          diffEntries: result.entries,
+        }
+      }
+
+      return { pass: true, diffEntries: result.entries }
+    },
+  },
+
+  scopeValidationGate,
 
   {
     name: 'css-no-tailwind-directives',
@@ -611,12 +652,39 @@ export async function runQualityGates(
 }
 
 /**
+ * Scan gate feedback for file paths and annotate with plan section context.
+ * Returns annotation string or null if no matches found.
+ */
+function annotateFeedbackWithSections(feedback: string, entries: DiffEntry[]): string | null {
+  const annotations: string[] = []
+  // Match file paths like src/hooks/useCart.tsx, ./components/Hero.tsx, etc.
+  const filePathPattern = /(?:src\/|\.\/)([\w/-]+\.(?:tsx?|jsx?|css))/g
+  const seen = new Set<string>()
+
+  for (const match of feedback.matchAll(filePathPattern)) {
+    const relPath = match[1]
+    if (seen.has(relPath)) continue
+    seen.add(relPath)
+
+    const entry = entries.find(e => e.found === relPath || e.found?.endsWith(relPath))
+    if (entry) {
+      annotations.push(`  (plan context: ${entry.planned} — ${entry.category})`)
+    }
+  }
+
+  return annotations.length > 0 ? annotations.join('\n') : null
+}
+
+/**
  * Generate markdown feedback for failed gates
  * Written to .ralph/feedback.md for Ralph to read on next iteration
  */
 export function generateGateFeedback(results: GatesResult['results']): string {
   const failures = results.filter((r) => !r.result.pass)
   const infoGates = results.filter((r) => r.result.pass && r.result.feedback)
+
+  // Extract plan-diff entries for section-annotated feedback
+  const diffEntries = results.find(r => r.gate === 'plan-diff')?.result.diffEntries ?? []
 
   const lines: string[] = []
 
@@ -625,6 +693,12 @@ export function generateGateFeedback(results: GatesResult['results']): string {
     for (const { gate, result } of failures) {
       lines.push(`## ${gate}`)
       lines.push(result.feedback || 'Failed without specific feedback')
+
+      // Annotate file paths in feedback with plan section context
+      if (diffEntries.length > 0 && result.feedback) {
+        const annotation = annotateFeedbackWithSections(result.feedback, diffEntries)
+        if (annotation) lines.push(annotation)
+      }
 
       // Add explicit fix instructions
       const explicitFix = getExplicitFix(gate)

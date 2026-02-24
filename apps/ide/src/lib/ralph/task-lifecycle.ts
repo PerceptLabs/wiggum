@@ -85,8 +85,8 @@ async function createSnapshot(
   commitMessage: string
 ): Promise<string | null> {
   try {
-    // Stage all additions/modifications by content hash
-    await git.add('.')
+    // Stage all changes (additions, modifications, deletions)
+    await git.addAll()
 
     // Check for actual staged changes
     const matrix = await git.statusMatrix()

@@ -5,6 +5,7 @@
  * Fallback: regex character scanner (works offline)
  */
 import type { PlanNode } from '@wiggum/planning/validate'
+import type { SourceJsxNode } from '@wiggum/planning/diff'
 
 // ============================================================================
 // PUBLIC API
@@ -124,6 +125,72 @@ function extractPropsFromAttributes(attrs: any[]): Record<string, string | numbe
     }
   }
   return props
+}
+
+// ============================================================================
+// SOURCE TSX PARSER — full-file JSX walker for plan diffing
+// ============================================================================
+
+/**
+ * Parse a source .tsx file and extract all JSX trees as SourceJsxNode arrays.
+ * Unlike parsePlanTsx (which only looks at export default), this walks the
+ * full AST body — function returns, variable declarations, etc.
+ *
+ * Returns [] if babel is unavailable or the file can't be parsed.
+ */
+export async function parseSourceTsx(content: string): Promise<SourceJsxNode[]> {
+  if (!cachedBabelParse) {
+    try {
+      const mod = await import(/* @vite-ignore */ 'https://esm.sh/@babel/parser@7')
+      cachedBabelParse = mod.parse ?? mod.default?.parse
+    } catch { return [] }
+  }
+  if (!cachedBabelParse) return []
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ast: any = cachedBabelParse(content, {
+      sourceType: 'module',
+      plugins: ['jsx', 'typescript'],
+    })
+
+    const nodes: SourceJsxNode[] = []
+    walkAstForJsx(ast.program, nodes)
+    return nodes
+  } catch {
+    return []
+  }
+}
+
+/** Recursively walk Babel AST to find ALL JSXElement nodes and convert them */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function walkAstForJsx(node: any, out: SourceJsxNode[]): void {
+  if (!node || typeof node !== 'object') return
+  if (node.type === 'JSXElement') {
+    out.push(jsxToSourceNode(node))
+    return // Don't double-walk children — jsxToSourceNode recurses
+  }
+  for (const key of Object.keys(node)) {
+    if (key === 'loc' || key === 'start' || key === 'end') continue
+    const val = node[key]
+    if (Array.isArray(val)) {
+      for (const item of val) walkAstForJsx(item, out)
+    } else if (val && typeof val === 'object' && val.type) {
+      walkAstForJsx(val, out)
+    }
+  }
+}
+
+/** Convert Babel JSXElement to SourceJsxNode (reuses extractPropsFromAttributes) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function jsxToSourceNode(element: any): SourceJsxNode {
+  const name = element.openingElement?.name?.name ?? 'unknown'
+  const props = extractPropsFromAttributes(element.openingElement?.attributes ?? [])
+  const children: SourceJsxNode[] = []
+  for (const child of element.children ?? []) {
+    if (child.type === 'JSXElement') children.push(jsxToSourceNode(child))
+  }
+  return { name, props, children }
 }
 
 // ============================================================================

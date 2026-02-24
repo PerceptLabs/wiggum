@@ -30,6 +30,13 @@ export interface ShellCommand<T = string[]> {
   examples?: string[]
   /** Convert raw CLI args to typed shape for schema validation */
   parseCliArgs?(args: string[]): unknown
+  /** Extra tool registrations backed by this command (different name + schema) */
+  additionalTools?: Array<{
+    name: string
+    description: string
+    argsSchema: ArgsSchema<any>
+    examples?: string[]
+  }>
   execute(args: T, options: ShellOptions): Promise<ShellResult>
 }
 

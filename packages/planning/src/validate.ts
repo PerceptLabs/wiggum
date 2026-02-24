@@ -70,7 +70,7 @@ const STATEFUL_GUMDROPS = new Set([
 // ============================================================================
 
 /** Recursively collect all descendants matching a component name */
-function collectNodes(node: PlanNode, name: string): PlanNode[] {
+export function collectNodes(node: PlanNode, name: string): PlanNode[] {
   const result: PlanNode[] = []
   if (node.component === name) result.push(node)
   for (const child of node.children) {
@@ -80,7 +80,7 @@ function collectNodes(node: PlanNode, name: string): PlanNode[] {
 }
 
 /** Check if a node has any Section descendants (handles Content wrapper) */
-function hasSectionDescendant(node: PlanNode): boolean {
+export function hasSectionDescendant(node: PlanNode): boolean {
   for (const child of node.children) {
     if (child.component === 'Section') return true
     if (hasSectionDescendant(child)) return true
@@ -89,7 +89,7 @@ function hasSectionDescendant(node: PlanNode): boolean {
 }
 
 /** Get direct Section children or Sections inside Content */
-function getSectionsInOrder(node: PlanNode): PlanNode[] {
+export function getSectionsInOrder(node: PlanNode): PlanNode[] {
   const sections: PlanNode[] = []
   for (const child of node.children) {
     if (child.component === 'Section') {
@@ -103,6 +103,32 @@ function getSectionsInOrder(node: PlanNode): PlanNode[] {
     }
   }
   return sections
+}
+
+/** Single-row Levenshtein distance (no external dependency) */
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length
+  const dp: number[] = Array.from({ length: n + 1 }, (_, i) => i)
+  for (let i = 1; i <= m; i++) {
+    let prev = i - 1
+    dp[0] = i
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j]
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1])
+      prev = tmp
+    }
+  }
+  return dp[n]
+}
+
+/** Suggest nearest valid names by edit distance */
+function suggestNearest(name: string, valid: readonly string[], count = 3): string[] {
+  return [...valid]
+    .map(v => ({ v, d: levenshtein(name.toLowerCase(), v.toLowerCase()) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, count)
+    .filter(x => x.d <= Math.max(name.length * 0.6, 4))
+    .map(x => x.v)
 }
 
 /** Normalize a name for schema-endpoint matching */
@@ -212,9 +238,11 @@ export function validatePlan(
     if (gumdrop !== undefined && typeof gumdrop === 'string') {
       allGumdropsUsed.push(gumdrop)
       if (!validGumdrops.has(gumdrop)) {
+        const suggestions = suggestNearest(String(gumdrop), reg.gumdrops)
+        const hint = suggestions.length > 0 ? `\n  Did you mean: ${suggestions.join(', ')}?` : ''
         failures.push({
           id: 'valid-gumdrops',
-          message: `Unknown gumdrop '${gumdrop}' in <${node.component}> (line ${node.line})`,
+          message: `Unknown gumdrop '${gumdrop}' in <${node.component}> (line ${node.line})${hint}`,
         })
       }
     }
@@ -222,9 +250,11 @@ export function validatePlan(
     if (use !== undefined && typeof use === 'string') {
       allGumdropsUsed.push(use)
       if (!validGumdrops.has(use)) {
+        const suggestions = suggestNearest(String(use), reg.gumdrops)
+        const hint = suggestions.length > 0 ? `\n  Did you mean: ${suggestions.join(', ')}?` : ''
         failures.push({
           id: 'valid-gumdrops',
-          message: `Unknown gumdrop '${use}' in <${node.component}> (line ${node.line})`,
+          message: `Unknown gumdrop '${use}' in <${node.component}> (line ${node.line})${hint}`,
         })
       }
     }
