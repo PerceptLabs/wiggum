@@ -218,6 +218,7 @@ export interface RalphState {
   feedback: string
   iteration: number
   status: string
+  phase: 'plan' | 'build'
 }
 
 const FILES = {
@@ -230,6 +231,7 @@ const FILES = {
   feedback: `${RALPH_DIR}/feedback.md`,
   iteration: `${RALPH_DIR}/iteration.txt`,
   status: `${RALPH_DIR}/status.txt`,
+  phase: `${RALPH_DIR}/phase.txt`,
 }
 
 async function readFile(fs: JSRuntimeFS, filePath: string, fallback: string): Promise<string> {
@@ -292,6 +294,7 @@ export async function initRalphDir(fs: JSRuntimeFS, cwd: string, task: string): 
   await fs.writeFile(path.join(cwd, FILES.feedback), '')
   await fs.writeFile(path.join(cwd, FILES.iteration), '0')
   await fs.writeFile(path.join(cwd, FILES.status), 'running')
+  await fs.writeFile(path.join(cwd, FILES.phase), 'plan')
 
   // 4. Scaffold React project structure (only if new)
   await initProjectScaffold(fs, cwd)
@@ -337,6 +340,7 @@ export async function getRalphState(fs: JSRuntimeFS, cwd: string): Promise<Ralph
     feedback: await readFile(fs, path.join(cwd, FILES.feedback), ''),
     iteration: parseInt(await readFile(fs, path.join(cwd, FILES.iteration), '0'), 10),
     status: await readFile(fs, path.join(cwd, FILES.status), 'running'),
+    phase: (await readFile(fs, path.join(cwd, FILES.phase), 'plan')) as 'plan' | 'build',
   }
 }
 
@@ -361,6 +365,15 @@ export async function isWaiting(fs: JSRuntimeFS, cwd: string): Promise<boolean> 
  */
 export async function setIteration(fs: JSRuntimeFS, cwd: string, iteration: number): Promise<void> {
   await fs.writeFile(path.join(cwd, FILES.iteration), String(iteration))
+}
+
+export async function getPhase(fs: JSRuntimeFS, cwd: string): Promise<'plan' | 'build'> {
+  const raw = await readFile(fs, path.join(cwd, FILES.phase), 'plan')
+  return raw === 'build' ? 'build' : 'plan'
+}
+
+export async function setPhase(fs: JSRuntimeFS, cwd: string, phase: 'plan' | 'build'): Promise<void> {
+  await fs.writeFile(path.join(cwd, FILES.phase), phase)
 }
 
 

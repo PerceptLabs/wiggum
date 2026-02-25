@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { LightningFSAdapter } from '../../fs'
-import { initRalphDir, getRalphState } from '../state'
+import { initRalphDir, getRalphState, getPhase, setPhase } from '../state'
 
 describe('initRalphDir', () => {
   let fs: LightningFSAdapter
@@ -147,5 +147,51 @@ describe('getRalphState', () => {
     expect(state.intent).toBe('')
     expect(state.iteration).toBe(0)
     expect(state.status).toBe('running')
+  })
+})
+
+describe('phase management', () => {
+  let fs: LightningFSAdapter
+
+  beforeEach(async () => {
+    fs = new LightningFSAdapter('test-phase-' + Date.now(), { wipe: true })
+    await fs.mkdir('/project', { recursive: true })
+  })
+
+  it('initRalphDir creates phase.txt with value "plan"', async () => {
+    await initRalphDir(fs, '/project', 'Build something')
+    const phase = await fs.readFile('/project/.ralph/phase.txt', { encoding: 'utf8' }) as string
+    expect(phase).toBe('plan')
+  })
+
+  it('getRalphState includes phase field defaulting to "plan"', async () => {
+    await initRalphDir(fs, '/project', 'Build something')
+    const state = await getRalphState(fs, '/project')
+    expect(state.phase).toBe('plan')
+  })
+
+  it('getRalphState returns "plan" when phase.txt is missing', async () => {
+    await fs.mkdir('/project/.ralph', { recursive: true })
+    const state = await getRalphState(fs, '/project')
+    expect(state.phase).toBe('plan')
+  })
+
+  it('getPhase returns "plan" by default', async () => {
+    const phase = await getPhase(fs, '/project')
+    expect(phase).toBe('plan')
+  })
+
+  it('setPhase("build") persists and getPhase reads it back', async () => {
+    await fs.mkdir('/project/.ralph', { recursive: true })
+    await setPhase(fs, '/project', 'build')
+    const phase = await getPhase(fs, '/project')
+    expect(phase).toBe('build')
+  })
+
+  it('getPhase returns "plan" for unexpected values', async () => {
+    await fs.mkdir('/project/.ralph', { recursive: true })
+    await fs.writeFile('/project/.ralph/phase.txt', 'garbage')
+    const phase = await getPhase(fs, '/project')
+    expect(phase).toBe('plan')
   })
 })

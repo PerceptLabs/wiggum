@@ -183,7 +183,7 @@ export default function App() {
     const fs = createMockFS({ '/cwd/src/App.tsx': scaffold })
     const r = await gate.check(fs, '/cwd')
     expect(r.pass).toBe(false)
-    expect(r.feedback).toContain('unchanged scaffold')
+    expect(r.feedback).toContain('default scaffold')
   })
 })
 
@@ -206,6 +206,18 @@ describe('has-summary gate', () => {
     const fs = createMockFS({})
     const r = await gate.check(fs, '/cwd')
     expect(r.pass).toBe(false)
+  })
+})
+
+describe('plan-valid gate removal', () => {
+  it('does not include plan-valid gate (moved to loop phase handler)', () => {
+    const gateNames = QUALITY_GATES.map(g => g.name)
+    expect(gateNames).not.toContain('plan-valid')
+  })
+
+  it('still includes plan-diff gate (informational, runs during BUILD)', () => {
+    const gateNames = QUALITY_GATES.map(g => g.name)
+    expect(gateNames).toContain('plan-diff')
   })
 })
 

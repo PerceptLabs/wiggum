@@ -11,7 +11,6 @@ import type { GateContext } from '../types/observability'
 import { formatRuntimeErrors } from '../preview/error-collector'
 import { noHardcodedColorsGate } from './color-gate'
 import { parsePlanTsx } from '../build/plan-parser'
-import { validatePlan } from '@wiggum/planning/validate'
 import { diffPlan, type DiffEntry } from '@wiggum/planning/diff'
 import { parseSourceTsx } from '../build/plan-parser'
 import { scopeValidationGate } from './scope-gates'
@@ -261,39 +260,7 @@ export const QUALITY_GATES: QualityGate[] = [
     },
   },
 
-  {
-    name: 'plan-valid',
-    description: 'Plan file must be structurally valid if present',
-    check: async (fs, cwd) => {
-      const content = await readFile(fs, `${cwd}/.ralph/plan.tsx`)
-      if (!content) return { pass: true } // No plan yet — backward compat
-
-      const { root, errors } = await parsePlanTsx(content)
-      if (errors.length > 0) {
-        return { pass: false, feedback: `plan.tsx has syntax errors:\n${errors.join('\n')}` }
-      }
-
-      const result = validatePlan(root)
-
-      if (result.failures.length > 0) {
-        const lines = result.failures.map(f => `FAIL [${f.id}]: ${f.message}`)
-        if (result.warnings.length > 0) {
-          lines.push('', ...result.warnings.map(w => `WARN [${w.id}]: ${w.message}`))
-        }
-        return { pass: false, feedback: lines.join('\n') }
-      }
-
-      if (result.warnings.length > 0) {
-        return {
-          pass: true,
-          feedback: 'Plan valid. Warnings:\n' +
-            result.warnings.map(w => `WARN [${w.id}]: ${w.message}`).join('\n'),
-        }
-      }
-
-      return { pass: true }
-    },
-  },
+  // plan-valid gate removed — plan validation now happens inline in loop.ts during PLAN phase
 
   {
     name: 'plan-diff',
@@ -462,7 +429,7 @@ export const QUALITY_GATES: QualityGate[] = [
       if (isUnchangedScaffold) {
         return {
           pass: false,
-          feedback: 'src/App.tsx is unchanged scaffold. Build the UI the user requested.',
+          feedback: 'src/App.tsx is still the default scaffold. Implement the sections from your plan.',
         }
       }
 

@@ -92,6 +92,7 @@ export class Git {
   async addAll(): Promise<void> {
     const statusMatrix = await this.statusMatrix()
     for (const [filepath, head, workdir, stage] of statusMatrix) {
+      if (!filepath) continue  // Guard against undefined paths from LightningFS
       // Add modified, new, or deleted files
       if (workdir !== stage || head !== stage) {
         if (workdir === 0) {

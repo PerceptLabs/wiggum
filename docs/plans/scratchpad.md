@@ -1,17 +1,17 @@
 # Wiggum Roadmap Scratchpad
 
 > Living state tracker. Claude reads this before any roadmap work.
-> Last updated: 2026-02-22
+> Last updated: 2026-02-25
 
 ---
 
 ## CURRENT POSITION
 
-Completed through **Step 3.2** (Planning Ph 4 — plan-writer.ts, theme→plan.tsx integration).
+Completed through **Step 3.5** (Scope-aware quality gates). Phase-gated loop shipped as P0 hotfix. Harness plan context resolution is next.
 
 ---
 
-## SHIPPED (Pre-stage through 3.2)
+## SHIPPED (Pre-stage through current)
 
 | Step | What | Status |
 |------|------|--------|
@@ -26,79 +26,118 @@ Completed through **Step 3.2** (Planning Ph 4 — plan-writer.ts, theme→plan.t
 | 2.3 | Planning Ph 2 — Plan validation gate (plan-valid) | ✅ |
 | 2.4 | Planning Ph 3 — Ralph integration (iteration 0 = planning phase) | ✅ |
 | 3.2 | Planning Ph 4 — Theme command integration (plan-writer.ts, theme→plan.tsx) | ✅ |
+| 3.4 | Planning Ph 6 — Plan-to-implementation diffing (plan-diff gate) | ✅ |
+| 3.5 | Lifecycle Ph 4 — Scope-aware quality gates (ADD/PRESERVE validation) | ✅ |
+
+### Stage 3 Sessions (post-scratchpad-last-update)
+
+| Session | Commit | What |
+|---------|--------|------|
+| A (da75ac5) | 4 fixes | Snapshot crash fix (git.add→addAll), grep no-input-files help, validate levenshtein suggestions, theming dynamic colors |
+| B (8e69229) | +6 tests | Replace line-mode (--line N), 6 new tests |
+| C (db33e94) | +17 tests | sed promotion (SedSubstituteSchema, SedLineSchema, additionalTools), find promotion (FindSchema, additionalTools), system prompt step 5 update, 17 new tests |
+| P0 hotfix (477 tests) | Phase-gated loop | PLAN/BUILD phase separation, shouldRunGates(), plan-valid gate moved to loop, addAll() undefined guard, 8 new tests |
+
+---
+
+## PARTIAL (work started but not complete)
+
+| Step | What | Done | Remaining |
+|------|------|------|-----------|
+| 3.1 | Toolkit Ph 2 — Promote grep, replace, theme, preview | grep (additionalTools: grep + search), replace (argsSchema), preview (argsSchema), sed (additionalTools: sed + sed_line), find (additionalTools: find) | **theme** — has ThemeArgsSchema as discriminated union (models can't fill), needs flat additionalTools (theme_preset, theme_generate, theme_modify, theme_list, theme_extend) |
+| 3.6 | Toolkit Ph 3 — Remaining promotions | sed, find (done in Session C) | **write, build, git** — need argsSchema + parseCliArgs + examples |
 
 ---
 
 ## GAPS (within shipped range)
 
-| Step | What | Why Skipped | Spec | CC Prompt Sections |
-|------|------|-------------|------|--------------------|
-| 3.1 | Toolkit Ph 2 — Promote grep, replace, theme, preview | Deferred during original sequencing | toolkit-2_0.md §9, §11 Ph 2, §13 | Pattern ref: snapshot.ts |
-| 2.5 | Lifecycle Ph 2 — Task parser (raw text → structured task.md) | Deferred (depends on 1.4) | wiggum-task-lifecycle.md §5, §9, §11 Prompt 3 | — |
-| 2.6 | Lifecycle Ph 3 — Plan mutation protocol (update path for existing plans) | Deferred (depends on 2.4 + 2.5) | wiggum-task-lifecycle.md §6, §9, §11 Prompt 4 | — |
-
-**Next CC session covers all 3 gaps.**
+| Step | What | Why Skipped | Spec |
+|------|------|-------------|------|
+| 2.5 | Lifecycle Ph 2 — Task parser (raw text → structured task.md) | Deferred during original sequencing | wiggum-task-lifecycle.md §5, §9, §11 Prompt 3 |
+| 2.6 | Lifecycle Ph 3 — Plan mutation protocol (update path for existing plans) | Deferred (depends on 2.4 + 2.5) | wiggum-task-lifecycle.md §6, §9, §11 Prompt 4 |
+| 3.3 | Planning Ph 5 — Chief integration (write_plan outputs plan.tsx) | Not built | — |
 
 ---
 
-## INFRA STATUS (what already exists)
+## IMMEDIATE QUEUE
 
-### Toolkit Ph 1 (fully built)
-- `src/lib/shell/tool-adapter.ts` — toolFromCommand(), buildToolDescription()
-- `src/lib/ralph/tool-builder.ts` — buildRalphTools(), buildShellDescription()
-- `src/lib/shell/structured-errors.ts` — structuredError() for Zod validation failures
-- `src/lib/shell/executor.ts` — schema validation branch (argsSchema → parseCliArgs → safeParse → execute)
-- `src/lib/ralph/loop.ts` — dispatch routes by tool name (shell path + discrete tool path + unknown)
-- `src/lib/shell/commands/snapshot.ts` — first dual-mode command, reference pattern for Ph 2 promotions
+### Next: Harness Plan Context Resolution
+**Spec:** `docs/plans/todo/wiggum-harness-plan-context.md`
 
-### Commands NOT yet promoted (still string[] args)
-- grep.ts, replace.ts, theme.ts, preview.ts — all need argsSchema + parseCliArgs + examples
+Extends the PLAN→BUILD transition to:
+- Apply theme from `<Theme>` block via shell.execute
+- Load gumdrop recipes by exact skill ID for each `<Section>`
+- Write feedback.md with theme confirmation + all recipes pre-loaded
+- Ralph enters BUILD with zero discovery needed
 
-### Planning (Ph 0–4 done)
-- packages/planning/ — core types, auto-generation
-- Plan validation gate operational
-- Ralph iteration-0 planning phase wired
-- plan-writer.ts + theme→plan.tsx integration shipped
+Foundation for registry (Stage 4) and skill graph. Abstraction boundary: `resolvePlanContext()` — today direct lookup, tomorrow registry query, later graph traversal.
 
-### Lifecycle (Ph 0–1 done)
-- snapshot.ts command with full Toolkit 2.0 pattern
-- Automatic pre/post task snapshots
-- State cleanup at task boundaries
-- task-history.md append-only log
-- Task parser (Ph 2) and plan mutation (Ph 3) NOT yet built
+### Then: Theme promotion (closes 3.1)
+Flat additionalTools for theme subcommands. Lower priority now that harness applies theme, but still useful for `theme modify` and `theme list` during plan authoring.
+
+### Then: Cleanup
+- Delete plan.md from state (dead — plan.tsx replaces)
+- Delete intent.md from state (dead — plan.tsx App description replaces)
+- Delete RalphContext.tsx (confirmed dead code)
+- Audit TODO/FIXME comments
 
 ---
 
-## WHAT COMES AFTER THE GAPS
-
-Once 3.1 + 2.5-2.6 ship, the next unbuilt steps from the roadmap are:
+## WHAT COMES AFTER
 
 | Step | What | Dependencies |
 |------|------|-------------|
-| 3.3 | Planning Ph 5 — Chief integration (write_plan outputs plan.tsx) | 2.4 ✅ |
-| 3.4 | Planning Ph 6 — Plan-to-implementation diffing (plan-diff gate) | 2.4 ✅ |
-| 3.5 | Lifecycle Ph 4 — Scope-aware quality gates (ADD/PRESERVE validation) | 3.4, 1.4 ✅ |
-| 3.6 | Toolkit Ph 3 — Remaining promotions (write, build, git, find, sed) | 3.1 |
-| 4.x | Stage 4 — ESLint + API tracks (can run in parallel) | Various |
+| 2.5 | Task parser (raw text → structured task.md) | 1.4 ✅ |
+| 2.6 | Plan mutation (update path for existing plans) | 2.4 ✅, 2.5 |
+| 3.3 | Chief integration (write_plan outputs plan.tsx) | 2.4 ✅ |
+| 3.6 | Toolkit Ph 3 — write, build, git promotions | 3.1 |
+| 4.x | Stage 4 — Registries, ESLint, API tracks | Various |
+
+---
+
+## INFRA STATUS
+
+### Toolkit (Ph 1 fully built, Ph 2 mostly done)
+- `tool-adapter.ts`, `tool-builder.ts`, `structured-errors.ts` — complete
+- Promoted commands: snapshot, replace, preview, grep, search, sed, sed_line, find
+- NOT promoted: theme (discriminated union), write, build, git
+
+### Planning (Ph 0–6 done)
+- packages/planning/ — core types, auto-generation, validation
+- plan-valid gate moved from gates.ts → loop.ts phase handler
+- plan-diff gate operational in gates.ts
+- plan-writer.ts + theme→plan.tsx integration shipped
+
+### Lifecycle (Ph 0–1 done, Ph 4 done)
+- Automatic pre/post task snapshots
+- Scope-aware quality gates (ADD/PRESERVE)
+- Task parser (Ph 2) and plan mutation (Ph 3) NOT yet built
+
+### Phase System (NEW)
+- `.ralph/phase.txt` — 'plan' | 'build'
+- PLAN phase: harness validates plan.tsx inline, swallows complete signal
+- BUILD phase: quality gates run on completion
+- Non-plan tasks pass through (phase system is inert)
+
+### Test Count
+- 477 tests (as of phase-gated loop commit)
 
 ---
 
 ## IDEAS (not scoped yet)
 
 ### Randomized few-shot sampling
-Instead of fixed examples in system prompts, maintain a bank of examples and randomly sample a subset per call. Prevents the LLM from pattern-matching against the same fixed examples every time. Inspired by Quiplash game prompt rotation pattern.
+Bank of examples, randomly sampled per LLM call. Prevents pattern-matching against fixed examples. Immediate fit: task parser. Bigger fit: BASE_SYSTEM_PROMPT iteration examples.
 
-**Immediate fit:** Task parser — build 30-40 example classifications (user message → StructuredTask JSON), sample 8-10 per call. Gets consistent structure without overfitting.
-
-**Bigger fit:** Ralph's BASE_SYSTEM_PROMPT — the fixed examples of command usage and iteration structure contribute to samey output across projects. A bank of varied "good iteration" examples, randomly sampled, could push toward more diverse approaches.
-
-**When:** LLM API 3.2 or a dedicated prompt engineering pass. Not this CC run.
+### "npm for images" 
+Hugging Face datasets for reliable image assets, replacing unreliable Unsplash URLs.
 
 ---
 
 ## NOTES
 
-- 362 tests at last count (commit bcc53ea)
-- Toolkit Ph 2 promotes exactly 4 commands: grep, replace, theme, preview. NOT build/find/git (those are Ph 3)
-- Lifecycle Ph 4-5 have later dependencies (Planning Ph 6, API Ph 5) — do not build yet
-- snapshot.ts is the canonical reference for the dual-mode pattern any new promotion should follow
+- CC kickoffs use explicit paths (docs/plans/todo/filename.md), never bare filenames
+- CC kickoffs are NOT implementation plans — keep short, point to spec docs
+- Don't estimate hours/time for tasks
+- Scratchpad is consulted before roadmap work. CC kickoffs do NOT reference scratchpad.
+- Anti-shortcut rule: check what exists before suggesting an approach

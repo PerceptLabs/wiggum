@@ -15,7 +15,7 @@ import type { ShellExecutor } from '../shell/executor'
 import type { ShellOptions } from '../shell/types'
 import { structuredError } from '../shell/structured-errors'
 import { buildRalphTools, buildShellDescription } from './tool-builder'
-import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration } from './state'
+import { initRalphDir, getRalphState, isComplete, isWaiting, setIteration, getPhase, setPhase } from './state'
 import { getSkillsContent } from './skills'
 import { runQualityGates, generateGateFeedback, type GatesResult } from './gates'
 import type { ObservabilityConfig, GateContext, CommandAttempt, HarnessReflection } from '../types/observability'
@@ -26,6 +26,8 @@ import { formatStructuredTask, type StructuredTask } from './task-types'
 import { formatMutationContext } from './plan-mutator'
 import { getLogBuffer } from '../logger'
 import { buildProject } from '../build'
+import { parsePlanTsx } from '../build/plan-parser'
+import { validatePlan } from '@wiggum/planning/validate'
 
 const BASE_SYSTEM_PROMPT = `You are Ralph — an expert autonomous builder who crafts distinctive, production-quality React interfaces.
 
@@ -208,7 +210,9 @@ replace src/App.tsx --line 42 "new content"          # By line number (safe for 
 
 1. **Understand**: Read the task (\`cat .ralph/task.md\`) and any feedback
 2. **Research**: Search skills for relevant patterns (\`grep skill "..."\`)
-3. **Plan**: Write .ralph/plan.tsx — your structured plan with theme, screens, and sections. Then mark complete so the harness can validate it. Fix any validation feedback before implementing.
+3. **Plan**: Write .ralph/plan.tsx — your structured plan with theme, screens, and sections.
+   The harness validates it automatically between iterations. If valid, you'll see "Plan Validated" in feedback.md — then proceed to build.
+   If invalid, fix the issues noted in feedback.md and write the plan again.
 4. **Theme**: Run \`theme preset <name> --apply\` or \`theme generate --seed <n> --pattern <name> --mood <mood> --apply\`. Use \`--chroma\` for saturation control. For custom aesthetics, remix a personality template with \`--personality\`.
 5. **Build**: For each Section in plan.tsx, run \`grep skill "<gumdrop-name>"\` to load its recipe, then implement following the recipe's component list and layout. One file per section.
 6. **Verify**: Run \`preview\` to check build and rendered output
@@ -493,6 +497,33 @@ async function hasWrittenSrcFiles(fs: JSRuntimeFS, cwd: string): Promise<boolean
 }
 
 /**
+ * Phase guard for gate-running sites.
+ * BUILD phase → always run gates.
+ * PLAN phase → block gates only if plan.tsx has content (plan task in progress).
+ *              Non-plan tasks (empty/missing plan.tsx) pass through normally.
+ * NOTE: Side effect — resets status.txt to 'running' when swallowing complete signal.
+ */
+async function shouldRunGates(fs: JSRuntimeFS, cwd: string): Promise<boolean> {
+  const currentPhase = await getPhase(fs, cwd)
+  if (currentPhase === 'build') return true
+
+  // PLAN phase — only block gates if there's actually a plan to validate
+  try {
+    const planContent = await fs.readFile(`${cwd}/.ralph/plan.tsx`, { encoding: 'utf8' }) as string
+    if (planContent && planContent.trim().length > 0) {
+      // Plan exists but hasn't been validated yet (still in PLAN phase)
+      // Swallow the complete signal — plan validation happens at iteration top
+      await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running')
+      return false
+    }
+  } catch {
+    // No plan.tsx file — non-plan task, gates should run
+  }
+
+  return true  // No plan content → run gates normally
+}
+
+/**
  * Handle gate results with unified logic — replaces 3 duplicate blocks.
  * Returns 'success' (gates passed), 'retry' (gates failed, continue), or 'abort' (too many failures).
  */
@@ -675,6 +706,53 @@ export async function runRalphLoop(
       // Read fresh state from files
       const state = await getRalphState(fs, cwd)
       await setIteration(fs, cwd, iteration)
+
+      // --- PLAN PHASE: validate plan.tsx inline if present ---
+      const phase = state.phase === 'build' ? 'build' : 'plan'
+
+      if (phase === 'plan') {
+        const planContent = state.planTsx
+        if (planContent && planContent.trim().length > 0) {
+          // Plan exists — validate it
+          const { root, errors } = await parsePlanTsx(planContent)
+          if (errors.length > 0) {
+            await fs.writeFile(`${cwd}/.ralph/feedback.md`,
+              `# Plan Validation\n\nplan.tsx has syntax errors:\n${errors.join('\n')}\n\nFix the plan and try again.`)
+            await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running')
+          } else if (!root) {
+            // Parser returned no errors but also no structure — degenerate plan
+            await fs.writeFile(`${cwd}/.ralph/feedback.md`,
+              `# Plan Validation\n\nplan.tsx could not be parsed (no structure found). Rewrite the plan using the planning component API (\`grep skill "planning"\`).`)
+            await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running')
+          } else {
+            const result = validatePlan(root)
+            if (result.failures.length > 0) {
+              const lines = result.failures.map(f => `FAIL [${f.id}]: ${f.message}`)
+              if (result.warnings.length > 0) {
+                lines.push('', ...result.warnings.map(w => `WARN [${w.id}]: ${w.message}`))
+              }
+              await fs.writeFile(`${cwd}/.ralph/feedback.md`,
+                `# Plan Validation\n\n${lines.join('\n')}\n\nFix the issues and write the plan again.`)
+              await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running')
+            } else {
+              // Plan is valid — transition to BUILD
+              await setPhase(fs, cwd, 'build')
+              const warnings = result.warnings.length > 0
+                ? '\n\nWarnings:\n' + result.warnings.map(w => `WARN [${w.id}]: ${w.message}`).join('\n')
+                : ''
+              await fs.writeFile(`${cwd}/.ralph/feedback.md`,
+                `# Plan Validated\n\nYour plan is structurally valid. Now implement it.${warnings}\n\nFor each Section in plan.tsx, run \`grep skill "<gumdrop-name>"\` to load its recipe, then implement following the recipe's component list and layout. One file per section.\n\nApply a theme with \`theme preset <n> --apply\` or \`theme generate ...\`.\n\nWrite .ralph/summary.md when done, then mark status complete.`)
+              await fs.writeFile(`${cwd}/.ralph/status.txt`, 'running')
+              callbacks?.onStatus?.('Plan validated — transitioning to build phase')
+            }
+          }
+
+          // Re-read state since we may have changed feedback/status/phase
+          const refreshedState = await getRalphState(fs, cwd)
+          Object.assign(state, refreshedState)
+        }
+        // If no plan.tsx content, do nothing — non-plan tasks pass through naturally
+      }
 
       // Build prompt with current state — plan.tsx takes precedence over plan.md
       const planSection = state.planTsx
@@ -882,18 +960,22 @@ ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
 
       // Break outer while loop if complete
       if (await isComplete(fs, cwd)) {
-        console.log('[Ralph] Complete after tool batch - running quality gates')
-        const gateResults = await runQualityGates(fs, cwd, gateContext)
-        const gateOutcome = await handleGateResult(gateResults, consecutiveGateFailures, fs, cwd, callbacks, gateContext)
-        consecutiveGateFailures = gateOutcome.failures
+        if (await shouldRunGates(fs, cwd)) {
+          console.log('[Ralph] Complete after tool batch - running quality gates')
+          const gateResults = await runQualityGates(fs, cwd, gateContext)
+          const gateOutcome = await handleGateResult(gateResults, consecutiveGateFailures, fs, cwd, callbacks, gateContext)
+          consecutiveGateFailures = gateOutcome.failures
 
-        if (gateOutcome.action === 'success') {
-          return await handleTaskSuccess(provider, fs, git, cwd, task, iteration, commandAttempts, config, gateContext, callbacks)
-        } else if (gateOutcome.action === 'abort') {
-          const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
-          return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
+          if (gateOutcome.action === 'success') {
+            return await handleTaskSuccess(provider, fs, git, cwd, task, iteration, commandAttempts, config, gateContext, callbacks)
+          } else if (gateOutcome.action === 'abort') {
+            const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
+            return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
+          }
+          // 'retry' → continue to next iteration
+        } else {
+          callbacks?.onStatus?.('Plan phase — complete signal deferred, validating plan next iteration')
         }
-        // 'retry' → continue to next iteration
       }
 
       // Detect intent/summary changes and fire callbacks
@@ -911,34 +993,42 @@ ${state.feedback || '(none)'}${buildEscalationText(consecutiveGateFailures)}`
 
       // If LLM responded without using any tools, run quality gates
       if (completedWithoutTools) {
-        console.log('[Ralph] Completed without tools - running quality gates')
-        const gateResults = await runQualityGates(fs, cwd, gateContext)
-        const gateOutcome = await handleGateResult(gateResults, consecutiveGateFailures, fs, cwd, callbacks, gateContext)
-        consecutiveGateFailures = gateOutcome.failures
+        if (await shouldRunGates(fs, cwd)) {
+          console.log('[Ralph] Completed without tools - running quality gates')
+          const gateResults = await runQualityGates(fs, cwd, gateContext)
+          const gateOutcome = await handleGateResult(gateResults, consecutiveGateFailures, fs, cwd, callbacks, gateContext)
+          consecutiveGateFailures = gateOutcome.failures
 
-        if (gateOutcome.action === 'success') {
-          return await handleTaskSuccess(provider, fs, git, cwd, task, iteration, commandAttempts, config, gateContext, callbacks)
-        } else if (gateOutcome.action === 'abort') {
-          const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
-          return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
+          if (gateOutcome.action === 'success') {
+            return await handleTaskSuccess(provider, fs, git, cwd, task, iteration, commandAttempts, config, gateContext, callbacks)
+          } else if (gateOutcome.action === 'abort') {
+            const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
+            return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
+          }
+          // 'retry' → continue to next iteration
+        } else {
+          callbacks?.onStatus?.('Plan phase — completion deferred, validating plan next iteration')
         }
-        // 'retry' → continue to next iteration
       }
 
       // Check termination conditions from status file
       if (await isComplete(fs, cwd)) {
-        console.log('[Ralph] Status is complete - running quality gates')
-        const gateResults = await runQualityGates(fs, cwd, gateContext)
-        const gateOutcome = await handleGateResult(gateResults, consecutiveGateFailures, fs, cwd, callbacks, gateContext)
-        consecutiveGateFailures = gateOutcome.failures
+        if (await shouldRunGates(fs, cwd)) {
+          console.log('[Ralph] Status is complete - running quality gates')
+          const gateResults = await runQualityGates(fs, cwd, gateContext)
+          const gateOutcome = await handleGateResult(gateResults, consecutiveGateFailures, fs, cwd, callbacks, gateContext)
+          consecutiveGateFailures = gateOutcome.failures
 
-        if (gateOutcome.action === 'success') {
-          return await handleTaskSuccess(provider, fs, git, cwd, task, iteration, commandAttempts, config, gateContext, callbacks)
-        } else if (gateOutcome.action === 'abort') {
-          const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
-          return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
+          if (gateOutcome.action === 'success') {
+            return await handleTaskSuccess(provider, fs, git, cwd, task, iteration, commandAttempts, config, gateContext, callbacks)
+          } else if (gateOutcome.action === 'abort') {
+            const failedGates = gateResults.results.filter((r) => !r.result.pass).map((r) => r.gate)
+            return { success: false, iterations: iteration, error: `Quality gates failed ${gateOutcome.failures} times: ${failedGates.join(', ')}` }
+          }
+          // 'retry' → continue to next iteration
+        } else {
+          callbacks?.onStatus?.('Plan phase — complete signal deferred, validating plan next iteration')
         }
-        // 'retry' → continue to next iteration
       }
       if (await isWaiting(fs, cwd)) {
         return { success: true, iterations: iteration, error: 'Waiting for human input' }
